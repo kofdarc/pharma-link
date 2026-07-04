@@ -1,0 +1,11 @@
+{
+  "name": "medisync",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "web:dev": "pnpm --dir apps/web dev",
+    "web:build": "pnpm --dir apps/web build",
+    "web:lint": "pnpm --dir apps/web lint"
+  }
+}
+
