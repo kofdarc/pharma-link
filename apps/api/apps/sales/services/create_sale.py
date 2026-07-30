@@ -6,6 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import write_audit_log
+from apps.customers.models import ClientLedgerEntry
 from apps.inventory.models import InventoryBatch, StockMovement
 from apps.inventory.services.stock import adjust_stock
 from apps.medicines.models import Medicine
@@ -20,7 +21,17 @@ def next_invoice_number(pharmacy_id) -> str:
 
 
 @transaction.atomic
-def create_sale(*, user, pharmacy, items: list[dict], payment_method: str = "", notes: str = "", prescription_record_id=None) -> Sale:
+def create_sale(
+    *,
+    user,
+    pharmacy,
+    items: list[dict],
+    payment_method: str = "",
+    notes: str = "",
+    prescription_record_id=None,
+    client=None,
+    channel: str = Sale.Channel.COUNTER,
+) -> Sale:
     if not items:
         raise ValueError("A sale must contain at least one item.")
 
@@ -28,10 +39,17 @@ def create_sale(*, user, pharmacy, items: list[dict], payment_method: str = "", 
     if prescription_record_id:
         prescription = PrescriptionRecord.objects.select_for_update().get(id=prescription_record_id, pharmacy=pharmacy)
 
+    if client is not None and client.pharmacy_id != pharmacy.id:
+        raise ValueError("Client belongs to another pharmacy.")
+    if payment_method == Sale.PaymentMethod.ON_ACCOUNT and client is None:
+        raise ValueError("Select a client before charging a sale to an account.")
+
     sale = Sale.objects.create(
         invoice_number=next_invoice_number(pharmacy.id),
         pharmacy=pharmacy,
         staff_user=user,
+        client=client,
+        channel=channel,
         payment_method=payment_method or "",
         notes=notes or "",
         prescription_record=prescription,
@@ -65,6 +83,7 @@ def create_sale(*, user, pharmacy, items: list[dict], payment_method: str = "", 
                 break
             allocated = min(batch.current_quantity, remaining)
             unit_price = Decimal(str(raw_item.get("unit_price") or batch.selling_price))
+            medicine.validate_selling_price(unit_price)
             line_discount = discount if remaining == quantity_needed else Decimal("0")
             line_total = max(Decimal("0"), (unit_price * allocated) - line_discount)
             SaleItem.objects.create(
@@ -96,6 +115,16 @@ def create_sale(*, user, pharmacy, items: list[dict], payment_method: str = "", 
     if prescription:
         prescription.sale = sale
         prescription.save(update_fields=["sale", "updated_at"])
+
+    if client is not None and sale.payment_method == Sale.PaymentMethod.ON_ACCOUNT:
+        ClientLedgerEntry.objects.create(
+            client=client,
+            entry_type=ClientLedgerEntry.EntryType.CHARGE,
+            amount=sale.total,
+            sale=sale,
+            memo=f"Invoice {sale.invoice_number}",
+            created_by=user,
+        )
 
     write_audit_log(
         actor_user=user,

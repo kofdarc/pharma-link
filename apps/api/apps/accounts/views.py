@@ -7,7 +7,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from apps.accounts.models import User, UserRole
 from apps.accounts.permissions import IsPharmacyOwner, IsPlatformAdmin
-from apps.accounts.serializers import LoginSerializer, UserSerializer
+from apps.accounts.serializers import LoginSerializer, ShopperRegisterSerializer, UserSerializer
 from apps.audit.services import write_audit_log
 
 
@@ -29,6 +29,24 @@ class LoginView(APIView):
             summary="User logged in",
         )
         return Response({"token": token.key, "user": UserSerializer(user).data})
+
+
+class ShopperRegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ShopperRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        token, _created = Token.objects.get_or_create(user=user)
+        write_audit_log(
+            actor_user=user,
+            action="auth.shopper_registered",
+            entity_type="User",
+            entity_id=user.id,
+            summary=f"Shopper account created for {user.email}",
+        )
+        return Response({"token": token.key, "user": UserSerializer(user).data}, status=status.HTTP_201_CREATED)
 
 
 class LogoutView(APIView):

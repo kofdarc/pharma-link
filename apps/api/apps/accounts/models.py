@@ -10,6 +10,8 @@ class UserRole(models.TextChoices):
     PHARMACY_OWNER = "PHARMACY_OWNER", "Pharmacy owner"
     PHARMACY_STAFF = "PHARMACY_STAFF", "Pharmacy staff"
     DOCTOR = "DOCTOR", "Doctor"
+    CUSTOMER = "CUSTOMER", "Customer"
+    DRIVER = "DRIVER", "Delivery driver"
 
 
 class UserManager(BaseUserManager):

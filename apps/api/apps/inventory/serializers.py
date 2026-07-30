@@ -37,6 +37,13 @@ class InventoryBatchSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "pharmacy", "current_quantity", "created_by", "updated_by", "created_at", "updated_at"]
 
+    def validate(self, attrs):
+        medicine = attrs.get("medicine") or getattr(self.instance, "medicine", None)
+        selling_price = attrs.get("selling_price", getattr(self.instance, "selling_price", None))
+        if medicine is not None:
+            medicine.validate_selling_price(selling_price)
+        return attrs
+
 
 class StockMovementSerializer(serializers.ModelSerializer):
     medicine_name = serializers.CharField(source="medicine.brand_name", read_only=True)

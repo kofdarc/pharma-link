@@ -2,8 +2,12 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+REPO_ROOT = BASE_DIR.parent.parent
+
+load_dotenv(REPO_ROOT / ".env")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() == "true"
@@ -24,8 +28,14 @@ INSTALLED_APPS = [
     "apps.medicines",
     "apps.inventory",
     "apps.imports",
+    "apps.customers",
     "apps.sales",
     "apps.prescriptions",
+    "apps.eprescriptions",
+    "apps.orders",
+    "apps.delivery",
+    "apps.analytics",
+    "apps.integrations",
     "apps.audit",
 ]
 
@@ -65,7 +75,7 @@ if os.getenv("DJANGO_TEST_SQLITE") == "1":
 else:
     DATABASES = {
         "default": dj_database_url.parse(
-            os.getenv("DATABASE_URL", "postgresql://medisync:medisync@localhost:5432/medisync"),
+            os.getenv("DATABASE_URL", "postgresql://medisync:medisync@localhost:55432/medisync"),
             conn_max_age=600,
         )
     }
@@ -97,6 +107,13 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 25,
+    "DEFAULT_THROTTLE_RATES": {
+        # Public prescription endpoints are unauthenticated by design, so they are rate
+        # limited per client on top of the per-prescription lockout.
+        "rx_lookup": os.getenv("THROTTLE_RX_LOOKUP", "30/min"),
+        "rx_dispense": os.getenv("THROTTLE_RX_DISPENSE", "12/min"),
+        "public_search": os.getenv("THROTTLE_PUBLIC_SEARCH", "60/min"),
+    },
 }
 
 CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
@@ -107,3 +124,32 @@ CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "false").lower() == "true"
 MAX_PRESCRIPTION_FILE_SIZE_MB = int(os.getenv("MAX_PRESCRIPTION_FILE_SIZE_MB", "10"))
 MAX_IMPORT_FILE_SIZE_MB = int(os.getenv("MAX_IMPORT_FILE_SIZE_MB", "5"))
 DATA_UPLOAD_MAX_MEMORY_SIZE = max(MAX_PRESCRIPTION_FILE_SIZE_MB, MAX_IMPORT_FILE_SIZE_MB) * 1024 * 1024
+
+# Public web app, used to build the URL embedded in prescription QR codes.
+PUBLIC_WEB_BASE_URL = os.getenv("PUBLIC_WEB_BASE_URL", "http://localhost:3000")
+
+# --- E-prescriptions -------------------------------------------------------------------
+PRESCRIPTION_VALIDITY_DAYS = int(os.getenv("PRESCRIPTION_VALIDITY_DAYS", "30"))
+PRESCRIPTION_MAX_FAILED_ATTEMPTS = int(os.getenv("PRESCRIPTION_MAX_FAILED_ATTEMPTS", "5"))
+PRESCRIPTION_LOCKOUT_MINUTES = int(os.getenv("PRESCRIPTION_LOCKOUT_MINUTES", "15"))
+
+# --- Consumer marketplace --------------------------------------------------------------
+# Pharmacies never expose true stock depth publicly. Shoppers see and order up to this many
+# units of an item from one pharmacy at a time (a per-pharmacy override exists).
+PUBLIC_MAX_QUANTITY_PER_ITEM = int(os.getenv("PUBLIC_MAX_QUANTITY_PER_ITEM", "10"))
+MAX_SOURCING_RADIUS_KM = float(os.getenv("MAX_SOURCING_RADIUS_KM", "12"))
+MAX_ORDER_SCHEDULE_DAYS = int(os.getenv("MAX_ORDER_SCHEDULE_DAYS", "30"))
+STOCK_RESERVATION_MINUTES = int(os.getenv("STOCK_RESERVATION_MINUTES", "120"))
+DELIVERY_BASE_FEE = os.getenv("DELIVERY_BASE_FEE", "3.00")
+ASAP_DELIVERY_PROMISE_MINUTES = int(os.getenv("ASAP_DELIVERY_PROMISE_MINUTES", "120"))
+
+# --- Email -----------------------------------------------------------------------------
+# The console backend prints prescription emails (QR included) to the server log, so the POC
+# needs no SMTP account. Point EMAIL_* at a real host and nothing else changes.
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "MediSync <no-reply@medisync.test>")

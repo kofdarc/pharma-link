@@ -1,7 +1,24 @@
+from decimal import Decimal
+
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models.functions import Lower
 
 from apps.common.models import UUIDTimeStampedModel
+
+
+class ProductCategory(models.TextChoices):
+    """Regulated medicines are priced by the Ministry of Public Health; the rest are free-priced."""
+
+    MEDICINE = "MEDICINE", "Medicine (MoPH regulated price)"
+    SUPPLEMENT = "SUPPLEMENT", "Supplement"
+    PARAPHARMACY = "PARAPHARMACY", "Parapharmacy / other"
+
+
+class PriceRegime(models.TextChoices):
+    REGULATED = "REGULATED", "MoPH regulated"
+    FREE = "FREE", "Free pricing"
 
 
 class Medicine(UUIDTimeStampedModel):
@@ -13,6 +30,42 @@ class Medicine(UUIDTimeStampedModel):
     classification = models.CharField(max_length=120, blank=True)
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+
+    category = models.CharField(max_length=20, choices=ProductCategory.choices, default=ProductCategory.MEDICINE, db_index=True)
+    price_regime = models.CharField(max_length=20, choices=PriceRegime.choices, default=PriceRegime.REGULATED, db_index=True)
+    regulated_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Public price set by the Ministry of Public Health. Required when price_regime is REGULATED.",
+    )
+    regulated_price_reference = models.CharField(max_length=120, blank=True, help_text="MoPH price list / decision reference.")
+    regulated_price_updated_at = models.DateTimeField(null=True, blank=True)
+    requires_prescription = models.BooleanField(default=False)
+
+    @property
+    def is_price_regulated(self) -> bool:
+        return self.price_regime == PriceRegime.REGULATED and self.regulated_price is not None
+
+    def clean(self):
+        if self.price_regime == PriceRegime.REGULATED and self.regulated_price is None:
+            raise ValidationError({"regulated_price": "A MoPH regulated product must carry its published price."})
+
+    def validate_selling_price(self, selling_price) -> None:
+        """MoPH prices are not a ceiling, they are the price. Free-priced products are left to the pharmacy."""
+        if not self.is_price_regulated or selling_price is None:
+            return
+        if Decimal(str(selling_price)) != self.regulated_price:
+            raise ValidationError(
+                {
+                    "selling_price": (
+                        f"{self} is priced by the Ministry of Public Health at {self.regulated_price}. "
+                        "Regulated products must be sold at the published price."
+                    )
+                }
+            )
 
     class Meta:
         constraints = [

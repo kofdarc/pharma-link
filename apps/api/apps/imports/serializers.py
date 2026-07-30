@@ -25,6 +25,7 @@ class InventoryImportRowSerializer(serializers.ModelSerializer):
             "selling_price",
             "status",
             "error_message",
+            "price_note",
             "raw_data",
         ]
 

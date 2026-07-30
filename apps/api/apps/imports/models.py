@@ -54,6 +54,7 @@ class InventoryImportRow(UUIDTimeStampedModel):
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal("0"))])
     status = models.CharField(max_length=20, choices=Status.choices)
     error_message = models.TextField(blank=True)
+    price_note = models.TextField(blank=True, help_text="Set when the imported price was snapped to the MoPH regulated price.")
     raw_data = models.JSONField(default=dict)
 
     class Meta:

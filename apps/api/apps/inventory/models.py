@@ -13,6 +13,8 @@ class InventoryBatch(UUIDTimeStampedModel):
     batch_number = models.CharField(max_length=120, blank=True)
     initial_quantity = models.PositiveIntegerField(default=0)
     current_quantity = models.PositiveIntegerField(default=0, db_index=True)
+    # Units held for confirmed platform orders that have not yet been handed to a driver.
+    reserved_quantity = models.PositiveIntegerField(default=0)
     expiry_date = models.DateField(null=True, blank=True, db_index=True)
     supplier_name = models.CharField(max_length=255, blank=True)
     purchase_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal("0"))])
@@ -36,6 +38,11 @@ class InventoryBatch(UUIDTimeStampedModel):
             return False
         delta = self.expiry_date - timezone.localdate()
         return 0 <= delta.days <= 60
+
+    @property
+    def available_quantity(self) -> int:
+        """Sellable now: reserved units belong to orders already promised to a shopper."""
+        return max(0, self.current_quantity - self.reserved_quantity)
 
     @property
     def is_low_stock(self) -> bool:

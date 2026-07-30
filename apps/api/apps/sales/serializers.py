@@ -19,6 +19,7 @@ class SaleItemSerializer(serializers.ModelSerializer):
 class SaleSerializer(serializers.ModelSerializer):
     items = SaleItemSerializer(many=True, read_only=True)
     staff_email = serializers.EmailField(source="staff_user.email", read_only=True)
+    client_name = serializers.CharField(source="client.full_name", read_only=True, default="")
 
     class Meta:
         model = Sale
@@ -28,6 +29,9 @@ class SaleSerializer(serializers.ModelSerializer):
             "pharmacy",
             "staff_user",
             "staff_email",
+            "client",
+            "client_name",
+            "channel",
             "sale_datetime",
             "subtotal",
             "discount_total",
@@ -55,6 +59,7 @@ class SaleCreateSerializer(serializers.Serializer):
     payment_method = serializers.ChoiceField(choices=Sale.PaymentMethod.choices, required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True)
     prescription_record = serializers.UUIDField(required=False)
+    client = serializers.UUIDField(required=False, allow_null=True)
 
     def validate_items(self, items):
         if not items:

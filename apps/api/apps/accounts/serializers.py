@@ -1,4 +1,6 @@
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.accounts.models import User, UserRole
@@ -19,6 +21,37 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("This pharmacy account is inactive.")
         attrs["user"] = user
         return attrs
+
+
+class ShopperRegisterSerializer(serializers.Serializer):
+    """Self-service signup, shoppers only. Roles that carry authority are never self-assigned."""
+
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=8)
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+
+    def validate_email(self, value):
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("An account already exists for this email.")
+        return value.lower()
+
+    def validate_password(self, value):
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+        return value
+
+    def create(self, validated_data):
+        return User.objects.create_user(
+            email=validated_data["email"],
+            password=validated_data["password"],
+            role=UserRole.CUSTOMER,
+            first_name=validated_data.get("first_name", ""),
+            last_name=validated_data.get("last_name", ""),
+            is_active=True,
+        )
 
 
 class UserSerializer(serializers.ModelSerializer):

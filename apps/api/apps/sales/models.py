@@ -11,15 +11,23 @@ class Sale(UUIDTimeStampedModel):
     class PaymentMethod(models.TextChoices):
         CASH = "CASH", "Cash"
         CARD = "CARD", "Card"
+        ON_ACCOUNT = "ON_ACCOUNT", "On client account"
         OTHER = "OTHER", "Other"
 
     class Status(models.TextChoices):
         COMPLETED = "COMPLETED", "Completed"
         CANCELLED = "CANCELLED", "Cancelled"
 
+    class Channel(models.TextChoices):
+        COUNTER = "COUNTER", "Counter"
+        PLATFORM_ORDER = "PLATFORM_ORDER", "Platform order"
+        INTEGRATION = "INTEGRATION", "Pharmacy software sync"
+
     invoice_number = models.CharField(max_length=40, unique=True)
     pharmacy = models.ForeignKey("pharmacies.Pharmacy", on_delete=models.PROTECT, related_name="sales", db_index=True)
     staff_user = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="sales")
+    client = models.ForeignKey("customers.Client", null=True, blank=True, on_delete=models.PROTECT, related_name="sales", db_index=True)
+    channel = models.CharField(max_length=20, choices=Channel.choices, default=Channel.COUNTER, db_index=True)
     sale_datetime = models.DateTimeField(default=timezone.now, db_index=True)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal("0"))])
     discount_total = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal("0"))])
@@ -31,7 +39,7 @@ class Sale(UUIDTimeStampedModel):
 
     class Meta:
         ordering = ["-sale_datetime"]
-        indexes = [models.Index(fields=["pharmacy", "sale_datetime"])]
+        indexes = [models.Index(fields=["pharmacy", "sale_datetime"]), models.Index(fields=["pharmacy", "client"])]
 
     def __str__(self) -> str:
         return self.invoice_number

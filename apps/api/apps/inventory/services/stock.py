@@ -11,6 +11,7 @@ def create_inventory_batch(*, user, pharmacy, data: dict, movement_type=StockMov
     initial_quantity = int(data.get("initial_quantity", data.get("current_quantity", 0)) or 0)
     if initial_quantity < 0:
         raise ValueError("Quantity cannot be negative.")
+    data["medicine"].validate_selling_price(data["selling_price"])
     batch = InventoryBatch.objects.create(
         pharmacy=pharmacy,
         medicine=data["medicine"],

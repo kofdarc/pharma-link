@@ -41,6 +41,10 @@ def create_import_preview(*, uploaded_file, user):
             status = InventoryImportRow.Status.VALID_MATCHED if medicine else InventoryImportRow.Status.VALID_UNMATCHED
             stats["valid"] += 1
             stats["matched" if medicine else "unmatched"] += 1
+            price_note = ""
+            if medicine and medicine.is_price_regulated and row["selling_price"] != medicine.regulated_price:
+                price_note = f"Price {row['selling_price']} replaced by MoPH regulated price {medicine.regulated_price}."
+                row["selling_price"] = medicine.regulated_price
             InventoryImportRow.objects.create(
                 inventory_import=inventory_import,
                 row_number=index,
@@ -55,6 +59,7 @@ def create_import_preview(*, uploaded_file, user):
                 purchase_cost=row["purchase_cost"],
                 selling_price=row["selling_price"],
                 status=status,
+                price_note=price_note,
                 raw_data=raw,
             )
         except Exception as exc:

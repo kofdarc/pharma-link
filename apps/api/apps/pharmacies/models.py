@@ -1,3 +1,5 @@
+from datetime import time
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -17,6 +19,22 @@ class Pharmacy(UUIDTimeStampedModel):
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, validators=[MinValueValidator(-180), MaxValueValidator(180)])
     is_active = models.BooleanField(default=True)
     is_public = models.BooleanField(default=True)
+
+    # Consumer-facing controls. Pharmacies never expose their true stock depth publicly:
+    # shoppers see and can order at most this many units of an item at a time.
+    accepts_online_orders = models.BooleanField(default=True)
+    public_max_quantity_per_item = models.PositiveIntegerField(null=True, blank=True, help_text="Overrides the platform default cap on publicly visible/orderable units.")
+    delivery_enabled = models.BooleanField(default=True)
+    order_preparation_minutes = models.PositiveIntegerField(default=15)
+    opens_at = models.TimeField(default=time(8, 0))
+    closes_at = models.TimeField(default=time(21, 0))
+
+    # Rolling service reputation, refreshed from completed orders and shopper reviews.
+    rating_average = models.DecimalField(max_digits=3, decimal_places=2, default=0)
+    rating_count = models.PositiveIntegerField(default=0)
+    fulfillment_success_rate = models.DecimalField(max_digits=5, decimal_places=2, default=100, help_text="Percent of accepted orders handed over without a shortfall.")
+    orders_fulfilled = models.PositiveIntegerField(default=0)
+    orders_rejected = models.PositiveIntegerField(default=0)
 
     class Meta:
         indexes = [models.Index(fields=["city", "area"])]
