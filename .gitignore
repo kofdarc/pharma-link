@@ -11,6 +11,7 @@ apps/api/media/private/*
 !apps/api/media/private/.gitkeep
 node_modules/
 .next/
+*.tsbuildinfo
 dist/
 coverage/
 tmp/
