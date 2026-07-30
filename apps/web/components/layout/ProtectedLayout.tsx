@@ -1,6 +1,6 @@
 "use client";
 
-import { AppShell } from "./AppShell";
+import { AppShell, type ShellMode } from "./AppShell";
 import { useRequireRole } from "@/lib/auth";
 import type { UserRole } from "@/types/api";
 
@@ -10,7 +10,7 @@ export function ProtectedLayout({
   children
 }: {
   roles: UserRole[];
-  mode: "pharmacy" | "admin";
+  mode: ShellMode;
   children: React.ReactNode;
 }) {
   const { user, loading } = useRequireRole(roles);

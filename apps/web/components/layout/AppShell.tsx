@@ -3,8 +3,26 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { clearToken } from "@/lib/api-client";
-import { ADMIN_NAV, PHARMACY_NAV } from "@/lib/constants";
+import { ADMIN_NAV, DOCTOR_NAV, PHARMACY_NAV, SHOP_NAV } from "@/lib/constants";
 import type { User } from "@/types/api";
+
+export type ShellMode = "pharmacy" | "admin" | "doctor" | "shop" | "driver";
+
+const NAV_BY_MODE: Record<ShellMode, readonly (readonly [string, string])[]> = {
+  pharmacy: PHARMACY_NAV,
+  admin: ADMIN_NAV,
+  doctor: DOCTOR_NAV,
+  shop: SHOP_NAV,
+  driver: [["My route", "/driver"]]
+};
+
+function contextLabel(mode: ShellMode, user: User): string {
+  if (mode === "admin") return "Platform Admin";
+  if (mode === "pharmacy") return user.pharmacy_detail?.name || "Pharmacy";
+  if (mode === "doctor") return `Dr. ${user.first_name} ${user.last_name}`.trim();
+  if (mode === "driver") return "Driver console";
+  return "MediSync";
+}
 
 export function AppShell({
   user,
@@ -12,12 +30,12 @@ export function AppShell({
   children
 }: {
   user: User;
-  mode: "pharmacy" | "admin";
+  mode: ShellMode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const nav = mode === "admin" ? ADMIN_NAV : PHARMACY_NAV;
+  const nav = NAV_BY_MODE[mode];
 
   return (
     <div className="app-shell">
@@ -37,7 +55,7 @@ export function AppShell({
       <main className="main-panel">
         <header className="topbar">
           <div>
-            <strong>{mode === "admin" ? "Platform Admin" : user.pharmacy_detail?.name || "Pharmacy"}</strong>
+            <strong>{contextLabel(mode, user)}</strong>
             <span>{user.email}</span>
           </div>
           <button
@@ -55,4 +73,3 @@ export function AppShell({
     </div>
   );
 }
-

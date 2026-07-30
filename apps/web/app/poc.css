@@ -1,0 +1,161 @@
+/* ==========================================================================
+   POC additions: charts, meters, dispatch, prescriptions, shop.
+
+   Extends the tokens defined at the top of globals.css. Chart colour is a single
+   accent hue, plus a monotonic light-to-dark ramp of that SAME hue for genuinely
+   ordinal series (A/B/C classes). No multi-hue categorical palette is introduced,
+   because nothing here plots more than one series at a time - identity always
+   comes from a label, never from colour alone.
+   ========================================================================== */
+
+:root {
+  --chart-ink: var(--primary);
+  /* Verified monotonic in relative luminance: 0.60 -> 0.28 -> 0.17 */
+  --chart-ramp-light: #9fd6d7;
+  --chart-ramp-base: #3d9fa2;
+  --chart-ramp-dark: #087f83;
+  --chart-grid: var(--border);
+}
+
+/* --- charts ------------------------------------------------------------- */
+.chart { display: flex; flex-direction: column; gap: 8px; }
+.chart-svg { width: 100%; height: auto; display: block; }
+.chart-grid { stroke: var(--chart-grid); stroke-width: 1; }
+.chart-line { fill: none; stroke: var(--chart-ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chart-crosshair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart-marker { fill: var(--chart-ink); }
+/* Surface ring keeps the active marker legible on top of the area fill. */
+.chart-marker-ring { fill: var(--surface); }
+.chart-axis-label { fill: var(--muted); font-size: 11px; }
+.chart-caption { font-size: 13px; min-height: 20px; }
+.chart-table summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.chart-table[open] summary { margin-bottom: 8px; }
+
+/* --- meters ------------------------------------------------------------- */
+.meter { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.meter-label { font-size: 14px; color: var(--text); }
+.meter-value { font-variant-numeric: tabular-nums; }
+.meter-track { height: 10px; background: var(--bg); border-radius: 999px; overflow: hidden; }
+/* Flat against the baseline, rounded data-end only. */
+.meter-fill { height: 100%; border-radius: 0 4px 4px 0; transition: width 240ms ease; }
+.meter-fill-light { background: var(--chart-ramp-light); }
+.meter-fill-base { background: var(--chart-ramp-base); }
+.meter-fill-dark { background: var(--chart-ramp-dark); }
+.abc-row { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+/* --- metric tiles ------------------------------------------------------- */
+.metric-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 20px; }
+.metric-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;
+}
+.metric-card > span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+.metric-card > strong { font-size: 24px; font-variant-numeric: tabular-nums; }
+.metric-card > small { font-size: 12px; }
+.metric-card-good { border-left: 3px solid var(--green); }
+.metric-card-bad { border-left: 3px solid var(--red); }
+
+.kpi-list { list-style: none; padding: 0; margin: 0; }
+.kpi-list li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.kpi-list li:last-child { border-bottom: none; }
+.text-danger { color: var(--red); }
+
+/* --- tabs --------------------------------------------------------------- */
+.tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; flex-wrap: wrap; }
+.tab {
+  background: none; border: none; border-bottom: 2px solid transparent; padding: 10px 14px;
+  cursor: pointer; color: var(--muted); font-size: 14px; font-family: inherit;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+/* --- layout helpers ----------------------------------------------------- */
+.panel-row { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.panel-highlight { border-left: 3px solid var(--primary); }
+.public-main.narrow { max-width: 920px; margin: 0 auto; }
+.form-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.stacked-form { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.stacked-form .button { align-self: flex-start; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.clean-list { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 6px; }
+.detail-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin: 12px 0; }
+.detail-grid dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.detail-grid dd { margin: 0; }
+.small { font-size: 12px; }
+.checkbox-field { flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; }
+.checkbox-field input[type="checkbox"] { width: auto; }
+.checkbox-field small { flex-basis: 100%; }
+.qty-input { width: 84px; }
+.code-block {
+  background: var(--navy); color: #e8eff5; padding: 16px; border-radius: var(--radius);
+  overflow-x: auto; font-size: 13px; line-height: 1.6; white-space: pre;
+}
+.big-code { font-size: 18px; letter-spacing: 0.08em; background: var(--bg); padding: 4px 10px; border-radius: 6px; }
+.explain summary { cursor: pointer; color: var(--primary); font-size: 14px; }
+.row-warning { background: var(--amber-bg); }
+
+/* --- tags --------------------------------------------------------------- */
+.tag {
+  display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  background: var(--bg); color: var(--muted); border: 1px solid var(--border); margin-left: 6px;
+}
+.tag-regulated { background: var(--blue-bg); color: var(--blue); border-color: transparent; }
+.tag-rx { background: var(--amber-bg); color: var(--amber); border-color: transparent; }
+
+.price-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.price { color: var(--primary-strong); font-size: 20px; font-variant-numeric: tabular-nums; }
+
+/* --- prescriptions ----------------------------------------------------- */
+.rx-entry-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.rx-entry-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.rx-item-row { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
+.rx-item-row:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.rx-issued { display: grid; gap: 24px; grid-template-columns: minmax(180px, 240px) 1fr; align-items: start; }
+.rx-qr svg { width: 100%; height: auto; }
+.qr-scanner video { width: 100%; border-radius: var(--radius); background: var(--navy); aspect-ratio: 4 / 3; object-fit: cover; }
+
+/* --- orders / allocations ---------------------------------------------- */
+.allocation-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; }
+.checkout-summary { display: flex; gap: 24px; align-items: flex-end; flex-wrap: wrap; }
+.checkout-summary > div { display: flex; flex-direction: column; gap: 2px; }
+
+/* --- driver / dispatch ------------------------------------------------- */
+.route-summary { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; }
+.route-summary > div { display: flex; flex-direction: column; gap: 2px; }
+.route-summary strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.route-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.route-item {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+}
+.route-item p { margin: 2px 0 0; }
+.route-item-next { border-color: var(--primary); border-left-width: 3px; }
+.route-list.compact .route-item { padding: 6px 10px; font-size: 13px; }
+.stop-tasks { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin: 16px 0; }
+.task-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; background: var(--bg); }
+
+/* --- onboarding checklist --------------------------------------------- */
+.checklist { list-style: none; padding: 0; margin: 0; }
+.checklist li { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+.checklist li:last-child { border-bottom: none; }
+.checklist .check {
+  flex: 0 0 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border);
+  display: grid; place-items: center; font-size: 13px; color: var(--muted);
+}
+.checklist li.done .check { background: var(--green-bg); border-color: transparent; color: var(--green); }
+.checklist p { margin: 2px 0 0; }
+
+/* --- landing ----------------------------------------------------------- */
+.role-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.role-card {
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; background: var(--surface);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.role-card h3 { margin: 0; }
+.role-card p { margin: 0; color: var(--muted); font-size: 14px; flex: 1; }
+
+@media (max-width: 720px) {
+  .rx-issued { grid-template-columns: 1fr; }
+  .route-summary, .checkout-summary { gap: 16px; }
+}

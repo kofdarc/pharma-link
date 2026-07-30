@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, setToken } from "@/lib/api-client";
+import { ROLE_HOME } from "@/lib/constants";
 import type { User } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
@@ -26,7 +27,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password })
       });
       setToken(response.token);
-      router.push(response.user.role === "PLATFORM_ADMIN" ? "/admin" : "/pharmacy/dashboard");
+      router.push(ROLE_HOME[response.user.role] || "/pharmacy/dashboard");
     } catch {
       setError("Invalid email or password.");
     } finally {
@@ -54,6 +55,11 @@ export default function LoginPage() {
           </Button>
         </form>
         {error ? <Notice tone="danger">{error}</Notice> : null}
+        <p className="muted small">
+          Shopper? <Link href="/register">Create an account</Link>. Doctor?{" "}
+          <Link href="/activate">Activate your prescriber account</Link>. Dispensing a QR prescription without an
+          account? <Link href="/rx">Go here</Link>.
+        </p>
       </section>
     </div>
   );

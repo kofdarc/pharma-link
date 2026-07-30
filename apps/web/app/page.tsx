@@ -51,6 +51,55 @@ export default function HomePage() {
           </form>
         </section>
       </main>
+
+      <section className="public-main">
+        <h2>Who is this for?</h2>
+        <div className="role-grid">
+          <article className="role-card">
+            <h3>Pharmacies</h3>
+            <p>
+              Stock, batches and expiry risk, invoicing, client records, analytics — and a connector that keeps your
+              existing software in sync instead of replacing it.
+            </p>
+            <LinkButton href="/login" variant="primary">
+              Pharmacy login
+            </LinkButton>
+          </article>
+
+          <article className="role-card">
+            <h3>Doctors</h3>
+            <p>
+              Your details are already on file from the Order of Physicians. Activate in a minute and issue
+              prescriptions as secure QR codes.
+            </p>
+            <LinkButton href="/activate" variant="primary">
+              Activate your account
+            </LinkButton>
+          </article>
+
+          <article className="role-card">
+            <h3>Any pharmacy, no account</h3>
+            <p>
+              Holding a patient&apos;s prescription QR? Scan it, view the items, and dispense in full or in part. No
+              registration, no login.
+            </p>
+            <LinkButton href="/rx" variant="primary">
+              Dispense a prescription
+            </LinkButton>
+          </article>
+
+          <article className="role-card">
+            <h3>Patients</h3>
+            <p>
+              Find what you need across every connected pharmacy at once, order it, and schedule repeat refills for
+              chronic medication.
+            </p>
+            <LinkButton href="/register" variant="primary">
+              Create an account
+            </LinkButton>
+          </article>
+        </div>
+      </section>
     </div>
   );
 }
