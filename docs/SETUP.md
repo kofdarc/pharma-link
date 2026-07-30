@@ -12,7 +12,7 @@
 The backend defaults to PostgreSQL at:
 
 ```text
-postgresql://medisync:medisync@localhost:5432/medisync
+postgresql://medisync:medisync@localhost:55432/medisync
 ```
 
 Use `.env` to override `DATABASE_URL`, CORS, CSRF, file-size limits, and storage settings. Prescription files are stored under private local media in development and are only served through authenticated download endpoints.
