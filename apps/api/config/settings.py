@@ -71,7 +71,21 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 if os.getenv("DJANGO_TEST_SQLITE") == "1":
-    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "test.sqlite3"}}
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "test.sqlite3",
+            "OPTIONS": {
+                # SQLite's default deferred transactions can deadlock when two
+                # requests both read and then write (for example, concurrent
+                # prescription lookups recording access logs). Acquire the
+                # write reservation up front and wait briefly for other
+                # short-lived writers instead.
+                "transaction_mode": "IMMEDIATE",
+                "timeout": 20,
+            },
+        }
+    }
 else:
     DATABASES = {
         "default": dj_database_url.parse(
