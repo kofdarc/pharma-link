@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-MediSync Connector - the middleman that sits inside the pharmacy.
+PharmaLink Connector - the middleman that sits inside the pharmacy.
 
 Most Lebanese pharmacies run a local Windows POS with no API. Asking them to migrate is how
 onboarding dies. Instead this agent runs on their counter PC, watches whatever their software
 can already produce (a CSV/Excel export, or a direct SQLite/ODBC read), and pushes deltas to
-MediSync. Nothing about their workflow changes.
+PharmaLink. Nothing about their workflow changes.
 
   - stdlib only, so it runs on a bare Python install with no pip access
   - stores a local snapshot and only sends what changed
@@ -14,9 +14,9 @@ MediSync. Nothing about their workflow changes.
   - pulls incoming platform orders and writes them to a file the pharmacist already watches
 
 Usage:
-    python medisync_connector.py --config connector.config.json
-    python medisync_connector.py --config connector.config.json --once
-    python medisync_connector.py --config connector.config.json --check
+    python pharmalink_connector.py --config connector.config.json
+    python pharmalink_connector.py --config connector.config.json --once
+    python pharmalink_connector.py --config connector.config.json --check
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
-LOG = logging.getLogger("medisync.connector")
+LOG = logging.getLogger("pharmalink.connector")
 DEFAULT_STATE_FILE = "connector.state.json"
 MAX_ATTEMPTS = 5
 
@@ -52,7 +52,7 @@ def load_config(path: str) -> dict:
         if not config.get(required):
             raise SystemExit(f"Config is missing '{required}'. See connector.config.example.json.")
     # An env var beats the file, so the secret never has to sit on disk in a shared folder.
-    config["secret"] = os.environ.get("MEDISYNC_SECRET", config["secret"])
+    config["secret"] = os.environ.get("PHARMALINK_SECRET", config["secret"])
     return config
 
 
@@ -80,9 +80,9 @@ def sign_request(*, secret: str, method: str, path: str, body: bytes) -> dict:
     canonical = "\n".join([method.upper(), path, timestamp, nonce, hashlib.sha256(body or b"").hexdigest()])
     signature = hmac.new(secret.encode("utf-8"), canonical.encode("utf-8"), hashlib.sha256).hexdigest()
     return {
-        "X-MediSync-Timestamp": timestamp,
-        "X-MediSync-Nonce": nonce,
-        "X-MediSync-Signature": signature,
+        "X-PharmaLink-Timestamp": timestamp,
+        "X-PharmaLink-Nonce": nonce,
+        "X-PharmaLink-Signature": signature,
     }
 
 
@@ -95,7 +95,7 @@ def call(config: dict, method: str, endpoint: str, payload: dict | None = None) 
     body = json.dumps(payload).encode("utf-8") if payload is not None else b""
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
-        headers = {"Content-Type": "application/json", "X-MediSync-Key": config["key_id"]}
+        headers = {"Content-Type": "application/json", "X-PharmaLink-Key": config["key_id"]}
         headers.update(sign_request(secret=config["secret"], method=method, path=path, body=body))
         request = urllib.request.Request(url, data=body or None, headers=headers, method=method.upper())
         try:
@@ -257,7 +257,7 @@ def do_sync(config: dict, state_path: str, *, full: bool = False) -> int:
             LOG.info("Chunk %s-%s: %s applied, %s unmapped, %s failed (%s)", start + 1, start + len(chunk), result.get("rows_applied"), result.get("rows_unmapped"), result.get("rows_failed"), result.get("status"))
         LOG.info("Stock sync done: %s applied, %s unmapped, %s failed.", applied, unmapped, failed)
         if unmapped:
-            LOG.warning("%s product code(s) still need a one-time mapping in the MediSync pharmacy workspace.", unmapped)
+            LOG.warning("%s product code(s) still need a one-time mapping in the PharmaLink pharmacy workspace.", unmapped)
         state["stock_snapshot"] = snapshot
 
     orders = call(config, "GET", "/api/integration/v1/orders/?open=true")
@@ -300,7 +300,7 @@ def _write_orders_file(config: dict, orders: list) -> None:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="MediSync pharmacy connector")
+    parser = argparse.ArgumentParser(description="PharmaLink pharmacy connector")
     parser.add_argument("--config", default="connector.config.json")
     parser.add_argument("--state", default=DEFAULT_STATE_FILE)
     parser.add_argument("--once", action="store_true", help="Run a single sync and exit (use with Task Scheduler/cron).")

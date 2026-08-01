@@ -1,11 +1,11 @@
 {
   "api_base_url": "http://localhost:8000",
   "key_id": "msk_REPLACE_ME",
-  "secret": "REPLACE_ME_OR_SET_MEDISYNC_SECRET_ENV",
+  "secret": "REPLACE_ME_OR_SET_PHARMALINK_SECRET_ENV",
   "interval_seconds": 300,
   "chunk_size": 500,
   "timeout_seconds": 30,
-  "orders_out_file": "C:/MediSync/incoming-orders.csv",
+  "orders_out_file": "C:/PharmaLink/incoming-orders.csv",
   "source": {
     "type": "csv",
     "path": "C:/PharmacyPOS/exports/stock.csv",

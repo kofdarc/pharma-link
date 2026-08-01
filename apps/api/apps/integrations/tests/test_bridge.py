@@ -52,10 +52,10 @@ class BridgeTestCase(TestCase):
             path,
             data=body,
             content_type="application/json",
-            HTTP_X_MEDISYNC_KEY=self.key.key_id,
-            HTTP_X_MEDISYNC_TIMESTAMP=timestamp,
-            HTTP_X_MEDISYNC_NONCE=nonce,
-            HTTP_X_MEDISYNC_SIGNATURE=signature,
+            HTTP_X_PHARMALINK_KEY=self.key.key_id,
+            HTTP_X_PHARMALINK_TIMESTAMP=timestamp,
+            HTTP_X_PHARMALINK_NONCE=nonce,
+            HTTP_X_PHARMALINK_SIGNATURE=signature,
         )
 
 
@@ -87,10 +87,10 @@ class SignatureAuthTests(BridgeTestCase):
             "/api/integration/v1/stock/sync/",
             data=tampered,
             content_type="application/json",
-            HTTP_X_MEDISYNC_KEY=self.key.key_id,
-            HTTP_X_MEDISYNC_TIMESTAMP=timestamp,
-            HTTP_X_MEDISYNC_NONCE=nonce,
-            HTTP_X_MEDISYNC_SIGNATURE=signature,
+            HTTP_X_PHARMALINK_KEY=self.key.key_id,
+            HTTP_X_PHARMALINK_TIMESTAMP=timestamp,
+            HTTP_X_PHARMALINK_NONCE=nonce,
+            HTTP_X_PHARMALINK_SIGNATURE=signature,
         )
 
         self.assertEqual(response.status_code, 401)

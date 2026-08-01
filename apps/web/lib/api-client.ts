@@ -13,15 +13,15 @@ export class ApiError extends Error {
 
 export function getToken() {
   if (typeof window === "undefined") return "";
-  return window.sessionStorage.getItem("medisync_token") || "";
+  return window.sessionStorage.getItem("pharmalink_token") || "";
 }
 
 export function setToken(token: string) {
-  window.sessionStorage.setItem("medisync_token", token);
+  window.sessionStorage.setItem("pharmalink_token", token);
 }
 
 export function clearToken() {
-  window.sessionStorage.removeItem("medisync_token");
+  window.sessionStorage.removeItem("pharmalink_token");
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {

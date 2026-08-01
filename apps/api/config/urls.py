@@ -8,7 +8,7 @@ from rest_framework.response import Response
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health_check(_request):
-    return Response({"status": "ok", "service": "medisync-api"})
+    return Response({"status": "ok", "service": "pharmalink-api"})
 
 
 urlpatterns = [

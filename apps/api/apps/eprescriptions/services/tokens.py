@@ -8,7 +8,7 @@ from django.core import signing
 
 # Ambiguous characters (0/O, 1/I, etc.) are excluded so a pharmacist can read a code off a printout.
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-DISPENSE_TICKET_SALT = "medisync.eprescriptions.dispense-ticket"
+DISPENSE_TICKET_SALT = "pharmalink.eprescriptions.dispense-ticket"
 DISPENSE_TICKET_MAX_AGE_SECONDS = 15 * 60
 
 

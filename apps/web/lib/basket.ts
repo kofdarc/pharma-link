@@ -9,8 +9,8 @@ export interface BasketItem {
   requires_prescription?: boolean;
 }
 
-const STORAGE_KEY = "medisync_basket";
-const CHANGED_EVENT = "medisync:basket-changed";
+const STORAGE_KEY = "pharmalink_basket";
+const CHANGED_EVENT = "pharmalink:basket-changed";
 
 function read(): BasketItem[] {
   if (typeof window === "undefined") return [];

@@ -89,7 +89,7 @@ if os.getenv("DJANGO_TEST_SQLITE") == "1":
 else:
     DATABASES = {
         "default": dj_database_url.parse(
-            os.getenv("DATABASE_URL", "postgresql://medisync:medisync@localhost:55432/medisync"),
+            os.getenv("DATABASE_URL", "postgresql://pharmalink:pharmalink@localhost:55432/pharmalink"),
             conn_max_age=600,
         )
     }
@@ -166,4 +166,4 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "MediSync <no-reply@medisync.test>")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "PharmaLink <no-reply@pharmalink.test>")

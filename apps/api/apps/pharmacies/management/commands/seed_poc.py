@@ -87,7 +87,7 @@ DRIVERS = [
 
 
 class Command(BaseCommand):
-    help = "Seed the full MediSync POC scenario (pharmacies, catalog, doctors, shoppers, orders, drivers)."
+    help = "Seed the full PharmaLink POC scenario (pharmacies, catalog, doctors, shoppers, orders, drivers)."
 
     def add_arguments(self, parser):
         parser.add_argument("--reset-orders", action="store_true", help="Delete existing demo orders and routes first.")
@@ -104,7 +104,7 @@ class Command(BaseCommand):
             Order.objects.all().delete()
             self.stdout.write("Cleared existing orders and routes.")
 
-        admin = self._user(User, "admin@medisync.test", UserRole.PLATFORM_ADMIN, is_staff=True, is_superuser=True)
+        admin = self._user(User, "admin@pharmalink.test", UserRole.PLATFORM_ADMIN, is_staff=True, is_superuser=True)
         pharmacies = self._pharmacies()
         owners = self._pharmacy_users(User, pharmacies)
         medicines = self._catalog()
@@ -117,15 +117,15 @@ class Command(BaseCommand):
         self._prescriptions(doctors, medicines)
         self._drivers(User)
 
-        self.stdout.write(self.style.SUCCESS("\nMediSync POC scenario seeded."))
+        self.stdout.write(self.style.SUCCESS("\nPharmaLink POC scenario seeded."))
         self.stdout.write("\nSign-in accounts (all password: Password123!)")
         self.stdout.write(f"  Platform admin   {admin.email}")
         self.stdout.write("  Pharmacy owner   owner@cedarcare.test          (Cedar Care, Hamra)")
         self.stdout.write("  Pharmacy staff   staff@cedarcare.test")
         self.stdout.write("  Pharmacy owner   owner@achrafiehhealth.test    (Achrafieh Health)")
         self.stdout.write("  Doctor           rima.khalil@doctors.test      (already activated)")
-        self.stdout.write("  Shopper          shopper1@medisync.test")
-        self.stdout.write("  Driver           karim@medisync.test")
+        self.stdout.write("  Shopper          shopper1@pharmalink.test")
+        self.stdout.write("  Driver           karim@pharmalink.test")
         self.stdout.write("\nNot yet activated, to demo the zero-onboarding claim flow:")
         self.stdout.write("  Licence LB-MD-20876 / samir.aoun@doctors.test")
         self.stdout.write("  Licence LB-MD-30155 / lina.nassar@doctors.test")
@@ -301,7 +301,7 @@ class Command(BaseCommand):
     def _shoppers(self, User):
         shoppers, addresses = [], []
         for index, (label, lat, lng, area) in enumerate(SHOPPER_ADDRESSES, start=1):
-            user = self._user(User, f"shopper{index}@medisync.test", UserRole.CUSTOMER, first_name=f"Shopper{index}", last_name=area)
+            user = self._user(User, f"shopper{index}@pharmalink.test", UserRole.CUSTOMER, first_name=f"Shopper{index}", last_name=area)
             address, _ = DeliveryAddress.objects.update_or_create(
                 user=user,
                 label=label,
@@ -407,7 +407,7 @@ class Command(BaseCommand):
     def _drivers(self, User):
         created = 0
         for name, phone, vehicle, capacity, lat, lng in DRIVERS:
-            email = f"{name.split()[0].lower()}@medisync.test"
+            email = f"{name.split()[0].lower()}@pharmalink.test"
             user = self._user(User, email, UserRole.DRIVER, first_name=name.split()[0], last_name=name.split()[-1])
             _, made = Driver.objects.update_or_create(
                 user=user,

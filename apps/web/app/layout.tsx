@@ -3,7 +3,7 @@ import "./globals.css";
 import "./poc.css";
 
 export const metadata: Metadata = {
-  title: "MediSync",
+  title: "PharmaLink",
   description: "Pharmacy medication availability and inventory management"
 };
 

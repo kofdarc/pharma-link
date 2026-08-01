@@ -42,7 +42,7 @@ export default function RegisterPage() {
       <div className="auth-card">
         <Link href="/" className="brand">
           <span className="brand-mark">M</span>
-          <span>MediSync</span>
+          <span>PharmaLink</span>
         </Link>
         <h1>Create your account</h1>
         <p className="muted">Search every connected pharmacy at once, order, and set up repeat refills.</p>

@@ -6,7 +6,7 @@ from apps.common.models import UUIDTimeStampedModel
 
 class IntegrationKey(UUIDTimeStampedModel):
     """
-    Credentials for a pharmacy's own software (or the MediSync connector agent) to talk to
+    Credentials for a pharmacy's own software (or the PharmaLink connector agent) to talk to
     the API without a human logging in.
 
     HMAC request signing is symmetric, so the server must be able to recover the secret.

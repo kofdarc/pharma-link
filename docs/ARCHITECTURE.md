@@ -1,4 +1,4 @@
-# MediSync architecture
+# PharmaLink architecture
 
 A Django REST API plus a Next.js frontend in a pnpm monorepo. Everything below is
 implemented and covered by tests; nothing here is aspirational.

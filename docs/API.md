@@ -135,10 +135,10 @@ Signed with HMAC-SHA256; no session, no password.
 canonical = method + "\n" + path + "\n" + timestamp + "\n" + nonce + "\n" + sha256(body)
 signature = hex(hmac_sha256(secret, canonical))
 
-X-MediSync-Key:        <key id>
-X-MediSync-Timestamp:  <unix seconds>      # ±300s window
-X-MediSync-Nonce:      <unique per request> # single use
-X-MediSync-Signature:  <signature>
+X-PharmaLink-Key:        <key id>
+X-PharmaLink-Timestamp:  <unix seconds>      # ±300s window
+X-PharmaLink-Nonce:      <unique per request> # single use
+X-PharmaLink-Signature:  <signature>
 ```
 
 `401` means the credentials are wrong — stop retrying. `403` means authenticated but the key

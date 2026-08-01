@@ -60,7 +60,7 @@ export default function DoctorActivationPage() {
       <div className="auth-card">
         <Link href="/" className="brand">
           <span className="brand-mark">M</span>
-          <span>MediSync</span>
+          <span>PharmaLink</span>
         </Link>
         <h1>Activate your prescriber account</h1>
         <p className="muted">

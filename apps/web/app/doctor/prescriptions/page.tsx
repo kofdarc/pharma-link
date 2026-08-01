@@ -36,7 +36,7 @@ export default function DoctorPrescriptionsPage() {
           <h1>Prescriptions you have issued</h1>
           <p className="muted">
             Each one was emailed to the patient as a QR code. Any pharmacy can consume it, including pharmacies
-            with no MediSync account.
+            with no PharmaLink account.
           </p>
         </div>
         <LinkButton href="/doctor/prescriptions/new" variant="primary">

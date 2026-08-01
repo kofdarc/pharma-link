@@ -1,6 +1,6 @@
 # PRD Source
 
-The implementation follows `C:/Users/PC/Downloads/Product Requirements Document - MediSync MVP.pdf`.
+The implementation follows `C:/Users/PC/Downloads/Product Requirements Document - PharmaLink MVP.pdf`.
 
 Implemented MVP scope:
 

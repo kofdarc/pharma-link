@@ -39,7 +39,7 @@ class Doctor(UUIDTimeStampedModel):
 
 class Prescription(UUIDTimeStampedModel):
     """
-    A prescription is consumable by ANY pharmacy, including pharmacies with no MediSync account.
+    A prescription is consumable by ANY pharmacy, including pharmacies with no PharmaLink account.
     Security model:
       - `code` is the human-typeable identifier (safe to show, not sufficient on its own)
       - `secret_hash` stores only the SHA-256 of the high-entropy key embedded in the QR link
@@ -108,7 +108,7 @@ class Prescription(UUIDTimeStampedModel):
 
 class PrescriptionItem(UUIDTimeStampedModel):
     prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name="items")
-    # Catalog link is optional so a doctor can prescribe something not yet in the MediSync catalog.
+    # Catalog link is optional so a doctor can prescribe something not yet in the PharmaLink catalog.
     medicine = models.ForeignKey("medicines.Medicine", null=True, blank=True, on_delete=models.PROTECT, related_name="prescription_items")
     medicine_text = models.CharField(max_length=255, help_text="What the doctor wrote, kept verbatim.")
     quantity_prescribed = models.PositiveIntegerField()
@@ -126,7 +126,7 @@ class PrescriptionItem(UUIDTimeStampedModel):
 
 
 class PrescriptionDispense(UUIDTimeStampedModel):
-    """One consumption event. `pharmacy` is null for pharmacies that have no MediSync account."""
+    """One consumption event. `pharmacy` is null for pharmacies that have no PharmaLink account."""
 
     prescription = models.ForeignKey(Prescription, on_delete=models.PROTECT, related_name="dispenses")
     pharmacy = models.ForeignKey("pharmacies.Pharmacy", null=True, blank=True, on_delete=models.SET_NULL, related_name="prescription_dispenses")

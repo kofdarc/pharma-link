@@ -21,7 +21,7 @@ function contextLabel(mode: ShellMode, user: User): string {
   if (mode === "pharmacy") return user.pharmacy_detail?.name || "Pharmacy";
   if (mode === "doctor") return `Dr. ${user.first_name} ${user.last_name}`.trim();
   if (mode === "driver") return "Driver console";
-  return "MediSync";
+  return "PharmaLink";
 }
 
 export function AppShell({
@@ -42,7 +42,7 @@ export function AppShell({
       <aside className="sidebar">
         <Link href="/" className="brand">
           <span className="brand-mark">M</span>
-          <span>MediSync</span>
+          <span>PharmaLink</span>
         </Link>
         <nav>
           {nav.map(([label, href]) => (

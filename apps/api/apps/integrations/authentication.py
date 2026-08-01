@@ -6,10 +6,10 @@ A pharmacy's software signs each request instead of holding a session:
     canonical = "{method}\\n{path}\\n{timestamp}\\n{nonce}\\n{sha256(body)}"
     signature = hex(hmac_sha256(secret, canonical))
 
-    X-MediSync-Key:       key id
-    X-MediSync-Timestamp: unix seconds
-    X-MediSync-Nonce:     unique per request
-    X-MediSync-Signature: the signature
+    X-PharmaLink-Key:       key id
+    X-PharmaLink-Timestamp: unix seconds
+    X-PharmaLink-Nonce:     unique per request
+    X-PharmaLink-Signature: the signature
 
 Why signing rather than a bearer token: the secret never travels, the method/path/body are
 bound into the signature so a captured request cannot be re-pointed at another endpoint,
@@ -30,7 +30,7 @@ from rest_framework import authentication, exceptions
 from apps.integrations.models import IntegrationKey, RequestNonce
 
 MAX_CLOCK_SKEW_SECONDS = 300
-SIGNATURE_VERSION_HEADER = "HTTP_X_MEDISYNC_SIGNATURE"
+SIGNATURE_VERSION_HEADER = "HTTP_X_PHARMALINK_SIGNATURE"
 
 
 class IntegrationIdentity:
@@ -68,15 +68,15 @@ class IntegrationKeyAuthentication(authentication.BaseAuthentication):
         distinguish the two: 401 means "your credentials are wrong, stop retrying",
         403 means "authenticated but this key lacks the scope".
         """
-        return 'MediSync-HMAC-SHA256 realm="api"'
+        return 'PharmaLink-HMAC-SHA256 realm="api"'
 
     def authenticate(self, request):
-        key_id = request.META.get("HTTP_X_MEDISYNC_KEY")
+        key_id = request.META.get("HTTP_X_PHARMALINK_KEY")
         if not key_id:
             return None
 
-        timestamp = request.META.get("HTTP_X_MEDISYNC_TIMESTAMP", "")
-        nonce = request.META.get("HTTP_X_MEDISYNC_NONCE", "")
+        timestamp = request.META.get("HTTP_X_PHARMALINK_TIMESTAMP", "")
+        nonce = request.META.get("HTTP_X_PHARMALINK_NONCE", "")
         signature = request.META.get(SIGNATURE_VERSION_HEADER, "")
         if not all([timestamp, nonce, signature]):
             raise exceptions.AuthenticationFailed("Signed requests need key, timestamp, nonce and signature headers.")

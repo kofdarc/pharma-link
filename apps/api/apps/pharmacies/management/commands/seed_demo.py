@@ -30,7 +30,7 @@ class Command(BaseCommand):
             },
         )
         admin, _ = User.objects.update_or_create(
-            email="admin@medisync.test",
+            email="admin@pharmalink.test",
             defaults={"role": UserRole.PLATFORM_ADMIN, "is_staff": True, "is_superuser": True, "is_active": True},
         )
         admin.set_password("Password123!")
@@ -92,8 +92,8 @@ class Command(BaseCommand):
                 },
             )
 
-        self.stdout.write(self.style.SUCCESS("Seeded MediSync demo data."))
-        self.stdout.write("Admin: admin@medisync.test / Password123!")
+        self.stdout.write(self.style.SUCCESS("Seeded PharmaLink demo data."))
+        self.stdout.write("Admin: admin@pharmalink.test / Password123!")
         self.stdout.write("Owner: owner@cedarcare.test / Password123!")
         self.stdout.write("Staff: staff@cedarcare.test / Password123!")
 

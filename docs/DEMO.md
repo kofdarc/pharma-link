@@ -1,4 +1,4 @@
-# MediSync POC — demo script
+# PharmaLink POC — demo script
 
 About 15 minutes end to end. Every step below works against seeded data.
 
@@ -31,12 +31,12 @@ shown once by design.
 
 | Role | Email |
 |---|---|
-| Platform admin | `admin@medisync.test` |
+| Platform admin | `admin@pharmalink.test` |
 | Pharmacy owner (Cedar Care, Hamra) | `owner@cedarcare.test` |
 | Pharmacy owner (Achrafieh Health) | `owner@achrafiehhealth.test` |
 | Doctor (already activated) | `rima.khalil@doctors.test` |
-| Shopper | `shopper1@medisync.test` |
-| Driver | `karim@medisync.test` |
+| Shopper | `shopper1@pharmalink.test` |
+| Driver | `karim@pharmalink.test` |
 
 Not activated, to demo the zero-onboarding claim: licence `LB-MD-20876` /
 `samir.aoun@doctors.test`, and `LB-MD-30155` / `lina.nassar@doctors.test`.
@@ -70,7 +70,7 @@ Not activated, to demo the zero-onboarding claim: licence `LB-MD-20876` /
 
 ## Act 3 — Shopper orders across multiple pharmacies (4 min)
 
-1. Sign in as `shopper1@medisync.test`, go to **/shop**.
+1. Sign in as `shopper1@pharmalink.test`, go to **/shop**.
 2. Search `paracetamol`. Results are ranked by distance, rating and reliability, with prices
    labelled **"Price set by the Ministry of Public Health"** or **"Price set by the pharmacy"**.
    > **Point to make:** quantities show only an *orderable ceiling* (`available_up_to`), never
@@ -93,7 +93,7 @@ Not activated, to demo the zero-onboarding claim: licence `LB-MD-20876` /
 
 ## Act 5 — The routing engine (4 min) ← *the centrepiece*
 
-1. Sign in as `admin@medisync.test` → **Dispatch board**.
+1. Sign in as `admin@pharmalink.test` → **Dispatch board**.
 2. Look at the tiles:
    - **Naive distance** — one dedicated trip per order
    - **Optimised distance** — the batched plan
@@ -104,7 +104,7 @@ Not activated, to demo the zero-onboarding claim: licence `LB-MD-20876` /
 3. Scroll the proposed plan. Stops marked **shared** are one pharmacy visit serving several
    different customers — that is the whole trick.
 4. Click **Plan routes now** to commit.
-5. Sign in as `karim@medisync.test` → the **driver console**.
+5. Sign in as `karim@pharmalink.test` → the **driver console**.
    - One next action at a time, never a map to interpret.
    - At a pharmacy, *every* order to collect there is listed together, each with its own
      handover code.
@@ -131,7 +131,7 @@ Not activated, to demo the zero-onboarding claim: licence `LB-MD-20876` /
 3. Optionally run the connector against the API:
    ```powershell
    cd tools/connector
-   python medisync_connector.py --config connector.config.json --check
+   python pharmalink_connector.py --config connector.config.json --check
    ```
 
 ---

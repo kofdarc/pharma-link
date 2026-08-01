@@ -21,7 +21,7 @@ export default function HomePage() {
       <header className="public-header">
         <Link href="/" className="brand">
           <span className="brand-mark">M</span>
-          <span>MediSync</span>
+          <span>PharmaLink</span>
         </Link>
         <div className="actions">
           <LinkButton href="/search">Public Search</LinkButton>
@@ -34,7 +34,7 @@ export default function HomePage() {
         <section>
           <h1 className="page-title">Find connected pharmacies that may have your medicine.</h1>
           <p className="lead">
-            MediSync helps Lebanese pharmacies manage stock, batches, expiry risk, sales, prescriptions, and public availability from one operational workspace.
+            PharmaLink helps Lebanese pharmacies manage stock, batches, expiry risk, sales, prescriptions, and public availability from one operational workspace.
           </p>
           <Notice>
             Availability information is provided by connected pharmacies and may change. Please confirm with the pharmacy before visiting or using any medication.

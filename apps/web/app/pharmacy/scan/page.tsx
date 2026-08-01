@@ -51,7 +51,7 @@ export default function PharmacyScanPage() {
       setCode(scannedCode);
       void lookup(scannedCode, url.searchParams.get("k") || "", "");
     } catch {
-      setError("That QR code is not a MediSync prescription.");
+      setError("That QR code is not a PharmaLink prescription.");
     }
   }
 

@@ -96,7 +96,7 @@ export default function ConnectPage() {
           <h1>Connect your pharmacy software</h1>
           <p className="muted">
             Keep the system you already use. The connector reads whatever your software can export and pushes changes
-            to MediSync; your product codes stay yours.
+            to PharmaLink; your product codes stay yours.
           </p>
         </div>
       </div>
@@ -318,16 +318,16 @@ export default function ConnectPage() {
         </p>
         <pre className="code-block">
 {`# 1. Copy the connector and its config
-copy tools\\connector\\medisync_connector.py C:\\MediSync\\
-copy tools\\connector\\connector.config.example.json C:\\MediSync\\connector.config.json
+copy tools\\connector\\pharmalink_connector.py C:\\PharmaLink\\
+copy tools\\connector\\connector.config.example.json C:\\PharmaLink\\connector.config.json
 
 # 2. Put your key id and secret in the config, and point it at your export file
 
 # 3. Check the connection without changing anything
-python medisync_connector.py --config connector.config.json --check
+python pharmalink_connector.py --config connector.config.json --check
 
 # 4. Run it continuously (or use --once from Task Scheduler)
-python medisync_connector.py --config connector.config.json`}
+python pharmalink_connector.py --config connector.config.json`}
         </pre>
         <p className="muted small">
           Stock is reconciled to whatever level your software reports, and the difference is written as a stock

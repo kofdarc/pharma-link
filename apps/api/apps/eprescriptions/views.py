@@ -187,7 +187,7 @@ def public_prescription_dispense(request):
         return Response({"detail": "Prescription not found."}, status=status.HTTP_404_NOT_FOUND)
 
     lines = payload.pop("items")
-    # A signed-in MediSync pharmacy is attributed automatically; walk-in pharmacies self-declare.
+    # A signed-in PharmaLink pharmacy is attributed automatically; walk-in pharmacies self-declare.
     pharmacy = request.user.pharmacy if getattr(request.user, "is_authenticated", False) and getattr(request.user, "pharmacy_id", None) else None
     if pharmacy is None and not payload.get("pharmacy_name"):
         return Response({"detail": "Enter the pharmacy name."}, status=status.HTTP_400_BAD_REQUEST)

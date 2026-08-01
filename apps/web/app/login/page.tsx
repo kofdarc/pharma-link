@@ -40,7 +40,7 @@ export default function LoginPage() {
       <section className="panel login-card">
         <Link href="/" className="brand">
           <span className="brand-mark">M</span>
-          <span>MediSync</span>
+          <span>PharmaLink</span>
         </Link>
         <h1>Login</h1>
         <form className="form-grid" onSubmit={submit}>

@@ -6,7 +6,7 @@ from django.conf import settings
 
 
 def prescription_url(code: str, secret: str) -> str:
-    """The URL encoded in the QR code. Any phone camera opens it; no MediSync account is involved."""
+    """The URL encoded in the QR code. Any phone camera opens it; no PharmaLink account is involved."""
     base = settings.PUBLIC_WEB_BASE_URL.rstrip("/")
     return f"{base}/rx/{quote(code)}?k={quote(secret)}"
 

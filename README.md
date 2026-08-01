@@ -1,4 +1,4 @@
-# MediSync
+# PharmaLink
 
 A pharmacy operations platform for Lebanon: stock and invoicing for pharmacies, unified
 medicine search and delivery for the public, QR prescriptions for doctors, and a smart
@@ -71,8 +71,8 @@ every login plus a live prescription code and PIN.
 ### Demo accounts
 
 All use `Password123!`:
-`admin@medisync.test` · `owner@cedarcare.test` · `rima.khalil@doctors.test` (doctor) ·
-`shopper1@medisync.test` · `karim@medisync.test` (driver)
+`admin@pharmalink.test` · `owner@cedarcare.test` · `rima.khalil@doctors.test` (doctor) ·
+`shopper1@pharmalink.test` · `karim@pharmalink.test` (driver)
 
 ## Verification
 
