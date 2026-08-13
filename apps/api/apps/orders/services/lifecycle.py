@@ -7,9 +7,11 @@ from django.db.models import Avg, Count
 from django.utils import timezone
 
 from apps.audit.services import write_audit_log
+from apps.billing.services import charge_platform_service_fee
 from apps.customers.models import Client
 from apps.orders.models import Order, OrderFulfillment, PharmacyReview
 from apps.orders.services.placement import release_reservations
+from apps.payments.services import settle_cash_on_delivery
 from apps.sales.models import Sale
 from apps.sales.services.create_sale import create_sale
 
@@ -51,6 +53,8 @@ def rollup_order_status(order: Order) -> str:
     else:
         order.status = Order.Status.PENDING
     order.save(update_fields=["status", "updated_at"])
+    if order.status in {Order.Status.DELIVERED, Order.Status.COLLECTED}:
+        settle_cash_on_delivery(order=order)
     return order.status
 
 
@@ -62,6 +66,7 @@ def accept_fulfillment(*, fulfillment: OrderFulfillment, user) -> OrderFulfillme
     fulfillment.status = OrderFulfillment.Status.ACCEPTED
     fulfillment.accepted_at = timezone.now()
     fulfillment.save(update_fields=["status", "accepted_at", "updated_at"])
+    charge_platform_service_fee(fulfillment=fulfillment)
     rollup_order_status(fulfillment.order)
     write_audit_log(
         actor_user=user,

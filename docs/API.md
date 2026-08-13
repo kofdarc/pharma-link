@@ -55,9 +55,11 @@ required, and both are stored only as SHA-256 hashes.
 |---|---|
 | `/shop/addresses/` | CRUD. Coordinates drive ranking and routing. |
 | `POST /shop/quote/` | `{items[], latitude, longitude}` → sourcing plan **without** holding stock. |
-| `GET/POST /shop/orders/` | Placing an order reserves stock across the chosen pharmacies. |
+| `GET/POST /shop/orders/` | Placing an order reserves stock and creates a `payment` (`payment_method`, default `COD`). |
 | `POST /shop/orders/:id/cancel/` | Releases all holds. |
 | `POST /shop/orders/:id/review/` | `{pharmacy, rating, comment}` — feeds search ranking. |
+| `POST /shop/orders/:id/pay/` | Retries/confirms an online charge. No-op for cash on delivery, which settles at handover instead. |
+| `GET /shop/payment-methods/` | Available payment providers, for checkout to render without hardcoding. |
 | `/shop/recurring-orders/` | Repeat refills; re-sourced fresh each cycle. |
 
 ---
@@ -82,6 +84,8 @@ pharmacy.
 | `POST /pharmacy/rx/scan/` | Same as public lookup, attributed to this pharmacy |
 | `/pharmacy/prescriptions/` · `GET /pharmacy/prescriptions/:id/download/` | Uploaded paper scans |
 | `/pharmacy/staff/` · `/pharmacy/audit-logs/` | |
+| `GET /pharmacy/subscription/` | This pharmacy's plan and status |
+| `GET /pharmacy/service-fees/` | Per-request platform fees charged to this pharmacy |
 
 ### Analytics
 
@@ -114,6 +118,9 @@ pharmacy.
 | `GET /dispatch/orders/:id/offers/` | Marginal insertion cost per online driver |
 | `POST /dispatch/routes/:id/reoptimise/` | Re-sequences unvisited stops only |
 | `/admin/drivers/` | |
+| `/admin/subscription-plans/` · `/admin/pharmacy-subscriptions/` | Assign a pharmacy's plan |
+| `GET /admin/service-fees/` | Every per-request fee charged, any pharmacy |
+| `GET /admin/revenue/overview/` | MRR, active subscriptions, service fees collected/pending |
 
 ## Driver
 

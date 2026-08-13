@@ -33,6 +33,8 @@ INSTALLED_APPS = [
     "apps.prescriptions",
     "apps.eprescriptions",
     "apps.orders",
+    "apps.payments",
+    "apps.billing",
     "apps.delivery",
     "apps.analytics",
     "apps.integrations",
@@ -113,9 +115,11 @@ MEDIA_ROOT = PRIVATE_MEDIA_ROOT
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 
+AUTH_TOKEN_TTL_HOURS = int(os.getenv("AUTH_TOKEN_TTL_HOURS", "24"))
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
+        "apps.accounts.authentication.ExpiringTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
@@ -127,6 +131,8 @@ REST_FRAMEWORK = {
         "rx_lookup": os.getenv("THROTTLE_RX_LOOKUP", "30/min"),
         "rx_dispense": os.getenv("THROTTLE_RX_DISPENSE", "12/min"),
         "public_search": os.getenv("THROTTLE_PUBLIC_SEARCH", "60/min"),
+        # Per-client cap on login attempts, on top of Django's own password validation.
+        "login": os.getenv("THROTTLE_LOGIN", "10/min"),
     },
 }
 

@@ -43,7 +43,9 @@ class Prescription(UUIDTimeStampedModel):
     Security model:
       - `code` is the human-typeable identifier (safe to show, not sufficient on its own)
       - `secret_hash` stores only the SHA-256 of the high-entropy key embedded in the QR link
-      - `pin_hash` stores only the SHA-256 of the 6-digit PIN used for manual entry
+        (safe unsalted: 256 bits of entropy makes a precomputed table infeasible)
+      - `pin_hash` stores only a salted PBKDF2 hash of the 6-digit PIN used for manual entry
+        (the PIN's small space - a million values - needs salting+iteration, unlike the key)
     A database leak therefore does not expose any prescription content.
     """
 
@@ -57,7 +59,7 @@ class Prescription(UUIDTimeStampedModel):
     doctor = models.ForeignKey(Doctor, on_delete=models.PROTECT, related_name="prescriptions", db_index=True)
     code = models.CharField(max_length=24, unique=True, db_index=True)
     secret_hash = models.CharField(max_length=64)
-    pin_hash = models.CharField(max_length=64)
+    pin_hash = models.CharField(max_length=128)
     patient_name = models.CharField(max_length=255)
     patient_email = models.EmailField(blank=True)
     patient_phone = models.CharField(max_length=40, blank=True)

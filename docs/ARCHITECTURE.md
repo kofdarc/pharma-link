@@ -23,6 +23,8 @@ tools/connector   Standalone agent that runs inside the pharmacy
 | `prescriptions` | Scanned paper prescriptions a pharmacy uploads (pre-existing) |
 | `eprescriptions` | Doctor-issued QR prescriptions consumable by **any** pharmacy |
 | `orders` | Shopper baskets, multi-pharmacy sourcing, reservations, schedules, reviews |
+| `payments` | Order payments: provider-agnostic charge interface, cash-on-delivery + mock gateway adapters |
+| `billing` | Pharmacy revenue: subscription plans, per-request service fees |
 | `delivery` | Drivers, the routing solver, routes, stops, driver operations |
 | `analytics` | Read-only KPI projections (owns no tables) |
 | `integrations` | Signed machine API, SKU mapping, sync runs, webhooks |
@@ -187,7 +189,7 @@ which is data a till system structurally cannot produce.
 
 ## Testing
 
-110 tests, all passing. The ones that carry weight:
+129 tests, all passing. The ones that carry weight:
 
 - `delivery/tests/test_routing.py` — precedence, capacity, infeasible windows left
   unassigned rather than violated, pickup consolidation, marginal cost falling on an
@@ -200,6 +202,11 @@ which is data a till system structurally cannot produce.
   unmet demand recorded
 - `medicines/tests/test_pricing.py` — MoPH price enforced on every write path
 - `integrations/tests/test_bridge.py` — signature, tamper, replay, scope, idempotency
+- `payments/tests/test_payments.py` — every order gets exactly one payment, cash on
+  delivery only settles at actual handover, the mock gateway charges synchronously, a
+  shopper cannot see or pay another shopper's order
+- `billing/tests/test_billing.py` — a subscribed pharmacy is charged per accepted request,
+  an unsubscribed or zero-fee pharmacy is not, accepting twice never double-charges
 
 ## Known limitations
 
@@ -209,8 +216,17 @@ Honest list, since this is a POC:
   `apps/common/geo.py` is the single seam to swap.
 - Opening stock for turnover is approximated from current stock + period COGS. A real
   deployment wants a nightly inventory snapshot table.
-- Payments are out of scope — orders record totals, no money moves.
+- Payments use a provider-agnostic interface (`apps/payments`) with cash-on-delivery and a
+  mock gateway adapter; no real Lebanese payment platform is wired in yet (none chosen).
+  Real money only moves for cash on delivery, and only in the trivial sense of a status
+  flip at handover — no bank/wallet settlement exists.
 - Route re-planning is triggered manually or by the scheduler; there is no live push to
   drivers (no WebSocket layer).
 - The connector's `--check` verifies credentials and the export file, but there is no
   installer or service wrapper.
+- Auth tokens (`ExpiringTokenAuthentication`) expire after `AUTH_TOKEN_TTL_HOURS` (24h
+  default) and login is rate-limited; e-prescription PINs are salted/iterated (PBKDF2, not
+  raw SHA-256); prescription files are encrypted at rest (`apps/prescriptions/storage.py`).
+  Not yet done: encrypting other PII columns (patient/doctor names, phone numbers, addresses)
+  at the database level, and real disk/volume-level encryption for Postgres itself — both
+  are infra-level concerns this POC's `docker-compose.yml` doesn't configure.

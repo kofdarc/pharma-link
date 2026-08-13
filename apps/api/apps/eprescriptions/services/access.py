@@ -73,7 +73,7 @@ def authenticate(*, code: str, key: str = "", pin: str = "", request=None) -> tu
         else:
             if key and tokens.verify_hash(key, prescription.secret_hash):
                 method = "QR"
-            elif pin and tokens.verify_hash(pin.strip(), prescription.pin_hash):
+            elif pin and tokens.verify_pin(pin.strip(), prescription.pin_hash):
                 method = "MANUAL"
 
             if not method:

@@ -113,6 +113,7 @@ class ShopperOrderViewSet(ModelViewSet):
                 window_minutes=data.get("window_minutes", 120),
                 notes=data.get("notes", ""),
                 prescription=prescription,
+                payment_method=data["payment_method"],
             )
         except OrderError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)

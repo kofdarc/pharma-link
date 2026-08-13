@@ -85,7 +85,8 @@ class PrescriptionIssueTests(TestCase):
 
         self.assertNotIn(secret, prescription.secret_hash)
         self.assertNotIn(pin, prescription.pin_hash)
-        self.assertEqual(len(prescription.pin_hash), 64)
+        self.assertEqual(len(prescription.secret_hash), 64)
+        self.assertTrue(prescription.pin_hash.startswith("pbkdf2_"))
         self.assertNotEqual(prescription.secret_hash, prescription.pin_hash)
 
     def test_unactivated_doctor_cannot_issue(self):

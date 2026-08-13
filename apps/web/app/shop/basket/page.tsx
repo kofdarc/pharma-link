@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch, asList } from "@/lib/api-client";
 import { useBasket } from "@/lib/basket";
-import type { BasketQuote, DeliveryAddress, Order, Paginated } from "@/types/api";
+import type { BasketQuote, DeliveryAddress, Order, Paginated, PaymentMethod, PaymentProvider } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
@@ -29,6 +29,14 @@ export default function BasketPage() {
   const [notes, setNotes] = useState("");
   const [makeRecurring, setMakeRecurring] = useState(false);
   const [intervalDays, setIntervalDays] = useState(30);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentProvider>("COD");
+
+  useEffect(() => {
+    apiFetch<PaymentMethod[]>("/shop/payment-methods/")
+      .then(setPaymentMethods)
+      .catch(() => setPaymentMethods([]));
+  }, []);
 
   useEffect(() => {
     apiFetch<Paginated<DeliveryAddress> | DeliveryAddress[]>("/shop/addresses/")
@@ -85,7 +93,8 @@ export default function BasketPage() {
           scheduled_for: scheduleMode === "LATER" && scheduledFor ? new Date(scheduledFor).toISOString() : null,
           window_minutes: windowMinutes,
           notes,
-          prescription_code: prescriptionCode.trim()
+          prescription_code: prescriptionCode.trim(),
+          payment_method: paymentMethod
         })
       });
 
@@ -286,6 +295,15 @@ export default function BasketPage() {
           ) : null}
           <Field label="Notes for the driver">
             <input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Building, floor, landmark..." />
+          </Field>
+          <Field label="How would you like to pay?">
+            <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentProvider)}>
+              {(paymentMethods.length ? paymentMethods : [{ code: "COD", label: "Cash on delivery" }]).map((method) => (
+                <option key={method.code} value={method.code}>
+                  {method.label}
+                </option>
+              ))}
+            </select>
           </Field>
         </div>
 

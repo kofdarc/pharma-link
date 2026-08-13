@@ -4,6 +4,8 @@ from rest_framework import serializers
 
 from apps.medicines.serializers import MedicineSerializer
 from apps.orders.models import DeliveryAddress, Order, OrderFulfillment, OrderLine, PharmacyReview, RecurringOrder
+from apps.payments.models import Payment
+from apps.payments.serializers import PaymentSerializer
 
 
 class DeliveryAddressSerializer(serializers.ModelSerializer):
@@ -66,6 +68,7 @@ class OrderSerializer(serializers.ModelSerializer):
     fulfillments = OrderFulfillmentSerializer(many=True, read_only=True)
     window_start = serializers.DateTimeField(read_only=True)
     window_end = serializers.DateTimeField(read_only=True)
+    payment = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -94,9 +97,14 @@ class OrderSerializer(serializers.ModelSerializer):
             "notes",
             "cancelled_reason",
             "fulfillments",
+            "payment",
             "created_at",
         ]
         read_only_fields = fields
+
+    def get_payment(self, obj):
+        payment = getattr(obj, "payment", None)
+        return PaymentSerializer(payment).data if payment else None
 
 
 class PharmacyOrderFulfillmentSerializer(OrderFulfillmentSerializer):
@@ -153,6 +161,7 @@ class OrderCreateSerializer(serializers.Serializer):
     window_minutes = serializers.IntegerField(required=False, min_value=30, max_value=480, default=120)
     notes = serializers.CharField(required=False, allow_blank=True)
     prescription_code = serializers.CharField(required=False, allow_blank=True, max_length=24)
+    payment_method = serializers.ChoiceField(choices=Payment.Provider.choices, default=Payment.Provider.CASH_ON_DELIVERY)
 
     def validate_items(self, items):
         if not items:

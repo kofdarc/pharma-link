@@ -18,6 +18,19 @@ function orderTone(status: string) {
   return "info" as const;
 }
 
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Cash on delivery",
+  PAID: "Paid",
+  FAILED: "Payment failed",
+  REFUNDED: "Refunded"
+};
+
+function paymentTone(status: string) {
+  if (status === "PAID") return "success" as const;
+  if (status === "FAILED") return "danger" as const;
+  return "info" as const;
+}
+
 function OrdersView() {
   const params = useSearchParams();
   const highlight = params.get("highlight");
@@ -36,6 +49,15 @@ function OrdersView() {
   }, []);
 
   useEffect(load, [load]);
+
+  async function payNow(order: Order) {
+    try {
+      await apiFetch(`/shop/orders/${order.id}/pay/`, { method: "POST" });
+      load();
+    } catch (exception) {
+      setError((exception as ApiError).message);
+    }
+  }
 
   async function cancel(order: Order) {
     try {
@@ -138,6 +160,19 @@ function OrdersView() {
                 <span className="muted">Total</span>
                 <strong className="price">${order.total}</strong>
               </div>
+              {order.payment ? (
+                <div>
+                  <span className="muted">Payment</span>
+                  <Badge tone={paymentTone(order.payment.status)}>
+                    {PAYMENT_STATUS_LABELS[order.payment.status] || order.payment.status}
+                  </Badge>
+                </div>
+              ) : null}
+              {order.payment && order.payment.provider !== "COD" && order.payment.status === "FAILED" ? (
+                <Button type="button" onClick={() => payNow(order)}>
+                  Retry payment
+                </Button>
+              ) : null}
               {cancellable ? (
                 <Button type="button" variant="danger" onClick={() => cancel(order)}>
                   Cancel order

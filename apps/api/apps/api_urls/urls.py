@@ -14,6 +14,14 @@ from apps.analytics.views import (
     AnalyticsSalesView,
 )
 from apps.audit.views import AdminAuditLogViewSet, PharmacyAuditLogViewSet
+from apps.billing.views import (
+    AdminPharmacySubscriptionViewSet,
+    AdminServiceFeeViewSet,
+    AdminSubscriptionPlanViewSet,
+    PharmacyServiceFeeViewSet,
+    PharmacySubscriptionView,
+    PlatformRevenueOverviewView,
+)
 from apps.customers.views import ClientViewSet
 from apps.delivery.views import (
     AdminDriverViewSet,
@@ -60,6 +68,7 @@ from apps.orders.views import (
     RecurringOrderViewSet,
     ShopperOrderViewSet,
 )
+from apps.payments.views import OrderPaymentView, PaymentMethodsView
 from apps.pharmacies.views import AdminPharmacyViewSet, PharmacyDashboardView, PharmacyProfileView, PublicPharmacyViewSet
 from apps.prescriptions.views import PrescriptionRecordViewSet
 from apps.sales.views import SaleViewSet
@@ -105,6 +114,9 @@ router.register("admin/medicines", AdminMedicineViewSet, basename="admin-medicin
 router.register("admin/audit-logs", AdminAuditLogViewSet, basename="admin-audit-logs")
 router.register("admin/imports", AdminImportViewSet, basename="admin-imports")
 router.register("admin/drivers", AdminDriverViewSet, basename="admin-drivers")
+router.register("admin/subscription-plans", AdminSubscriptionPlanViewSet, basename="admin-subscription-plans")
+router.register("admin/pharmacy-subscriptions", AdminPharmacySubscriptionViewSet, basename="admin-pharmacy-subscriptions")
+router.register("admin/service-fees", AdminServiceFeeViewSet, basename="admin-service-fees")
 
 # Pharmacy workspace
 router.register("pharmacy/inventory", InventoryBatchViewSet, basename="pharmacy-inventory")
@@ -121,6 +133,7 @@ router.register("pharmacy/integration-keys", IntegrationKeyViewSet, basename="ph
 router.register("pharmacy/sku-mappings", SkuMappingViewSet, basename="pharmacy-sku-mappings")
 router.register("pharmacy/sync-runs", SyncRunViewSet, basename="pharmacy-sync-runs")
 router.register("pharmacy/webhooks", WebhookEndpointViewSet, basename="pharmacy-webhooks")
+router.register("pharmacy/service-fees", PharmacyServiceFeeViewSet, basename="pharmacy-service-fees")
 
 # Doctors and drivers
 router.register("doctor/prescriptions", DoctorPrescriptionViewSet, basename="doctor-prescriptions")
@@ -141,6 +154,8 @@ urlpatterns = [
     path("public/rx/dispense/", public_prescription_dispense),
     # Shopper
     path("shop/quote/", BasketQuoteView.as_view()),
+    path("shop/payment-methods/", PaymentMethodsView.as_view()),
+    path("shop/orders/<uuid:pk>/pay/", OrderPaymentView.as_view()),
     # Doctors
     path("doctors/activate/", DoctorActivationView.as_view()),
     path("doctor/profile/", DoctorProfileView.as_view()),
@@ -150,11 +165,14 @@ urlpatterns = [
     path("pharmacy/profile/", PharmacyProfileView.as_view()),
     path("pharmacy/rx/scan/", PharmacyPrescriptionScanView.as_view()),
     path("pharmacy/onboarding/", OnboardingStatusView.as_view()),
+    path("pharmacy/subscription/", PharmacySubscriptionView.as_view()),
     path("pharmacy/analytics/overview/", AnalyticsOverviewView.as_view()),
     path("pharmacy/analytics/inventory/", AnalyticsInventoryView.as_view()),
     path("pharmacy/analytics/sales/", AnalyticsSalesView.as_view()),
     path("pharmacy/analytics/replenishment/", AnalyticsReplenishmentView.as_view()),
     path("pharmacy/analytics/demand/", AnalyticsDemandView.as_view()),
+    # Platform revenue
+    path("admin/revenue/overview/", PlatformRevenueOverviewView.as_view()),
     # Dispatch (platform operations)
     path("dispatch/board/", DispatchBoardView.as_view()),
     path("dispatch/plan/", DispatchPlanView.as_view()),

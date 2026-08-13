@@ -393,6 +393,27 @@ export interface OrderFulfillment {
   is_shared_order?: boolean;
 }
 
+export type PaymentProvider = "COD" | "MOCK_GATEWAY";
+export type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+
+export interface Payment {
+  id: string;
+  order: string;
+  provider: PaymentProvider;
+  status: PaymentStatus;
+  amount: string;
+  currency: string;
+  external_reference: string;
+  paid_at: string | null;
+  failure_reason: string;
+  created_at: string;
+}
+
+export interface PaymentMethod {
+  code: PaymentProvider;
+  label: string;
+}
+
 export interface Order {
   id: string;
   reference: string;
@@ -414,6 +435,7 @@ export interface Order {
   notes?: string;
   cancelled_reason?: string;
   fulfillments: OrderFulfillment[];
+  payment: Payment | null;
   created_at: string;
 }
 

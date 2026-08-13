@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import secrets
 
+from django.contrib.auth.hashers import check_password, make_password
 from django.core import signing
 
 # Ambiguous characters (0/O, 1/I, etc.) are excluded so a pharmacist can read a code off a printout.
@@ -36,6 +37,22 @@ def verify_hash(value: str, expected_hash: str) -> bool:
     if not value or not expected_hash:
         return False
     return hmac.compare_digest(hash_value(value), expected_hash)
+
+
+def hash_pin(pin: str) -> str:
+    """
+    Unlike the QR secret (256 bits, safe to hash unsalted), a 6-digit PIN has only a
+    million possible values - an unsalted hash lets a leaked DB be matched against a
+    precomputed table in well under a second. Uses Django's own PBKDF2 password hasher
+    (salted, iterated) instead, same as `hash_value` cannot offer.
+    """
+    return make_password(pin)
+
+
+def verify_pin(pin: str, expected_hash: str) -> bool:
+    if not pin or not expected_hash:
+        return False
+    return check_password(pin, expected_hash)
 
 
 def issue_dispense_ticket(prescription_id, *, method: str) -> str:

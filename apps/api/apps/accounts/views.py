@@ -2,23 +2,33 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
+from apps.accounts.authentication import is_token_expired
 from apps.accounts.models import User, UserRole
 from apps.accounts.permissions import IsPharmacyOwner, IsPlatformAdmin
 from apps.accounts.serializers import LoginSerializer, ShopperRegisterSerializer, UserSerializer
 from apps.audit.services import write_audit_log
 
 
+class LoginThrottle(AnonRateThrottle):
+    scope = "login"
+
+
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [LoginThrottle]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
-        token, _created = Token.objects.get_or_create(user=user)
+        token, created = Token.objects.get_or_create(user=user)
+        if not created and is_token_expired(token):
+            token.delete()
+            token = Token.objects.create(user=user)
         user.mark_logged_in()
         write_audit_log(
             actor_user=user,

@@ -22,6 +22,8 @@ from apps.orders.models import (
     UnmetDemandSignal,
 )
 from apps.orders.services.sourcing import plan_basket
+from apps.payments.models import Payment
+from apps.payments.services import create_payment_for_order
 from apps.pharmacies.models import Pharmacy
 
 
@@ -75,6 +77,7 @@ def place_order(
     prescription=None,
     source: str = Order.Source.WEB,
     recurring_order=None,
+    payment_method: str = Payment.Provider.CASH_ON_DELIVERY,
 ) -> Order:
     """
     Validates, sources, then persists.
@@ -122,6 +125,7 @@ def place_order(
         prescription=prescription,
         source=source,
         recurring_order=recurring_order,
+        payment_method=payment_method,
     )
 
     if plan["unfulfilled"]:
@@ -151,6 +155,7 @@ def _persist_order(
     prescription,
     source: str,
     recurring_order,
+    payment_method: str,
 ) -> Order:
     order = Order.objects.create(
         reference=next_reference(),
@@ -212,6 +217,7 @@ def _persist_order(
     order.delivery_fee = delivery_fee
     order.total = subtotal + delivery_fee
     order.save(update_fields=["items_subtotal", "delivery_fee", "total", "updated_at"])
+    create_payment_for_order(order=order, provider_code=payment_method, user=customer)
     return order
 
 

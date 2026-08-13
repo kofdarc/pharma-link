@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.common.models import UUIDTimeStampedModel
-
+from apps.prescriptions.storage import EncryptedPrescriptionStorage
 
 ALLOWED_PRESCRIPTION_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
 ALLOWED_PRESCRIPTION_MIME_TYPES = {"application/pdf", "image/jpeg", "image/png"}
@@ -32,7 +32,9 @@ class PrescriptionRecord(UUIDTimeStampedModel):
     patient_phone = models.CharField(max_length=60, blank=True)
     doctor_name = models.CharField(max_length=255, blank=True)
     prescription_date = models.DateField(null=True, blank=True)
-    file = models.FileField(upload_to=prescription_upload_path, validators=[validate_prescription_file], blank=True)
+    file = models.FileField(
+        upload_to=prescription_upload_path, storage=EncryptedPrescriptionStorage(), validators=[validate_prescription_file], blank=True
+    )
     file_original_name = models.CharField(max_length=255, blank=True)
     file_mime_type = models.CharField(max_length=120, blank=True)
     file_size = models.PositiveIntegerField(null=True, blank=True)

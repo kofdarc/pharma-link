@@ -39,7 +39,7 @@ def issue_prescription(*, doctor: Doctor, patient: dict, items: list[dict], diag
                     doctor=doctor,
                     code=code,
                     secret_hash=tokens.hash_value(secret),
-                    pin_hash=tokens.hash_value(pin),
+                    pin_hash=tokens.hash_pin(pin),
                     patient_name=patient["patient_name"],
                     patient_email=patient.get("patient_email", ""),
                     patient_phone=patient.get("patient_phone", ""),
