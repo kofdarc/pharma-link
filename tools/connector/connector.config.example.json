@@ -1,0 +1,29 @@
+{
+  "api_base_url": "http://localhost:8000",
+  "key_id": "msk_REPLACE_ME",
+  "secret": "REPLACE_ME_OR_SET_PHARMALINK_SECRET_ENV",
+  "interval_seconds": 300,
+  "chunk_size": 500,
+  "timeout_seconds": 30,
+  "orders_out_file": "C:/PharmaLink/incoming-orders.csv",
+  "source": {
+    "type": "csv",
+    "path": "C:/PharmacyPOS/exports/stock.csv",
+    "encoding": "utf-8-sig",
+    "delimiter": ",",
+    "columns": {
+      "external_code": "code",
+      "name": "description",
+      "quantity": "qty_on_hand",
+      "selling_price": "retail_price",
+      "purchase_cost": "cost_price",
+      "expiry_date": "expiry",
+      "supplier_name": "supplier"
+    }
+  },
+  "_sqlite_source_example": {
+    "type": "sqlite",
+    "path": "C:/PharmacyPOS/data/pos.db",
+    "query": "SELECT item_code AS external_code, item_name AS name, stock_qty AS quantity, price AS selling_price, cost AS purchase_cost FROM items WHERE active = 1"
+  }
+}

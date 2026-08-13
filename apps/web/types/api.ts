@@ -1,0 +1,677 @@
+export type UserRole = "PLATFORM_ADMIN" | "PHARMACY_OWNER" | "PHARMACY_STAFF" | "DOCTOR" | "CUSTOMER" | "DRIVER";
+
+export interface Pharmacy {
+  id: string;
+  name: string;
+  license_number?: string;
+  address: string;
+  city: string;
+  area: string;
+  phone: string;
+  whatsapp?: string;
+  email?: string;
+  latitude?: string | null;
+  longitude?: string | null;
+  is_active: boolean;
+  is_public: boolean;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: UserRole;
+  pharmacy?: string;
+  pharmacy_detail?: Pharmacy;
+  is_active: boolean;
+}
+
+export type ProductCategory = "MEDICINE" | "SUPPLEMENT" | "PARAPHARMACY";
+export type PriceRegime = "REGULATED" | "FREE";
+
+export interface Medicine {
+  id: string;
+  brand_name: string;
+  generic_name: string;
+  strength: string;
+  form: string;
+  manufacturer?: string;
+  is_active: boolean;
+  display_name: string;
+  category?: ProductCategory;
+  price_regime?: PriceRegime;
+  regulated_price?: string | null;
+  regulated_price_reference?: string;
+  requires_prescription?: boolean;
+  is_price_regulated?: boolean;
+  aliases?: { id: string; alias: string; alias_type: string }[];
+}
+
+export interface InventoryBatch {
+  id: string;
+  medicine: string;
+  medicine_detail: Medicine;
+  batch_number: string;
+  initial_quantity: number;
+  current_quantity: number;
+  expiry_date?: string;
+  supplier_name?: string;
+  purchase_cost?: string;
+  selling_price: string;
+  low_stock_threshold: number;
+  public_availability_enabled: boolean;
+  is_archived: boolean;
+  is_low_stock: boolean;
+  is_expired: boolean;
+  is_expiring_soon: boolean;
+  updated_at: string;
+}
+
+export interface PublicAvailability {
+  medicine: Pick<Medicine, "id" | "brand_name" | "generic_name" | "strength" | "form"> & {
+    category?: ProductCategory;
+    requires_prescription?: boolean;
+  };
+  pharmacy: Pick<Pharmacy, "id" | "name" | "address" | "city" | "area" | "phone" | "whatsapp" | "email"> & {
+    rating: number;
+    rating_count: number;
+    fulfillment_success_rate: number;
+    accepts_online_orders: boolean;
+    delivery_enabled: boolean;
+    preparation_minutes: number;
+  };
+  availability_status: "Available" | "Low stock" | "Unavailable" | "Unknown";
+  available_up_to: number;
+  quantity_cap: number;
+  unit_price: string | null;
+  is_price_regulated: boolean;
+  price_note: string;
+  distance_km: number | null;
+  soonest_expiry?: string | null;
+  rank_score: number;
+  last_updated: string;
+  disclaimer: string;
+}
+
+export interface Sale {
+  id: string;
+  invoice_number: string;
+  sale_datetime: string;
+  subtotal: string;
+  discount_total: string;
+  total: string;
+  payment_method: string;
+  status: string;
+  staff_email: string;
+  items: SaleItem[];
+}
+
+export interface SaleItem {
+  id: string;
+  medicine: string;
+  medicine_detail: Medicine;
+  batch_number: string;
+  quantity: number;
+  unit_price: string;
+  discount: string;
+  line_total: string;
+}
+
+export interface PrescriptionRecord {
+  id: string;
+  patient_name: string;
+  doctor_name: string;
+  prescription_date?: string;
+  file_name?: string;
+  file_mime_type?: string;
+  file_size?: number;
+  download_url?: string;
+  created_at: string;
+}
+
+export interface InventoryImport {
+  id: string;
+  original_filename: string;
+  status: string;
+  total_rows: number;
+  valid_rows: number;
+  invalid_rows: number;
+  matched_rows: number;
+  unmatched_rows: number;
+  created_count: number;
+  skipped_count: number;
+  error_summary?: string;
+  created_at: string;
+  rows?: InventoryImportRow[];
+}
+
+export interface InventoryImportRow {
+  id: string;
+  row_number: number;
+  raw_medicine_name: string;
+  matched_medicine_detail?: Medicine;
+  match_confidence?: string;
+  quantity?: number;
+  selling_price?: string;
+  status: string;
+  error_message?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  actor_email?: string;
+  pharmacy_name?: string;
+  action: string;
+  entity_type: string;
+  summary: string;
+  created_at: string;
+}
+
+export interface Paginated<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+/* --- Pharmacy clients (CRM) ------------------------------------------------------- */
+
+export interface Client {
+  id: string;
+  full_name: string;
+  phone: string;
+  email?: string;
+  date_of_birth?: string | null;
+  address?: string;
+  area?: string;
+  allergies?: string;
+  chronic_conditions?: string;
+  notes?: string;
+  insurance_provider?: string;
+  insurance_number?: string;
+  credit_limit: string;
+  marketing_opt_in: boolean;
+  is_active: boolean;
+  balance_due: string;
+  created_at: string;
+}
+
+export interface ClientHistory {
+  visits: number;
+  total_spent: string;
+  average_basket: string;
+  balance_due: string;
+  last_visit: string | null;
+  days_since_last_visit: number | null;
+  top_products: { medicine_id: string; name: string; units: number; spend: string }[];
+  recent_sales: { id: string; invoice_number: string; total: string; sale_datetime: string }[];
+}
+
+export interface ClientLedgerEntry {
+  id: string;
+  entry_type: "CHARGE" | "PAYMENT" | "ADJUSTMENT";
+  amount: string;
+  memo?: string;
+  created_by_email?: string;
+  created_at: string;
+}
+
+/* --- E-prescriptions -------------------------------------------------------------- */
+
+export type PrescriptionStatus = "ISSUED" | "PARTIALLY_DISPENSED" | "FULLY_DISPENSED" | "EXPIRED" | "CANCELLED";
+
+export interface Doctor {
+  id: string;
+  license_number: string;
+  full_name: string;
+  specialty: string;
+  email: string;
+  phone: string;
+  clinic_name: string;
+  clinic_area: string;
+  is_activated: boolean;
+  is_active: boolean;
+}
+
+export interface PrescriptionItem {
+  id: string;
+  medicine?: string | null;
+  medicine_detail?: Medicine;
+  medicine_text: string;
+  quantity_prescribed: number;
+  quantity_dispensed: number;
+  quantity_remaining: number;
+  unit: string;
+  dosage_instructions: string;
+  allow_generic_substitution: boolean;
+}
+
+export interface Prescription {
+  id: string;
+  code: string;
+  doctor_name: string;
+  doctor_license: string;
+  patient_name: string;
+  patient_email?: string;
+  patient_phone?: string;
+  diagnosis_note?: string;
+  status: PrescriptionStatus;
+  issued_at: string;
+  valid_until: string;
+  email_sent_at?: string | null;
+  is_expired: boolean;
+  is_consumable: boolean;
+  items: PrescriptionItem[];
+  dispenses: {
+    id: string;
+    pharmacy_name: string;
+    pharmacist_name: string;
+    dispensed_at: string;
+    items: { prescription_item: string; name: string; quantity: number }[];
+  }[];
+  one_time_secrets?: { pin: string; qr_url: string; qr_svg: string };
+}
+
+export interface PublicPrescription {
+  code: string;
+  status: PrescriptionStatus;
+  issued_at: string;
+  valid_until: string;
+  is_expired: boolean;
+  is_consumable: boolean;
+  patient_name: string;
+  patient_date_of_birth?: string | null;
+  doctor: { full_name: string; license_number: string; specialty: string; clinic_name: string };
+  diagnosis_note: string;
+  items: {
+    id: string;
+    medicine_text: string;
+    medicine_id?: string | null;
+    quantity_prescribed: number;
+    quantity_dispensed: number;
+    quantity_remaining: number;
+    unit: string;
+    dosage_instructions: string;
+    allow_generic_substitution: boolean;
+  }[];
+  dispense_history: { pharmacy_name: string; dispensed_at: string; units: number }[];
+  dispense_ticket: string;
+  ticket_expires_in_seconds: number;
+  pharmacy?: { id: string; name: string };
+}
+
+/* --- Shopper orders --------------------------------------------------------------- */
+
+export interface DeliveryAddress {
+  id: string;
+  label: string;
+  contact_name: string;
+  phone: string;
+  address: string;
+  area: string;
+  city: string;
+  building_notes?: string;
+  latitude: string;
+  longitude: string;
+  is_default: boolean;
+}
+
+export interface QuoteLine {
+  medicine: string;
+  medicine_name: string;
+  quantity: number;
+  unit_price: string;
+  line_total: string;
+  is_price_regulated: boolean;
+}
+
+export interface QuoteAllocation {
+  pharmacy: string;
+  pharmacy_name: string;
+  pharmacy_area: string;
+  distance_km: number;
+  rating: number;
+  fulfillment_success_rate: number;
+  preparation_minutes: number;
+  subtotal: string;
+  lines: QuoteLine[];
+}
+
+export interface BasketQuote {
+  allocations: QuoteAllocation[];
+  unfulfilled: { medicine: string; medicine_name: string; quantity_short: number }[];
+  items_subtotal: string;
+  pharmacy_count: number;
+  explanation: string[];
+}
+
+export type OrderStatus =
+  | "PENDING"
+  | "SCHEDULED"
+  | "CONFIRMED"
+  | "READY"
+  | "ASSIGNED"
+  | "IN_TRANSIT"
+  | "DELIVERED"
+  | "COLLECTED"
+  | "PARTIALLY_CANCELLED"
+  | "CANCELLED";
+
+export interface OrderLine {
+  id: string;
+  medicine: string;
+  medicine_detail: Medicine;
+  quantity: number;
+  unit_price: string;
+  line_total: string;
+  is_price_regulated: boolean;
+}
+
+export interface OrderFulfillment {
+  id: string;
+  pharmacy: string;
+  pharmacy_name: string;
+  pharmacy_area: string;
+  pharmacy_phone: string;
+  status: "PENDING" | "ACCEPTED" | "READY" | "PICKED_UP" | "DELIVERED" | "COLLECTED" | "REJECTED" | "CANCELLED";
+  subtotal: string;
+  accepted_at?: string | null;
+  ready_at?: string | null;
+  picked_up_at?: string | null;
+  completed_at?: string | null;
+  rejection_reason?: string;
+  lines: OrderLine[];
+  handover_code?: string;
+  order?: string;
+  order_reference?: string;
+  order_status?: OrderStatus;
+  order_area?: string;
+  contact_name?: string;
+  scheduled_for?: string | null;
+  fulfillment_type?: "DELIVERY" | "PICKUP";
+  is_shared_order?: boolean;
+}
+
+export interface Order {
+  id: string;
+  reference: string;
+  status: OrderStatus;
+  fulfillment_type: "DELIVERY" | "PICKUP";
+  source: "WEB" | "RECURRING";
+  contact_name: string;
+  contact_phone: string;
+  address: string;
+  area: string;
+  city: string;
+  delivery_notes?: string;
+  scheduled_for?: string | null;
+  window_start?: string | null;
+  window_end?: string | null;
+  items_subtotal: string;
+  delivery_fee: string;
+  total: string;
+  notes?: string;
+  cancelled_reason?: string;
+  fulfillments: OrderFulfillment[];
+  created_at: string;
+}
+
+export interface RecurringOrder {
+  id: string;
+  label: string;
+  address: string;
+  items: { medicine: string; quantity: number }[];
+  interval_days: number;
+  preferred_hour: number;
+  next_run_at: string;
+  last_run_at?: string | null;
+  occurrences_created: number;
+  is_active: boolean;
+  last_error?: string;
+}
+
+/* --- Delivery / dispatch ---------------------------------------------------------- */
+
+export interface RouteStopTask {
+  id: string;
+  order_fulfillment: string;
+  order_reference: string;
+  contact_name: string;
+  contact_phone: string;
+  pharmacy_name: string;
+  handover_code: string;
+  fulfillment_status: string;
+  units: number;
+  is_done: boolean;
+  lines: { medicine: string; quantity: number }[];
+}
+
+export interface RouteStop {
+  id: string;
+  sequence: number;
+  kind: "PICKUP" | "DROPOFF";
+  label: string;
+  address: string;
+  latitude: string;
+  longitude: string;
+  units: number;
+  planned_arrival?: string | null;
+  window_start?: string | null;
+  window_end?: string | null;
+  arrived_at?: string | null;
+  completed_at?: string | null;
+  status: "PENDING" | "ARRIVED" | "DONE" | "FAILED" | "SKIPPED";
+  failure_reason?: string;
+  orders_served: number;
+  tasks: RouteStopTask[];
+}
+
+export interface DeliveryRoute {
+  id: string;
+  driver?: string | null;
+  driver_name: string;
+  status: "PROPOSED" | "OFFERED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+  planned_distance_km: string;
+  planned_duration_minutes: number;
+  naive_distance_km: string;
+  distance_saved_km: number;
+  plan_version: number;
+  planner_notes: string;
+  orders_count: number;
+  created_at: string;
+  stops: RouteStop[];
+}
+
+export interface DispatchSummary {
+  jobs: number;
+  assigned_jobs: number;
+  unassigned_jobs: number;
+  routes_used: number;
+  drivers_available: number;
+  stops: number;
+  pickup_stops: number;
+  shared_pickup_stops: number;
+  pickup_visits_avoided: number;
+  baseline_scope: string;
+  naive_distance_km: number;
+  optimised_distance_km: number;
+  distance_saved_km: number;
+  distance_saved_percent: number;
+}
+
+export interface Driver {
+  id: string;
+  full_name: string;
+  phone: string;
+  vehicle_type: "SCOOTER" | "CAR" | "BICYCLE";
+  capacity_units: number;
+  is_active: boolean;
+  is_online: boolean;
+  last_ping_at?: string | null;
+}
+
+/* --- Analytics -------------------------------------------------------------------- */
+
+export interface StockSnapshot {
+  sku_count: number;
+  batch_count: number;
+  units_on_hand: number;
+  units_reserved: number;
+  stock_value_at_cost: string;
+  stock_value_at_retail: string;
+  potential_margin_value: string;
+  low_stock_skus: number;
+  out_of_stock_batches: number;
+  expired_batches: number;
+  expired_value_at_cost: string;
+  value_expiring_30d: string;
+  units_expiring_30d: number;
+  value_expiring_60d: string;
+  units_expiring_60d: number;
+  value_expiring_90d: string;
+  units_expiring_90d: number;
+}
+
+export interface SalesSnapshot {
+  window_days: number;
+  revenue: string;
+  cogs: string;
+  gross_margin: string;
+  gross_margin_percent: number;
+  transactions: number;
+  units_sold: number;
+  average_basket: string;
+  average_units_per_basket: number;
+  transactions_per_day: number;
+  discount_given: string;
+  regulated_revenue: string;
+  free_priced_revenue: string;
+  regulated_share_percent: number;
+  revenue_by_channel: Record<string, string>;
+}
+
+export interface TurnoverMetrics {
+  window_days: number;
+  cogs: string;
+  average_inventory_at_cost: string;
+  inventory_turnover: number;
+  inventory_turnover_annualised: number;
+  days_inventory_outstanding: number | null;
+  gmroi: number;
+  sell_through_percent: number;
+}
+
+export interface MovementClassification {
+  window_days: number;
+  counts: { A: number; B: number; C: number };
+  top_movers: {
+    medicine_id: string;
+    name: string;
+    units: number;
+    revenue: string;
+    revenue_share_percent: number;
+    cumulative_share_percent: number;
+    abc_class: "A" | "B" | "C";
+    daily_velocity: number;
+  }[];
+  slow_movers: MovementClassification["top_movers"];
+  dead_stock: { medicine_id: string; name: string; units: number; value_at_cost: string }[];
+  dead_stock_days: number;
+  skus_with_no_sales: number;
+}
+
+export interface ReplenishmentPlan {
+  window_days: number;
+  lead_time_days: number;
+  service_level_percent: number;
+  reorder_now_count: number;
+  suggestions: {
+    medicine_id: string;
+    name: string;
+    units_on_hand: number;
+    avg_daily_demand: number;
+    demand_std_dev: number;
+    safety_stock: number;
+    reorder_point: number;
+    days_of_cover: number | null;
+    suggested_order_quantity: number;
+    needs_reorder: boolean;
+  }[];
+}
+
+export interface AnalyticsOverview {
+  pharmacy: { id: string; name: string; area: string };
+  generated_at: string;
+  stock: StockSnapshot;
+  sales_30d: SalesSnapshot;
+  sales_7d: SalesSnapshot;
+  turnover: TurnoverMetrics;
+  platform: {
+    window_days: number;
+    orders_received: number;
+    orders_accepted: number;
+    orders_rejected: number;
+    acceptance_rate_percent: number;
+    median_acceptance_minutes: number | null;
+    rating_average: number;
+    rating_count: number;
+    fulfillment_success_rate: number;
+  };
+  revenue_series: { date: string; revenue: string; transactions: number }[];
+}
+
+export interface DemandSignals {
+  window_days: number;
+  area: string;
+  signals: { medicine_id: string; name: string; requests: number; units_requested: number; source: string; you_stock_it: boolean }[];
+}
+
+/* --- Integrations ----------------------------------------------------------------- */
+
+export interface IntegrationKey {
+  id: string;
+  name: string;
+  key_id: string;
+  secret_fingerprint: string;
+  scopes: string[];
+  is_active: boolean;
+  last_used_at?: string | null;
+  request_count: number;
+  created_at: string;
+  secret?: string;
+  setup_hint?: string;
+}
+
+export interface SkuMapping {
+  id: string;
+  external_code: string;
+  external_name: string;
+  medicine?: string | null;
+  medicine_detail?: Medicine;
+  match_method: "MANUAL" | "AUTO_EXACT" | "AUTO_FUZZY" | "UNMATCHED";
+  match_confidence?: string | null;
+  is_ignored: boolean;
+  last_seen_at?: string | null;
+}
+
+export interface SyncRun {
+  id: string;
+  kind: "STOCK" | "SALES";
+  status: "APPLIED" | "PARTIAL" | "REJECTED" | "REPLAYED";
+  idempotency_key: string;
+  rows_received: number;
+  rows_applied: number;
+  rows_unmapped: number;
+  rows_failed: number;
+  created_at: string;
+}
+
+export interface OnboardingStatus {
+  pharmacy: string;
+  steps: { key: string; title: string; done: boolean; detail?: string; hint?: string }[];
+  completed_steps: number;
+  total_steps: number;
+  last_sync: SyncRun | null;
+}
+
