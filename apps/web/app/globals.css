@@ -32,6 +32,7 @@ body {
   background: var(--bg);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0;
+  -webkit-text-size-adjust: 100%;
 }
 
 a {
@@ -245,6 +246,8 @@ textarea {
   top: 0;
   height: 100vh;
   padding: 20px 14px;
+  padding-top: max(20px, env(safe-area-inset-top));
+  padding-left: max(14px, env(safe-area-inset-left));
   background: #102536;
   color: white;
 }
@@ -276,6 +279,40 @@ textarea {
   min-width: 0;
 }
 
+.nav-toggle {
+  display: none;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: white;
+  cursor: pointer;
+  padding: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.nav-toggle span {
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--navy);
+}
+
+.nav-backdrop {
+  display: none;
+}
+
+.topbar-start {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
 .topbar {
   min-height: 68px;
   display: flex;
@@ -283,13 +320,22 @@ textarea {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 24px;
+  padding-left: max(24px, env(safe-area-inset-left));
+  padding-right: max(24px, env(safe-area-inset-right));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
-.topbar div {
+.topbar-start div {
   display: grid;
   gap: 2px;
+  min-width: 0;
+}
+
+.topbar-start strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topbar span {
@@ -511,14 +557,47 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  .nav-toggle {
+    display: flex;
+  }
+
   .sidebar {
-    position: static;
-    height: auto;
+    position: fixed;
+    inset: 0 25% 0 0;
+    z-index: 40;
+    height: 100vh;
+    width: auto;
+    max-width: 320px;
+    transform: translateX(-100%);
+    transition: transform 200ms ease;
+    overflow-y: auto;
+  }
+
+  .sidebar[data-open="true"] {
+    transform: translateX(0);
   }
 
   .sidebar nav {
-    display: flex;
-    overflow-x: auto;
+    display: grid;
+    overflow-x: visible;
+  }
+
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    border: none;
+    padding: 0;
+    background: rgba(10, 20, 30, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+
+  .nav-backdrop[data-open="true"] {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .topbar,

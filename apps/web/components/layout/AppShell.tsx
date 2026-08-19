@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { clearToken } from "@/lib/api-client";
@@ -36,10 +37,23 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const nav = NAV_BY_MODE[mode];
+  const [navOpen, setNavOpen] = useState(false);
+
+  useEffect(() => {
+    setNavOpen(false);
+  }, [pathname]);
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <button
+        type="button"
+        className="nav-backdrop"
+        aria-hidden={!navOpen}
+        data-open={navOpen}
+        onClick={() => setNavOpen(false)}
+        tabIndex={-1}
+      />
+      <aside className="sidebar" data-open={navOpen}>
         <Link href="/" className="brand">
           <span className="brand-mark">M</span>
           <span>PharmaLink</span>
@@ -54,9 +68,22 @@ export function AppShell({
       </aside>
       <main className="main-panel">
         <header className="topbar">
-          <div>
-            <strong>{contextLabel(mode, user)}</strong>
-            <span>{user.email}</span>
+          <div className="topbar-start">
+            <button
+              type="button"
+              className="nav-toggle"
+              aria-label={navOpen ? "Close menu" : "Open menu"}
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen((open) => !open)}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+            <div>
+              <strong>{contextLabel(mode, user)}</strong>
+              <span>{user.email}</span>
+            </div>
           </div>
           <button
             className="button button-secondary"
