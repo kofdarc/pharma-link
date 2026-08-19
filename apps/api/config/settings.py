@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "storages",
     "rest_framework",
     "rest_framework.authtoken",
     "apps.accounts",
@@ -44,6 +45,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -109,11 +111,38 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/private-media/"
 PRIVATE_MEDIA_ROOT = BASE_DIR / "media" / "private"
 MEDIA_ROOT = PRIVATE_MEDIA_ROOT
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
+
+# --- Prescription file storage ----------------------------------------------------------
+# Local disk in development. In production, point this at S3 (see docs/DEPLOY_AWS.md) so
+# scanned prescriptions survive redeploys - App Runner's container filesystem is ephemeral.
+# Files stay encrypted at the application layer either way (see apps/prescriptions/storage.py).
+USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "")
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "")
+AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL") or None
+AWS_S3_ADDRESSING_STYLE = "virtual"
+# The bucket should have ACLs disabled (Object Ownership: "Bucket owner enforced", the AWS
+# default for new buckets) with access controlled entirely by bucket policy/IAM - so no
+# per-object ACL is sent.
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = False
+if os.getenv("AWS_ACCESS_KEY_ID"):
+    # Only needed for local testing against S3. On App Runner, leave these unset and grant
+    # the App Runner instance role S3 access instead - boto3 picks up credentials from the
+    # role automatically.
+    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
 AUTH_TOKEN_TTL_HOURS = int(os.getenv("AUTH_TOKEN_TTL_HOURS", "24"))
 
@@ -140,6 +169,16 @@ CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "ht
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
 SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
 CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "false").lower() == "true"
+
+# App Runner (and most managed AWS load balancers) terminate TLS upstream and forward plain
+# HTTP with this header - without it, Django can't tell the request was actually HTTPS and
+# SECURE_SSL_REDIRECT would redirect-loop.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "true").lower() == "true"
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 MAX_PRESCRIPTION_FILE_SIZE_MB = int(os.getenv("MAX_PRESCRIPTION_FILE_SIZE_MB", "10"))
 MAX_IMPORT_FILE_SIZE_MB = int(os.getenv("MAX_IMPORT_FILE_SIZE_MB", "5"))

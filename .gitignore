@@ -9,6 +9,8 @@ apps/api/test.sqlite3
 media/
 apps/api/media/private/*
 !apps/api/media/private/.gitkeep
+apps/api/staticfiles/*
+!apps/api/staticfiles/.gitkeep
 node_modules/
 .next/
 *.tsbuildinfo

@@ -7,7 +7,7 @@ multi-pickup delivery router underneath it all.
 - `apps/api` — Django + Django REST Framework
 - `apps/web` — Next.js + TypeScript
 - `tools/connector` — the agent that runs inside the pharmacy, bridging their existing software
-- `docs/` — [architecture](docs/ARCHITECTURE.md) · [demo script](docs/DEMO.md) · [API](docs/API.md) · [setup](docs/SETUP.md)
+- `docs/` — [architecture](docs/ARCHITECTURE.md) · [demo script](docs/DEMO.md) · [API](docs/API.md) · [setup](docs/SETUP.md) · [deploying to AWS](docs/DEPLOY_AWS.md)
 
 ## What it does
 
