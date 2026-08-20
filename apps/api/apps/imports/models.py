@@ -17,6 +17,7 @@ class InventoryImport(UUIDTimeStampedModel):
     pharmacy = models.ForeignKey("pharmacies.Pharmacy", on_delete=models.PROTECT, related_name="inventory_imports", db_index=True)
     uploaded_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="inventory_imports")
     original_filename = models.CharField(max_length=255)
+    content_hash = models.CharField(max_length=64, blank=True, db_index=True, help_text="SHA-256 of the uploaded file, for duplicate-upload detection.")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.UPLOADED)
     total_rows = models.PositiveIntegerField(default=0)
     valid_rows = models.PositiveIntegerField(default=0)

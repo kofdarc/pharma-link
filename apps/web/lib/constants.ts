@@ -11,6 +11,7 @@ export const PHARMACY_NAV = [
   ["Prescriptions", "/pharmacy/prescriptions"],
   ["Scan a QR script", "/pharmacy/scan"],
   ["Connect software", "/pharmacy/connect"],
+  ["Billing", "/pharmacy/billing"],
   ["Settings", "/pharmacy/settings"],
   ["Staff", "/pharmacy/staff"]
 ] as const;
@@ -19,6 +20,8 @@ export const ADMIN_NAV = [
   ["Admin", "/admin"],
   ["Dispatch board", "/admin/dispatch"],
   ["Pharmacies", "/admin/pharmacies"],
+  ["Pharmacy applications", "/admin/pharmacy-applications"],
+  ["Billing", "/admin/billing"],
   ["Medicines", "/admin/medicines"],
   ["Users", "/admin/users"],
   ["Imports", "/admin/imports"],
@@ -27,7 +30,9 @@ export const ADMIN_NAV = [
 
 export const DOCTOR_NAV = [
   ["Prescriptions", "/doctor/prescriptions"],
-  ["Write a prescription", "/doctor/prescriptions/new"]
+  ["Write a prescription", "/doctor/prescriptions/new"],
+  ["Patients", "/doctor/patients"],
+  ["Profile", "/doctor/profile"]
 ] as const;
 
 export const SHOP_NAV = [

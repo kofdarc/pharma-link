@@ -1,0 +1,366 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-20 14:40+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Invalid email or password."
+msgstr "E-mail ou mot de passe invalide."
+
+msgid "This account is inactive."
+msgstr "Ce compte est inactif."
+
+msgid "This pharmacy account is inactive."
+msgstr "Ce compte de pharmacie est inactif."
+
+msgid "An account already exists for this email."
+msgstr "Un compte existe déjà pour cet e-mail."
+
+msgid "Pharmacy users must be assigned to a pharmacy."
+msgstr "Les utilisateurs de pharmacie doivent être rattachés à une pharmacie."
+
+msgid "Reset your PharmaLink password"
+msgstr "Réinitialisez votre mot de passe PharmaLink"
+
+#, python-format
+msgid ""
+"Hi,\n"
+"\n"
+"Use this link to set a new password: %(url)s\n"
+"\n"
+"If you didn't request this, you can ignore this email - your password hasn't changed.\n"
+msgstr ""
+"Bonjour,\n"
+"\n"
+"Utilisez ce lien pour définir un nouveau mot de passe : %(url)s\n"
+"\n"
+"Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail - votre mot de passe n'a pas changé.\n"
+
+msgid "Verify your PharmaLink email"
+msgstr "Vérifiez votre e-mail PharmaLink"
+
+#, python-format
+msgid ""
+"Hi,\n"
+"\n"
+"Confirm your email to start ordering: %(url)s\n"
+msgstr ""
+"Bonjour,\n"
+"\n"
+"Confirmez votre e-mail pour commencer à commander : %(url)s\n"
+
+msgid "If an account exists for that email, a reset link has been sent."
+msgstr ""
+"Si un compte existe pour cet e-mail, un lien de réinitialisation a été "
+"envoyé."
+
+msgid "This reset link is invalid or has expired."
+msgstr "Ce lien de réinitialisation est invalide ou a expiré."
+
+msgid "Password updated. You can now log in."
+msgstr "Mot de passe mis à jour. Vous pouvez maintenant vous connecter."
+
+msgid "If that account needs verification, a new link has been sent."
+msgstr "Si ce compte doit être vérifié, un nouveau lien a été envoyé."
+
+msgid "This verification link is invalid or has expired."
+msgstr "Ce lien de vérification est invalide ou a expiré."
+
+msgid "Email verified."
+msgstr "E-mail vérifié."
+
+#, python-format
+msgid "A driver is on the way for order %(reference)s"
+msgstr "Un livreur est en route pour la commande %(reference)s"
+
+#, python-format
+msgid ""
+"Hi %(name)s,\n"
+"\n"
+"%(driver)s has been assigned to deliver your order %(reference)s.\n"
+msgstr ""
+"Bonjour %(name)s,\n"
+"\n"
+"%(driver)s a été chargé(e) de livrer votre commande %(reference)s.\n"
+
+msgid "This route was planned for another driver."
+msgstr "Cet itinéraire a été planifié pour un autre livreur."
+
+msgid "This route can no longer be accepted."
+msgstr "Cet itinéraire ne peut plus être accepté."
+
+msgid "Finish your active route first."
+msgstr "Terminez d'abord votre itinéraire en cours."
+
+msgid "This stop is not on your route."
+msgstr "Cet arrêt ne fait pas partie de votre itinéraire."
+
+msgid "Accept the route before starting it."
+msgstr "Acceptez l'itinéraire avant de le commencer."
+
+msgid "This stop is not pending."
+msgstr "Cet arrêt n'est pas en attente."
+
+msgid "This stop is not a pickup."
+msgstr "Cet arrêt n'est pas un enlèvement."
+
+msgid "This stop is already closed."
+msgstr "Cet arrêt est déjà clôturé."
+
+msgid "This stop is not a delivery."
+msgstr "Cet arrêt n'est pas une livraison."
+
+msgid "No prescription matches that code."
+msgstr "Aucune ordonnance ne correspond à ce code."
+
+msgid "Too many failed attempts. Try again shortly."
+msgstr "Trop de tentatives échouées. Réessayez dans un instant."
+
+msgid "The prescription key or PIN is not valid."
+msgstr "La clé ou le code PIN de l'ordonnance n'est pas valide."
+
+msgid "This prescription was cancelled by the prescribing doctor."
+msgstr "Cette ordonnance a été annulée par le médecin prescripteur."
+
+msgid ""
+"No matching licence and email were found in the Order of Physicians roster."
+msgstr ""
+"Aucun numéro de licence et e-mail correspondants n'ont été trouvés dans le "
+"registre de l'Ordre des médecins."
+
+msgid "This licence is not currently active."
+msgstr "Cette licence n'est pas actuellement active."
+
+msgid ""
+"This account is already activated. Use the login page or reset your "
+"password."
+msgstr ""
+"Ce compte est déjà activé. Utilisez la page de connexion ou réinitialisez "
+"votre mot de passe."
+
+msgid "A user already exists for this email address."
+msgstr "Un utilisateur existe déjà pour cette adresse e-mail."
+
+#, python-format
+msgid "This prescription is %(status)s and cannot be dispensed."
+msgstr "Cette ordonnance est %(status)s et ne peut pas être délivrée."
+
+msgid ""
+"The prescribing doctor's license is no longer active. This prescription "
+"cannot be dispensed."
+msgstr ""
+"La licence du médecin prescripteur n'est plus active. Cette ordonnance ne "
+"peut pas être délivrée."
+
+msgid "Enter at least one quantity to dispense."
+msgstr "Saisissez au moins une quantité à délivrer."
+
+msgid "One or more items do not belong to this prescription."
+msgstr "Un ou plusieurs articles n'appartiennent pas à cette ordonnance."
+
+#, python-format
+msgid "%(medicine)s: only %(remaining)s %(unit)s remain on this prescription."
+msgstr ""
+"%(medicine)s : il ne reste que %(remaining)s %(unit)s sur cette ordonnance."
+
+#, python-format
+msgid ""
+"%(medicine)s is a controlled substance and must be dispensed in full "
+"(%(remaining)s %(unit)s) by a single pharmacy."
+msgstr ""
+"%(medicine)s est une substance contrôlée et doit être délivrée en totalité "
+"(%(remaining)s %(unit)s) par une seule pharmacie."
+
+msgid "This licence is not active for issuing prescriptions."
+msgstr "Cette licence n'est pas active pour la délivrance d'ordonnances."
+
+msgid "A prescription needs at least one item."
+msgstr "Une ordonnance doit comporter au moins un article."
+
+msgid "Could not allocate a prescription code. Please retry."
+msgstr "Impossible d'attribuer un code d'ordonnance. Veuillez réessayer."
+
+msgid "A fully dispensed prescription cannot be cancelled."
+msgstr "Une ordonnance entièrement délivrée ne peut pas être annulée."
+
+msgid "This session expired. Scan the prescription again."
+msgstr "Cette session a expiré. Scannez à nouveau l'ordonnance."
+
+msgid "Invalid session. Scan the prescription again."
+msgstr "Session invalide. Scannez à nouveau l'ordonnance."
+
+msgid "Prescription not found."
+msgstr "Ordonnance introuvable."
+
+msgid "Enter the pharmacy name."
+msgstr "Saisissez le nom de la pharmacie."
+
+msgid "Only a pending order slice can be accepted."
+msgstr "Seule une part de commande en attente peut être acceptée."
+
+msgid ""
+"The stock hold for this order has expired and can no longer be accepted."
+msgstr ""
+"La réservation de stock pour cette commande a expiré et ne peut plus être "
+"acceptée."
+
+msgid "This order slice is already closed."
+msgstr "Cette part de commande est déjà clôturée."
+
+msgid "Accept the order before marking it ready."
+msgstr "Acceptez la commande avant de la marquer comme prête."
+
+msgid "This order slice is not ready for handover."
+msgstr "Cette part de commande n'est pas prête pour la remise."
+
+msgid "Handover code does not match."
+msgstr "Le code de remise ne correspond pas."
+
+msgid "Only a picked-up order slice can be delivered."
+msgstr "Seule une part de commande enlevée peut être livrée."
+
+msgid "This order is already closed."
+msgstr "Cette commande est déjà clôturée."
+
+msgid "Part of this order already left the pharmacy. Contact support instead."
+msgstr ""
+"Une partie de cette commande a déjà quitté la pharmacie. Contactez plutôt le"
+" support."
+
+msgid "You can only review your own orders."
+msgstr "Vous ne pouvez évaluer que vos propres commandes."
+
+msgid "Review an order once it has been delivered."
+msgstr "Évaluez une commande une fois qu'elle a été livrée."
+
+msgid "That pharmacy was not part of this order."
+msgstr "Cette pharmacie ne faisait pas partie de cette commande."
+
+#, python-format
+msgid "Order %(reference)s placed"
+msgstr "Commande %(reference)s passée"
+
+#, python-format
+msgid ""
+"Hi %(name)s,\n"
+"\n"
+"We've received your order %(reference)s totalling %(total)s %(currency)s. We'll email you again as soon as a pharmacy accepts it.\n"
+msgstr ""
+"Bonjour %(name)s,\n"
+"\n"
+"Nous avons bien reçu votre commande %(reference)s d'un montant total de %(total)s %(currency)s. Nous vous enverrons un autre e-mail dès qu'une pharmacie l'aura acceptée.\n"
+
+#, python-format
+msgid "A valid prescription is required to order: %(names)s."
+msgstr "Une ordonnance valide est requise pour commander : %(names)s."
+
+#, python-format
+msgid "The prescription does not cover enough %(medicine)s for this order."
+msgstr ""
+"L'ordonnance ne couvre pas suffisamment de %(medicine)s pour cette commande."
+
+#, python-format
+msgid ""
+"%(medicine)s is no longer available in the requested quantity at "
+"%(pharmacy)s."
+msgstr ""
+"%(medicine)s n'est plus disponible dans la quantité demandée chez "
+"%(pharmacy)s."
+
+msgid "A delivery address is required."
+msgstr "Une adresse de livraison est requise."
+
+msgid "That address belongs to another account."
+msgstr "Cette adresse appartient à un autre compte."
+
+#, python-format
+msgid "Online orders are limited to %(cap)s units of %(medicine)s at a time."
+msgstr ""
+"Les commandes en ligne sont limitées à %(cap)s unités de %(medicine)s à la "
+"fois."
+
+msgid "an item"
+msgstr "un article"
+
+msgid "A geocoded address is required to source a basket."
+msgstr "Une adresse géolocalisée est requise pour constituer un panier."
+
+msgid "Pick a time in the future for a scheduled order."
+msgstr "Choisissez une heure future pour une commande programmée."
+
+#, python-format
+msgid "Orders can be scheduled up to %(days)s days ahead."
+msgstr ""
+"Les commandes peuvent être programmées jusqu'à %(days)s jours à l'avance."
+
+msgid "No pharmacy near you can supply these items right now."
+msgstr ""
+"Aucune pharmacie près de chez vous ne peut fournir ces articles pour le "
+"moment."
+
+#, python-format
+msgid "Payment failed: %(reason)s"
+msgstr "Échec du paiement : %(reason)s"
+
+msgid "the charge was declined."
+msgstr "le paiement a été refusé."
+
+msgid "Verify your email before placing an order."
+msgstr "Vérifiez votre e-mail avant de passer une commande."
+
+msgid "Address not found."
+msgstr "Adresse introuvable."
+
+msgid "No prescription was found with that code."
+msgstr "Aucune ordonnance n'a été trouvée avec ce code."
+
+msgid ""
+"A valid prescription code is required to repeat an order containing "
+"prescription items."
+msgstr ""
+"Un code d'ordonnance valide est requis pour répéter une commande contenant "
+"des articles sur ordonnance."
+
+#, python-format
+msgid "Payment failed for order %(reference)s"
+msgstr "Échec du paiement pour la commande %(reference)s"
+
+#, python-format
+msgid ""
+"Hi %(name)s,\n"
+"\n"
+"Your payment for order %(reference)s could not be processed%(reason)s\n"
+msgstr ""
+"Bonjour %(name)s,\n"
+"\n"
+"Votre paiement pour la commande %(reference)s n'a pas pu être traité%(reason)s\n"
+
+#, python-format
+msgid ": %(reason)s"
+msgstr " : %(reason)s"
+
+msgid "This order already has a payment on file."
+msgstr "Cette commande possède déjà un paiement enregistré."
+
+msgid "Order not found."
+msgstr "Commande introuvable."
+
+msgid "This order has no payment on file."
+msgstr "Cette commande n'a aucun paiement enregistré."
+
+msgid "Cash on delivery settles at handover, not online."
+msgstr "Le paiement à la livraison est réglé lors de la remise, pas en ligne."

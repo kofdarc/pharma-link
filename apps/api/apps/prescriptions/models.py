@@ -1,8 +1,10 @@
+from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from apps.common.models import UUIDTimeStampedModel
 from apps.prescriptions.storage import EncryptedPrescriptionStorage
@@ -32,6 +34,12 @@ class PrescriptionRecord(UUIDTimeStampedModel):
     patient_phone = models.CharField(max_length=60, blank=True)
     doctor_name = models.CharField(max_length=255, blank=True)
     prescription_date = models.DateField(null=True, blank=True)
+    valid_until = models.DateField(
+        null=True,
+        blank=True,
+        help_text="After this date the scan can no longer back a new sale. Defaults to "
+        "prescription_date + PRESCRIPTION_VALIDITY_DAYS if left blank.",
+    )
     file = models.FileField(
         upload_to=prescription_upload_path, storage=EncryptedPrescriptionStorage(), validators=[validate_prescription_file], blank=True
     )
@@ -51,4 +59,18 @@ class PrescriptionRecord(UUIDTimeStampedModel):
     @property
     def file_path(self) -> str:
         return self.file.name if self.file else ""
+
+    @property
+    def effective_valid_until(self):
+        if self.valid_until:
+            return self.valid_until
+        if self.prescription_date:
+            return self.prescription_date + timedelta(days=settings.PRESCRIPTION_VALIDITY_DAYS)
+        return None
+
+    @property
+    def is_expired(self) -> bool:
+        """No prescription_date at all means age can't be verified - treat as expired."""
+        expiry = self.effective_valid_until
+        return expiry is None or timezone.localdate() > expiry
 

@@ -130,9 +130,15 @@ class WebhookEndpoint(UUIDTimeStampedModel):
 
 
 class WebhookDelivery(UUIDTimeStampedModel):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        DELIVERED = "DELIVERED", "Delivered"
+        FAILED = "FAILED", "Failed (retries exhausted)"
+
     endpoint = models.ForeignKey(WebhookEndpoint, on_delete=models.CASCADE, related_name="deliveries")
     event = models.CharField(max_length=60)
     payload = models.JSONField(default=dict)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
     status_code = models.PositiveIntegerField(null=True, blank=True)
     error = models.CharField(max_length=255, blank=True)
     attempts = models.PositiveIntegerField(default=0)

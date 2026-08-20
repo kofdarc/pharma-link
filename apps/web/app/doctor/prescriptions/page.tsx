@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch, asList } from "@/lib/api-client";
-import type { Paginated, Prescription } from "@/types/api";
+import { API_BASE_URL } from "@/lib/constants";
+import type { Paginated, Prescription, PrescriptionStatus } from "@/types/api";
 import { Badge } from "@/components/ui/Badge";
+import { Button, LinkButton } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { LinkButton } from "@/components/ui/Button";
+import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
 
@@ -17,17 +19,53 @@ function tone(status: string) {
   return "info" as const;
 }
 
+const STATUS_OPTIONS: { value: PrescriptionStatus | ""; label: string }[] = [
+  { value: "", label: "All statuses" },
+  { value: "ISSUED", label: "Issued" },
+  { value: "PARTIALLY_DISPENSED", label: "Partially dispensed" },
+  { value: "FULLY_DISPENSED", label: "Fully dispensed" },
+  { value: "EXPIRED", label: "Expired" },
+  { value: "CANCELLED", label: "Cancelled" }
+];
+
 export default function DoctorPrescriptionsPage() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [count, setCount] = useState(0);
+  const [nextPath, setNextPath] = useState<string | null>(null);
+  const [prevPath, setPrevPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [patientQuery, setPatientQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<PrescriptionStatus | "">("");
 
-  useEffect(() => {
-    apiFetch<Paginated<Prescription> | Prescription[]>("/doctor/prescriptions/")
-      .then((payload) => setPrescriptions(asList(payload)))
+  const fetchPage = useCallback((path: string) => {
+    setLoading(true);
+    apiFetch<Paginated<Prescription> | Prescription[]>(path)
+      .then((payload) => {
+        if (Array.isArray(payload)) {
+          setPrescriptions(payload);
+          setCount(payload.length);
+          setNextPath(null);
+          setPrevPath(null);
+        } else {
+          setPrescriptions(payload.results);
+          setCount(payload.count);
+          setNextPath(payload.next ? payload.next.replace(API_BASE_URL, "") : null);
+          setPrevPath(payload.previous ? payload.previous.replace(API_BASE_URL, "") : null);
+        }
+      })
       .catch(() => setError("Could not load your prescriptions."))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (patientQuery.trim()) params.set("patient", patientQuery.trim());
+    if (statusFilter) params.set("status", statusFilter);
+    const query = params.toString();
+    const timeout = setTimeout(() => fetchPage(`/doctor/prescriptions/${query ? `?${query}` : ""}`), 300);
+    return () => clearTimeout(timeout);
+  }, [patientQuery, statusFilter, fetchPage]);
 
   return (
     <>
@@ -45,10 +83,35 @@ export default function DoctorPrescriptionsPage() {
       </div>
 
       {error ? <Notice tone="danger">{error}</Notice> : null}
+
+      <section className="panel">
+        <div className="search-bar">
+          <Field label="Patient">
+            <input value={patientQuery} onChange={(event) => setPatientQuery(event.target.value)} placeholder="Search by patient name" />
+          </Field>
+          <Field label="Status">
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as PrescriptionStatus | "")}>
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </section>
+
       {loading ? <div className="skeleton-card" /> : null}
 
       {!loading && prescriptions.length === 0 ? (
-        <EmptyState title="No prescriptions yet." detail="Write your first one and it will be emailed to the patient straight away." />
+        <EmptyState
+          title="No prescriptions match."
+          detail={
+            patientQuery || statusFilter
+              ? "Try a different search or clear the filters."
+              : "Write your first one and it will be emailed to the patient straight away."
+          }
+        />
       ) : null}
 
       {prescriptions.length > 0 ? (
@@ -101,6 +164,22 @@ export default function DoctorPrescriptionsPage() {
               </tbody>
             </table>
           </Table>
+
+          {nextPath || prevPath ? (
+            <div className="section-header">
+              <span className="muted small">
+                {prescriptions.length} of {count}
+              </span>
+              <div className="toolbar">
+                <Button type="button" variant="secondary" disabled={!prevPath} onClick={() => prevPath && fetchPage(prevPath)}>
+                  Previous
+                </Button>
+                <Button type="button" variant="secondary" disabled={!nextPath} onClick={() => nextPath && fetchPage(nextPath)}>
+                  Next
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </>

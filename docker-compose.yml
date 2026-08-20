@@ -15,6 +15,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # Background maintenance: expires stale stock holds, generates recurring orders, releases
+  # scheduled orders, re-plans routes, and delivers pending webhooks. See
+  # apps/orders/management/commands/run_scheduler.py. Built from the same image as the API
+  # (apps/api/Dockerfile) but the container's own entrypoint/command runs the scheduler loop
+  # instead of gunicorn - migrations still run first so this works even if it starts before
+  # any API instance does.
+  scheduler:
+    build:
+      context: ./apps/api
+    entrypoint: []
+    command: sh -c "python manage.py migrate --noinput && python manage.py run_scheduler --loop --plan"
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-change-me}
+      DJANGO_DEBUG: "false"
+      DATABASE_URL: postgresql://pharmalink:pharmalink@postgres:5432/pharmalink
+      EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
 

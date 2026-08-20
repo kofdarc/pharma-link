@@ -13,3 +13,8 @@ class CashOnDeliveryProvider(PaymentProvider):
 
     def charge(self, payment) -> ChargeResult:
         return ChargeResult(status=Payment.Status.PENDING)
+
+    def refund(self, payment) -> ChargeResult:
+        """No gateway ever held the money. If cash was already collected at handover the
+        pharmacy/driver has to hand it back manually - this only flips the record straight."""
+        return ChargeResult(status=Payment.Status.REFUNDED, raw={"note": "Cash on delivery: no gateway settlement to reverse."})

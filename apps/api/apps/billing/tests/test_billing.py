@@ -18,7 +18,7 @@ from apps.billing.models import PharmacySubscription, PlatformServiceFee, Subscr
 from apps.inventory.services.stock import create_inventory_batch
 from apps.medicines.models import Medicine
 from apps.orders.models import OrderFulfillment
-from apps.orders.services.lifecycle import accept_fulfillment
+from apps.orders.services.lifecycle import accept_fulfillment, reject_fulfillment
 from apps.orders.services.placement import place_order
 from apps.pharmacies.models import Pharmacy
 
@@ -99,6 +99,25 @@ class ServiceFeeTests(TestCase):
         fulfillment.save(update_fields=["status"])
         accept_fulfillment(fulfillment=fulfillment, user=self.owner)
         self.assertEqual(PlatformServiceFee.objects.filter(fulfillment=fulfillment).count(), 1)
+
+    def test_rejecting_an_already_accepted_fulfillment_waives_its_fee(self):
+        fulfillment = self.accept_order_at(self.pharmacy, self.owner)
+        fee = PlatformServiceFee.objects.get(fulfillment=fulfillment)
+        self.assertEqual(fee.status, PlatformServiceFee.Status.PENDING)
+
+        reject_fulfillment(fulfillment=fulfillment, user=self.owner, reason="Out of stock after all")
+
+        fee.refresh_from_db()
+        self.assertEqual(fee.status, PlatformServiceFee.Status.WAIVED)
+
+    def test_rejecting_a_never_accepted_fulfillment_has_no_fee_to_waive(self):
+        self.stock(self.pharmacy, self.owner)
+        order = place_order(customer=self.shopper, items=[{"medicine": str(self.medicine.id), "quantity": 1}], address=self.address)
+        fulfillment = order.fulfillments.get(pharmacy=self.pharmacy)
+
+        reject_fulfillment(fulfillment=fulfillment, user=self.owner, reason="Can't fulfill")
+
+        self.assertFalse(PlatformServiceFee.objects.filter(fulfillment=fulfillment).exists())
 
 
 class ServiceFeeApiTests(APITestCase):

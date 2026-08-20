@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from apps.accounts.permissions import IsPharmacyUserWithActivePharmacy
+from apps.audit.services import write_audit_log
 from apps.inventory.models import InventoryBatch, StockMovement
 from apps.inventory.serializers import InventoryBatchSerializer, StockAdjustmentSerializer, StockMovementSerializer
 from apps.inventory.services.stock import adjust_stock, create_inventory_batch
@@ -42,7 +43,19 @@ class InventoryBatchViewSet(ModelViewSet):
         return Response(self.get_serializer(batch).data, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+        previous_price = serializer.instance.selling_price
+        batch = serializer.save(updated_by=self.request.user)
+        if batch.selling_price != previous_price:
+            write_audit_log(
+                actor_user=self.request.user,
+                pharmacy=batch.pharmacy,
+                action="inventory.price_updated",
+                entity_type="InventoryBatch",
+                entity_id=batch.id,
+                summary=f"Price for {batch.medicine} changed on batch {batch.batch_number}",
+                before_data={"selling_price": str(previous_price)},
+                after_data={"selling_price": str(batch.selling_price)},
+            )
 
     @action(detail=True, methods=["post"])
     def adjust(self, request, pk=None):

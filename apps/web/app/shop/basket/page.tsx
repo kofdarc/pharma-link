@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch, asList } from "@/lib/api-client";
 import { useBasket } from "@/lib/basket";
+import { useTranslations } from "@/lib/i18n/context";
 import type { BasketQuote, DeliveryAddress, Order, Paginated, PaymentMethod, PaymentProvider } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -14,6 +15,7 @@ import { Notice } from "@/components/ui/Notice";
 export default function BasketPage() {
   const router = useRouter();
   const basket = useBasket();
+  const t = useTranslations();
   const [addresses, setAddresses] = useState<DeliveryAddress[]>([]);
   const [addressId, setAddressId] = useState("");
   const [quote, setQuote] = useState<BasketQuote | null>(null);
@@ -35,7 +37,8 @@ export default function BasketPage() {
   useEffect(() => {
     apiFetch<PaymentMethod[]>("/shop/payment-methods/")
       .then(setPaymentMethods)
-      .catch(() => setPaymentMethods([]));
+      .catch((exception) => setError((exception as ApiError).message || t("shop.paymentMethodsError")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -46,7 +49,8 @@ export default function BasketPage() {
         const preferred = list.find((entry) => entry.is_default) || list[0];
         if (preferred) setAddressId(preferred.id);
       })
-      .catch(() => setAddresses([]));
+      .catch((exception) => setError((exception as ApiError).message || t("shop.addressesError")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const address = addresses.find((entry) => entry.id === addressId);
@@ -70,10 +74,11 @@ export default function BasketPage() {
         })
       );
     } catch (exception) {
-      setError((exception as ApiError).message || "Could not price this basket.");
+      setError((exception as ApiError).message || t("shop.quoteError"));
     } finally {
       setQuoting(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [basket.items, address]);
 
   useEffect(() => {
@@ -84,6 +89,26 @@ export default function BasketPage() {
     setPlacing(true);
     setError("");
     try {
+      // The displayed quote can go stale while the shopper fills out the delivery form -
+      // price/stock may have moved. Re-quote right before committing so a mismatch is caught
+      // here instead of surfacing as a confusing order-placement error.
+      if (address) {
+        const freshQuote = await apiFetch<BasketQuote>("/shop/quote/", {
+          method: "POST",
+          body: JSON.stringify({
+            items: basket.items.map((item) => ({ medicine: item.medicine, quantity: item.quantity })),
+            latitude: address.latitude,
+            longitude: address.longitude
+          })
+        });
+        if (quote && freshQuote.items_subtotal !== quote.items_subtotal) {
+          setQuote(freshQuote);
+          setError(t("shop.basketChangedError"));
+          setPlacing(false);
+          return;
+        }
+      }
+
       const order = await apiFetch<Order>("/shop/orders/", {
         method: "POST",
         body: JSON.stringify({
@@ -98,6 +123,7 @@ export default function BasketPage() {
         })
       });
 
+      let recurringFailed = false;
       if (makeRecurring && addressId) {
         await apiFetch("/shop/recurring-orders/", {
           method: "POST",
@@ -108,13 +134,15 @@ export default function BasketPage() {
             interval_days: intervalDays,
             next_run_at: new Date(Date.now() + intervalDays * 86400000).toISOString()
           })
-        }).catch(() => undefined);
+        }).catch(() => {
+          recurringFailed = true;
+        });
       }
 
       basket.clear();
-      router.push(`/shop/orders?highlight=${order.reference}`);
+      router.push(`/shop/orders?highlight=${order.reference}${recurringFailed ? "&recurringFailed=1" : ""}`);
     } catch (exception) {
-      setError((exception as ApiError).message || "Could not place the order.");
+      setError((exception as ApiError).message || t("shop.placeOrderError"));
     } finally {
       setPlacing(false);
     }
@@ -123,10 +151,10 @@ export default function BasketPage() {
   if (basket.items.length === 0) {
     return (
       <>
-        <h1>Your basket</h1>
-        <EmptyState title="Your basket is empty." detail="Search for a medicine to get started." />
+        <h1>{t("shop.yourBasket")}</h1>
+        <EmptyState title={t("shop.basketEmpty")} detail={t("shop.basketEmptyHint")} />
         <Link className="button" href="/shop">
-          Find a medicine
+          {t("shop.findMedicine")}
         </Link>
       </>
     );
@@ -139,23 +167,23 @@ export default function BasketPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Your basket</h1>
-          <p className="muted">We work out which pharmacies can fill this, using as few as possible.</p>
+          <h1>{t("shop.yourBasket")}</h1>
+          <p className="muted">{t("shop.basketSubtitle")}</p>
         </div>
         <Link className="button button-secondary" href="/shop">
-          Keep shopping
+          {t("shop.keepShopping")}
         </Link>
       </div>
 
       {error ? <Notice tone="danger">{error}</Notice> : null}
 
       <section className="panel">
-        <h3>Items</h3>
+        <h3>{t("shop.items")}</h3>
         <table className="table">
           <thead>
             <tr>
-              <th>Item</th>
-              <th>Quantity</th>
+              <th>{t("shop.item")}</th>
+              <th>{t("common.quantity")}</th>
               <th />
             </tr>
           </thead>
@@ -164,7 +192,7 @@ export default function BasketPage() {
               <tr key={item.medicine}>
                 <td>
                   {item.name}
-                  {item.requires_prescription ? <span className="tag tag-rx">Rx</span> : null}
+                  {item.requires_prescription ? <span className="tag tag-rx">{t("shop.rxTag")}</span> : null}
                 </td>
                 <td>
                   <input
@@ -178,7 +206,7 @@ export default function BasketPage() {
                 </td>
                 <td>
                   <Button type="button" variant="secondary" onClick={() => basket.remove(item.medicine)}>
-                    Remove
+                    {t("common.remove")}
                   </Button>
                 </td>
               </tr>
@@ -188,20 +216,18 @@ export default function BasketPage() {
       </section>
 
       <section className="panel">
-        <h3>How this will be sourced</h3>
+        <h3>{t("shop.howSourced")}</h3>
         {quoting ? <div className="skeleton-card" /> : null}
         {!address ? (
           <Notice>
-            <Link href="/shop/addresses">Add a delivery address</Link> so we can find the closest pharmacies.
+            <Link href="/shop/addresses">{t("shop.addAddress")}</Link> {t("shop.addAddressToFindPharmacies")}
           </Notice>
         ) : null}
 
         {quote ? (
           <>
             <p className="muted">
-              {quote.pharmacy_count === 1
-                ? "One pharmacy covers everything — a single pickup, so the fastest possible delivery."
-                : `${quote.pharmacy_count} pharmacies are needed. Your items are collected on one route, not one trip each.`}
+              {quote.pharmacy_count === 1 ? t("shop.onePharmacy") : t("shop.multiplePharmacies", { count: quote.pharmacy_count })}
             </p>
 
             {quote.allocations.map((allocation) => (
@@ -220,23 +246,32 @@ export default function BasketPage() {
                   {allocation.lines.map((line) => (
                     <li key={line.medicine}>
                       {line.quantity} × {line.medicine_name} — ${line.line_total}
-                      {line.is_price_regulated ? <span className="tag tag-regulated">MoPH price</span> : null}
+                      {line.is_price_regulated ? <span className="tag tag-regulated">{t("shop.mophPrice")}</span> : null}
                     </li>
                   ))}
                 </ul>
               </div>
             ))}
 
+            {quote.allocations.length > 1 &&
+            new Set(quote.allocations.map((allocation) => allocation.preparation_minutes)).size > 1 ? (
+              <Notice>
+                {t("shop.prepTimeNotice", {
+                  details: quote.allocations.map((allocation) => `${allocation.pharmacy_name} ~${allocation.preparation_minutes} min`).join(", ")
+                })}
+              </Notice>
+            ) : null}
+
             {quote.unfulfilled.length > 0 ? (
               <Notice tone="danger">
-                Not available nearby right now:{" "}
-                {quote.unfulfilled.map((row) => `${row.medicine_name} (${row.quantity_short} short)`).join(", ")}. These
-                will not be ordered, and we have flagged the demand to pharmacies in your area.
+                {t("shop.unavailableNearby", {
+                  details: quote.unfulfilled.map((row) => `${row.medicine_name} (${row.quantity_short} short)`).join(", ")
+                })}
               </Notice>
             ) : null}
 
             <details className="explain">
-              <summary>Why these pharmacies?</summary>
+              <summary>{t("shop.whyThesePharmacies")}</summary>
               <ul className="clean-list">
                 {quote.explanation.map((line, index) => (
                   <li key={index} className="muted small">
@@ -250,17 +285,17 @@ export default function BasketPage() {
       </section>
 
       <section className="panel">
-        <h3>Delivery</h3>
+        <h3>{t("shop.delivery")}</h3>
         <div className="form-grid">
-          <Field label="How would you like it?">
+          <Field label={t("shop.howDeliver")}>
             <select value={fulfillmentType} onChange={(event) => setFulfillmentType(event.target.value as "DELIVERY" | "PICKUP")}>
-              <option value="DELIVERY">Deliver to me</option>
-              <option value="PICKUP">I will collect in store</option>
+              <option value="DELIVERY">{t("shop.deliverToMe")}</option>
+              <option value="PICKUP">{t("shop.collectInStore")}</option>
             </select>
           </Field>
-          <Field label="Address">
+          <Field label={t("shop.address")}>
             <select value={addressId} onChange={(event) => setAddressId(event.target.value)}>
-              <option value="">Select an address</option>
+              <option value="">{t("shop.selectAddress")}</option>
               {addresses.map((entry) => (
                 <option key={entry.id} value={entry.id}>
                   {entry.label} — {entry.area}
@@ -268,35 +303,35 @@ export default function BasketPage() {
               ))}
             </select>
           </Field>
-          <Field label="When?">
+          <Field label={t("shop.when")}>
             <select value={scheduleMode} onChange={(event) => setScheduleMode(event.target.value as "ASAP" | "LATER")}>
-              <option value="ASAP">As soon as possible</option>
-              <option value="LATER">Schedule for later</option>
+              <option value="ASAP">{t("shop.asap")}</option>
+              <option value="LATER">{t("shop.later")}</option>
             </select>
           </Field>
           {scheduleMode === "LATER" ? (
             <>
-              <Field label="Date and time">
+              <Field label={t("shop.dateTime")}>
                 <input type="datetime-local" value={scheduledFor} onChange={(event) => setScheduledFor(event.target.value)} />
               </Field>
-              <Field label="Acceptable window" hint="A wider window lets us batch your delivery efficiently.">
+              <Field label={t("shop.window")} hint={t("shop.windowHint")}>
                 <select value={windowMinutes} onChange={(event) => setWindowMinutes(Number(event.target.value))}>
-                  <option value={60}>± 30 minutes</option>
-                  <option value={120}>± 1 hour</option>
-                  <option value={240}>± 2 hours</option>
+                  <option value={60}>{t("shop.window30")}</option>
+                  <option value={120}>{t("shop.window60")}</option>
+                  <option value={240}>{t("shop.window120")}</option>
                 </select>
               </Field>
             </>
           ) : null}
           {needsPrescription ? (
-            <Field label="Prescription code" hint="From the QR code your doctor emailed you.">
-              <input value={prescriptionCode} onChange={(event) => setPrescriptionCode(event.target.value.toUpperCase())} placeholder="RX-XXXX-XXXX" />
+            <Field label={t("shop.prescriptionCode")} hint={t("shop.prescriptionCodeHint")}>
+              <input value={prescriptionCode} onChange={(event) => setPrescriptionCode(event.target.value.toUpperCase())} placeholder={t("shop.rxPlaceholder")} />
             </Field>
           ) : null}
-          <Field label="Notes for the driver">
-            <input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Building, floor, landmark..." />
+          <Field label={t("shop.notes")}>
+            <input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={t("shop.notesPlaceholder")} />
           </Field>
-          <Field label="How would you like to pay?">
+          <Field label={t("shop.payWith")}>
             <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentProvider)}>
               {(paymentMethods.length ? paymentMethods : [{ code: "COD", label: "Cash on delivery" }]).map((method) => (
                 <option key={method.code} value={method.code}>
@@ -308,12 +343,12 @@ export default function BasketPage() {
         </div>
 
         <label className="field checkbox-field">
-          <span>Repeat this order automatically</span>
+          <span>{t("shop.repeatOrder")}</span>
           <input type="checkbox" checked={makeRecurring} onChange={(event) => setMakeRecurring(event.target.checked)} />
-          <small>For chronic medication. We re-source it each cycle, so a closed pharmacy never blocks a refill.</small>
+          <small>{t("shop.repeatHint")}</small>
         </label>
         {makeRecurring ? (
-          <Field label="Repeat every (days)">
+          <Field label={t("shop.repeatEvery")}>
             <input type="number" min={1} max={180} value={intervalDays} onChange={(event) => setIntervalDays(Number(event.target.value) || 30)} />
           </Field>
         ) : null}
@@ -321,15 +356,15 @@ export default function BasketPage() {
 
       <section className="panel checkout-summary">
         <div>
-          <span className="muted">Items</span>
+          <span className="muted">{t("shop.checkoutItems")}</span>
           <strong>${quote?.items_subtotal ?? "0.00"}</strong>
         </div>
         <div>
-          <span className="muted">Delivery</span>
-          <strong>{fulfillmentType === "DELIVERY" ? "$3.00" : "Free"}</strong>
+          <span className="muted">{t("shop.checkoutDelivery")}</span>
+          <strong>{fulfillmentType === "DELIVERY" ? "$3.00" : t("shop.checkoutFree")}</strong>
         </div>
         <div>
-          <span className="muted">Total</span>
+          <span className="muted">{t("shop.checkoutTotal")}</span>
           <strong className="price">${total.toFixed(2)}</strong>
         </div>
         <Button
@@ -337,14 +372,11 @@ export default function BasketPage() {
           onClick={placeOrder}
           disabled={placing || !quote || quote.allocations.length === 0 || (fulfillmentType === "DELIVERY" && !addressId)}
         >
-          {placing ? "Placing order..." : "Place order"}
+          {placing ? t("shop.placingOrder") : t("shop.placeOrder")}
         </Button>
       </section>
 
-      <Notice>
-        Placing the order holds the stock at each pharmacy so it cannot be sold from under you. Nothing leaves the
-        shelf until a pharmacist hands it to your driver.
-      </Notice>
+      <Notice>{t("shop.holdNotice")}</Notice>
     </>
   );
 }

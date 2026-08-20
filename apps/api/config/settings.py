@@ -47,6 +47,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -105,16 +106,33 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "en"
 TIME_ZONE = "Asia/Beirut"
 USE_I18N = True
 USE_TZ = True
+
+# Lebanon is Arabic/French/English. LocaleMiddleware (below) picks the active language from
+# the request's Accept-Language header, so the frontend just needs to send the language the
+# shopper picked - no per-endpoint language parameter. Translated strings live in locale/
+# (apps/api/locale/<lang>/LC_MESSAGES/django.po), generated with `manage.py makemessages`.
+LANGUAGES = [
+    ("en", "English"),
+    ("ar", "Arabic"),
+    ("fr", "French"),
+]
+LOCALE_PATHS = [BASE_DIR / "locale"]
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/private-media/"
 PRIVATE_MEDIA_ROOT = BASE_DIR / "media" / "private"
 MEDIA_ROOT = PRIVATE_MEDIA_ROOT
+
+# Product photography (medicine/supplement images) is not sensitive like prescriptions, so it
+# lives in its own public root/URL instead of the private prescription storage above.
+PUBLIC_MEDIA_URL = "/media/"
+PUBLIC_MEDIA_ROOT = BASE_DIR / "media" / "public"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 
@@ -162,6 +180,12 @@ REST_FRAMEWORK = {
         "public_search": os.getenv("THROTTLE_PUBLIC_SEARCH", "60/min"),
         # Per-client cap on login attempts, on top of Django's own password validation.
         "login": os.getenv("THROTTLE_LOGIN", "10/min"),
+        # Password reset / email verification request+confirm endpoints - unauthenticated by
+        # design, so capped per client to slow down account enumeration and token guessing.
+        "account_recovery": os.getenv("THROTTLE_ACCOUNT_RECOVERY", "10/min"),
+        # Machine API (apps.integrations): scoped per integration key's pharmacy, not IP -
+        # see apps.integrations.throttling.IntegrationKeyThrottle.
+        "integration_api": os.getenv("THROTTLE_INTEGRATION_API", "120/min"),
     },
 }
 
@@ -200,6 +224,10 @@ MAX_SOURCING_RADIUS_KM = float(os.getenv("MAX_SOURCING_RADIUS_KM", "12"))
 MAX_ORDER_SCHEDULE_DAYS = int(os.getenv("MAX_ORDER_SCHEDULE_DAYS", "30"))
 STOCK_RESERVATION_MINUTES = int(os.getenv("STOCK_RESERVATION_MINUTES", "120"))
 DELIVERY_BASE_FEE = os.getenv("DELIVERY_BASE_FEE", "3.00")
+# Single source of truth for the currency every price/payment is denominated in. Not
+# multi-currency support - Lebanon's dual-currency (USD/LBP) reality is out of scope here,
+# this just stops "USD" from being a silently repeated literal across the codebase.
+PLATFORM_CURRENCY = os.getenv("PLATFORM_CURRENCY", "USD")
 ASAP_DELIVERY_PROMISE_MINUTES = int(os.getenv("ASAP_DELIVERY_PROMISE_MINUTES", "120"))
 
 # --- Email -----------------------------------------------------------------------------

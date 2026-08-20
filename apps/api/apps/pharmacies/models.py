@@ -45,3 +45,36 @@ class Pharmacy(UUIDTimeStampedModel):
     def __str__(self) -> str:
         return f"{self.name} - {self.area}"
 
+
+class PharmacyApplication(UUIDTimeStampedModel):
+    """
+    A prospective pharmacy's in-product request to join, since Pharmacy records are
+    otherwise only ever created by a platform admin (apps.pharmacies.views.AdminPharmacyViewSet).
+    Approving one creates the real Pharmacy + owner User via apps.pharmacies.services.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending review"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    pharmacy_name = models.CharField(max_length=255)
+    owner_name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone = models.CharField(max_length=40)
+    city = models.CharField(max_length=120, blank=True)
+    area = models.CharField(max_length=120, blank=True)
+    license_number = models.CharField(max_length=80, blank=True)
+    message = models.TextField(blank=True, help_text="Anything else the applicant wants reviewers to know.")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    review_note = models.CharField(max_length=255, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_pharmacy = models.ForeignKey(Pharmacy, null=True, blank=True, on_delete=models.SET_NULL, related_name="application")
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.pharmacy_name} ({self.status})"
+

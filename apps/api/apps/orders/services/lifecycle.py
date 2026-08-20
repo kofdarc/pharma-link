@@ -1,23 +1,60 @@
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Avg, Count
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from apps.audit.services import write_audit_log
-from apps.billing.services import charge_platform_service_fee
+from apps.billing.services import charge_platform_service_fee, waive_service_fee
+from apps.common.mailer import send_email
 from apps.customers.models import Client
-from apps.orders.models import Order, OrderFulfillment, PharmacyReview
+from apps.orders.models import Order, OrderFulfillment, PharmacyReview, StockReservation
 from apps.orders.services.placement import release_reservations
-from apps.payments.services import settle_cash_on_delivery
+from apps.payments.models import Payment
+from apps.payments.services import refund_payment, settle_cash_on_delivery
 from apps.sales.models import Sale
 from apps.sales.services.create_sale import create_sale
+
+logger = logging.getLogger(__name__)
 
 
 class FulfillmentError(Exception):
     pass
+
+
+def _notify_fulfillment_accepted(fulfillment: OrderFulfillment) -> None:
+    order = fulfillment.order
+    if not order.customer.email:
+        return
+    try:
+        send_email(
+            to=[order.customer.email],
+            subject=f"{fulfillment.pharmacy.name} accepted your order {order.reference}",
+            text_body=(
+                f"Hi {order.contact_name},\n\n"
+                f"{fulfillment.pharmacy.name} accepted its part of order {order.reference} and is preparing it now.\n"
+            ),
+        )
+    except Exception:
+        logger.exception("Failed to send fulfillment-accepted email for %s", order.reference)
+
+
+def _notify_order_delivered(order: Order) -> None:
+    if not order.customer.email:
+        return
+    verb = "is ready for collection" if order.status == Order.Status.COLLECTED else "has been delivered"
+    try:
+        send_email(
+            to=[order.customer.email],
+            subject=f"Order {order.reference} {verb}",
+            text_body=f"Hi {order.contact_name},\n\nYour order {order.reference} {verb}. Thanks for shopping with PharmaLink.\n",
+        )
+    except Exception:
+        logger.exception("Failed to send order-delivered email for %s", order.reference)
 
 
 TERMINAL_FULFILLMENT_STATES = {
@@ -33,10 +70,15 @@ def rollup_order_status(order: Order) -> str:
     One order, many pharmacies: the shopper-facing status is the least advanced slice that
     still matters, so an order is only 'delivered' when every pharmacy's part arrived.
     """
+    previous_status = order.status
     states = [fulfillment.status for fulfillment in order.fulfillments.all()]
     if not states:
         return order.status
-    live = [state for state in states if state not in {OrderFulfillment.Status.REJECTED, OrderFulfillment.Status.CANCELLED}]
+    live = [
+        state
+        for state in states
+        if state not in {OrderFulfillment.Status.REJECTED, OrderFulfillment.Status.CANCELLED, OrderFulfillment.Status.EXPIRED}
+    ]
     if not live:
         order.status = Order.Status.CANCELLED
     elif all(state in {OrderFulfillment.Status.DELIVERED, OrderFulfillment.Status.COLLECTED} for state in live):
@@ -55,6 +97,8 @@ def rollup_order_status(order: Order) -> str:
     order.save(update_fields=["status", "updated_at"])
     if order.status in {Order.Status.DELIVERED, Order.Status.COLLECTED}:
         settle_cash_on_delivery(order=order)
+        if previous_status != order.status:
+            _notify_order_delivered(order)
     return order.status
 
 
@@ -62,7 +106,12 @@ def rollup_order_status(order: Order) -> str:
 def accept_fulfillment(*, fulfillment: OrderFulfillment, user) -> OrderFulfillment:
     fulfillment = OrderFulfillment.objects.select_for_update().get(id=fulfillment.id)
     if fulfillment.status != OrderFulfillment.Status.PENDING:
-        raise FulfillmentError("Only a pending order slice can be accepted.")
+        raise FulfillmentError(_("Only a pending order slice can be accepted."))
+    hold_expired = StockReservation.objects.filter(
+        order_line__fulfillment=fulfillment, released_at__isnull=True, consumed_at__isnull=True, expires_at__lt=timezone.now()
+    ).exists()
+    if hold_expired:
+        raise FulfillmentError(_("The stock hold for this order has expired and can no longer be accepted."))
     fulfillment.status = OrderFulfillment.Status.ACCEPTED
     fulfillment.accepted_at = timezone.now()
     fulfillment.save(update_fields=["status", "accepted_at", "updated_at"])
@@ -76,6 +125,7 @@ def accept_fulfillment(*, fulfillment: OrderFulfillment, user) -> OrderFulfillme
         entity_id=fulfillment.id,
         summary=f"Accepted {fulfillment.order.reference}",
     )
+    _notify_fulfillment_accepted(fulfillment)
     return fulfillment
 
 
@@ -83,8 +133,9 @@ def accept_fulfillment(*, fulfillment: OrderFulfillment, user) -> OrderFulfillme
 def reject_fulfillment(*, fulfillment: OrderFulfillment, user, reason: str = "") -> OrderFulfillment:
     fulfillment = OrderFulfillment.objects.select_for_update().get(id=fulfillment.id)
     if fulfillment.status in TERMINAL_FULFILLMENT_STATES:
-        raise FulfillmentError("This order slice is already closed.")
+        raise FulfillmentError(_("This order slice is already closed."))
     release_reservations(fulfillment=fulfillment)
+    waive_service_fee(fulfillment=fulfillment, reason=reason, user=user)
     fulfillment.status = OrderFulfillment.Status.REJECTED
     fulfillment.rejection_reason = reason
     fulfillment.completed_at = timezone.now()
@@ -118,7 +169,7 @@ def reject_fulfillment(*, fulfillment: OrderFulfillment, user, reason: str = "")
 def mark_ready(*, fulfillment: OrderFulfillment, user) -> OrderFulfillment:
     fulfillment = OrderFulfillment.objects.select_for_update().get(id=fulfillment.id)
     if fulfillment.status != OrderFulfillment.Status.ACCEPTED:
-        raise FulfillmentError("Accept the order before marking it ready.")
+        raise FulfillmentError(_("Accept the order before marking it ready."))
     fulfillment.status = OrderFulfillment.Status.READY
     fulfillment.ready_at = timezone.now()
     fulfillment.save(update_fields=["status", "ready_at", "updated_at"])
@@ -134,9 +185,9 @@ def hand_over(*, fulfillment: OrderFulfillment, user, handover_code: str = "", c
     """
     fulfillment = OrderFulfillment.objects.select_for_update().get(id=fulfillment.id)
     if fulfillment.status not in {OrderFulfillment.Status.ACCEPTED, OrderFulfillment.Status.READY}:
-        raise FulfillmentError("This order slice is not ready for handover.")
+        raise FulfillmentError(_("This order slice is not ready for handover."))
     if handover_code and handover_code.strip() != fulfillment.handover_code:
-        raise FulfillmentError("Handover code does not match.")
+        raise FulfillmentError(_("Handover code does not match."))
 
     release_reservations(fulfillment=fulfillment, consume=True)
     order = fulfillment.order
@@ -169,7 +220,7 @@ def hand_over(*, fulfillment: OrderFulfillment, user, handover_code: str = "", c
 def mark_delivered(*, fulfillment: OrderFulfillment) -> OrderFulfillment:
     fulfillment = OrderFulfillment.objects.select_for_update().get(id=fulfillment.id)
     if fulfillment.status != OrderFulfillment.Status.PICKED_UP:
-        raise FulfillmentError("Only a picked-up order slice can be delivered.")
+        raise FulfillmentError(_("Only a picked-up order slice can be delivered."))
     fulfillment.status = OrderFulfillment.Status.DELIVERED
     fulfillment.completed_at = timezone.now()
     fulfillment.save(update_fields=["status", "completed_at", "updated_at"])
@@ -181,10 +232,10 @@ def mark_delivered(*, fulfillment: OrderFulfillment) -> OrderFulfillment:
 def cancel_order(*, order: Order, user, reason: str = "") -> Order:
     order = Order.objects.select_for_update().get(id=order.id)
     if order.status in {Order.Status.DELIVERED, Order.Status.COLLECTED, Order.Status.CANCELLED}:
-        raise FulfillmentError("This order is already closed.")
+        raise FulfillmentError(_("This order is already closed."))
     for fulfillment in order.fulfillments.select_for_update():
         if fulfillment.status in {OrderFulfillment.Status.PICKED_UP, OrderFulfillment.Status.DELIVERED, OrderFulfillment.Status.COLLECTED}:
-            raise FulfillmentError("Part of this order already left the pharmacy. Contact support instead.")
+            raise FulfillmentError(_("Part of this order already left the pharmacy. Contact support instead."))
         release_reservations(fulfillment=fulfillment)
         fulfillment.status = OrderFulfillment.Status.CANCELLED
         fulfillment.completed_at = timezone.now()
@@ -192,6 +243,9 @@ def cancel_order(*, order: Order, user, reason: str = "") -> Order:
     order.status = Order.Status.CANCELLED
     order.cancelled_reason = reason
     order.save(update_fields=["status", "cancelled_reason", "updated_at"])
+    payment = getattr(order, "payment", None)
+    if payment is not None and payment.status == Payment.Status.PAID:
+        refund_payment(payment=payment, user=user)
     write_audit_log(
         actor_user=user,
         action="orders.cancelled",
@@ -211,19 +265,49 @@ def recompute_reliability(pharmacy) -> None:
 @transaction.atomic
 def submit_review(*, order: Order, pharmacy, customer, rating: int, comment: str = "", was_complete: bool = True) -> PharmacyReview:
     if order.customer_id != customer.id:
-        raise FulfillmentError("You can only review your own orders.")
+        raise FulfillmentError(_("You can only review your own orders."))
     if order.status not in {Order.Status.DELIVERED, Order.Status.COLLECTED, Order.Status.PARTIALLY_CANCELLED}:
-        raise FulfillmentError("Review an order once it has been delivered.")
+        raise FulfillmentError(_("Review an order once it has been delivered."))
     if not order.fulfillments.filter(pharmacy=pharmacy).exists():
-        raise FulfillmentError("That pharmacy was not part of this order.")
+        raise FulfillmentError(_("That pharmacy was not part of this order."))
 
-    review, _created = PharmacyReview.objects.update_or_create(
+    review, created = PharmacyReview.objects.update_or_create(
         order=order,
         pharmacy=pharmacy,
         defaults={"customer": customer, "rating": rating, "comment": comment, "was_complete": was_complete},
     )
-    aggregate = PharmacyReview.objects.filter(pharmacy=pharmacy).aggregate(average=Avg("rating"), count=Count("id"))
+    recompute_rating(pharmacy)
+    write_audit_log(
+        actor_user=customer,
+        pharmacy=pharmacy,
+        action="orders.review_submitted" if created else "orders.review_edited",
+        entity_type="PharmacyReview",
+        entity_id=review.id,
+        summary=f"{'Reviewed' if created else 'Edited review for'} {order.reference}: {rating}/5",
+        after_data={"rating": rating, "was_complete": was_complete},
+    )
+    return review
+
+
+def recompute_rating(pharmacy) -> None:
+    aggregate = PharmacyReview.objects.filter(pharmacy=pharmacy, is_hidden=False).aggregate(average=Avg("rating"), count=Count("id"))
     pharmacy.rating_average = Decimal(str(round(aggregate["average"] or 0, 2)))
     pharmacy.rating_count = aggregate["count"] or 0
     pharmacy.save(update_fields=["rating_average", "rating_count", "updated_at"])
+
+
+@transaction.atomic
+def set_review_visibility(*, review: PharmacyReview, is_hidden: bool, reason: str = "", user=None) -> PharmacyReview:
+    review.is_hidden = is_hidden
+    review.hidden_reason = reason if is_hidden else ""
+    review.save(update_fields=["is_hidden", "hidden_reason", "updated_at"])
+    recompute_rating(review.pharmacy)
+    write_audit_log(
+        actor_user=user,
+        pharmacy=review.pharmacy,
+        action="orders.review_hidden" if is_hidden else "orders.review_unhidden",
+        entity_type="PharmacyReview",
+        entity_id=review.id,
+        summary=f"{'Hid' if is_hidden else 'Unhid'} review on {review.order.reference}" + (f": {reason}" if reason else ""),
+    )
     return review

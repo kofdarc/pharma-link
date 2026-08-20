@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ApiError, apiFetch, asList } from "@/lib/api-client";
+import { groupPatients, type Patient } from "@/lib/patients";
+import { takeDraft } from "@/lib/rxDraft";
 import type { Medicine, Paginated, Prescription } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
@@ -12,6 +14,7 @@ interface DraftItem {
   key: string;
   medicine: string;
   medicine_text: string;
+  catalog_query: string;
   quantity_prescribed: number;
   unit: string;
   dosage_instructions: string;
@@ -23,6 +26,7 @@ function emptyItem(): DraftItem {
     key: Math.random().toString(36).slice(2),
     medicine: "",
     medicine_text: "",
+    catalog_query: "",
     quantity_prescribed: 1,
     unit: "tablet",
     dosage_instructions: "",
@@ -30,8 +34,13 @@ function emptyItem(): DraftItem {
   };
 }
 
+function catalogLabel(medicine: Medicine) {
+  return medicine.requires_prescription ? `${medicine.display_name} (Rx)` : medicine.display_name;
+}
+
 export default function NewPrescriptionPage() {
   const [catalog, setCatalog] = useState<Medicine[]>([]);
+  const [knownPatients, setKnownPatients] = useState<Patient[]>([]);
   const [patientName, setPatientName] = useState("");
   const [patientEmail, setPatientEmail] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
@@ -48,8 +57,87 @@ export default function NewPrescriptionPage() {
       .catch(() => setCatalog([]));
   }, []);
 
+  useEffect(() => {
+    apiFetch<Paginated<Prescription> | Prescription[]>("/doctor/prescriptions/")
+      .then((payload) => setKnownPatients(groupPatients(asList(payload))))
+      .catch(() => setKnownPatients([]));
+  }, []);
+
+  useEffect(() => {
+    const draft = takeDraft();
+    if (!draft) return;
+    setPatientName(draft.patient_name);
+    setPatientEmail(draft.patient_email);
+    setPatientPhone(draft.patient_phone);
+    setItems(
+      draft.items.length
+        ? draft.items.map((entry) => ({
+            key: Math.random().toString(36).slice(2),
+            medicine: entry.medicine,
+            medicine_text: entry.medicine_text,
+            catalog_query: "",
+            quantity_prescribed: entry.quantity_prescribed,
+            unit: entry.unit,
+            dosage_instructions: entry.dosage_instructions,
+            allow_generic_substitution: entry.allow_generic_substitution
+          }))
+        : [emptyItem()]
+    );
+  }, []);
+
+  // Draft items only carry a catalog id, not its display label - backfill the search
+  // box's text once the catalog has loaded, whichever effect finishes first.
+  useEffect(() => {
+    if (catalog.length === 0) return;
+    setItems((current) =>
+      current.map((item) => {
+        if (!item.medicine || item.catalog_query) return item;
+        const match = catalog.find((entry) => entry.id === item.medicine);
+        return match ? { ...item, catalog_query: catalogLabel(match) } : item;
+      })
+    );
+  }, [catalog]);
+
+  const isDirty = useMemo(
+    () =>
+      !issued &&
+      (patientName.trim() !== "" ||
+        patientEmail.trim() !== "" ||
+        patientPhone.trim() !== "" ||
+        note.trim() !== "" ||
+        items.some((item) => item.medicine_text.trim() !== "" || item.catalog_query.trim() !== "" || item.dosage_instructions.trim() !== "")),
+    [issued, patientName, patientEmail, patientPhone, note, items]
+  );
+
+  useEffect(() => {
+    function handler(event: BeforeUnloadEvent) {
+      if (!isDirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   function update(key: string, patch: Partial<DraftItem>) {
     setItems((current) => current.map((item) => (item.key === key ? { ...item, ...patch } : item)));
+  }
+
+  function selectPatientName(value: string) {
+    setPatientName(value);
+    const match = knownPatients.find((patient) => patient.name.toLowerCase() === value.trim().toLowerCase());
+    if (!match) return;
+    if (!patientEmail.trim() && match.email) setPatientEmail(match.email);
+    if (!patientPhone.trim() && match.phone) setPatientPhone(match.phone);
+  }
+
+  function selectCatalogEntry(key: string, value: string) {
+    const selected = catalog.find((entry) => catalogLabel(entry) === value);
+    update(key, {
+      catalog_query: value,
+      medicine: selected ? selected.id : "",
+      medicine_text: selected ? selected.display_name : items.find((item) => item.key === key)?.medicine_text || ""
+    });
   }
 
   async function submit(event: FormEvent) {
@@ -104,14 +192,21 @@ export default function NewPrescriptionPage() {
                 : "No patient email was given, so share the code and PIN below directly."}
             </p>
           </div>
-          <Link className="button button-secondary" href="/doctor/prescriptions">
-            Back to list
-          </Link>
+          <div className="toolbar no-print">
+            <Button type="button" variant="secondary" onClick={() => window.print()}>
+              Print
+            </Button>
+            <Link className="button button-secondary" href="/doctor/prescriptions">
+              Back to list
+            </Link>
+          </div>
         </div>
 
         <Notice tone="danger">
-          The PIN and QR link below are shown <strong>once</strong>. They are not stored in recoverable form and
-          cannot be displayed again. If they are lost, cancel this prescription and issue a new one.
+          <span className="no-print">
+            The PIN and QR link below are shown <strong>once</strong>. They are not stored in recoverable form and
+            cannot be displayed again. If they are lost, cancel this prescription and issue a new one.
+          </span>
         </Notice>
 
         <div className="panel rx-issued">
@@ -164,12 +259,23 @@ export default function NewPrescriptionPage() {
 
       {error ? <Notice tone="danger">{error}</Notice> : null}
 
+      <datalist id="known-patients">
+        {knownPatients.map((patient) => (
+          <option key={patient.key} value={patient.name} />
+        ))}
+      </datalist>
+      <datalist id="medicine-catalog">
+        {catalog.map((medicine) => (
+          <option key={medicine.id} value={catalogLabel(medicine)} />
+        ))}
+      </datalist>
+
       <form onSubmit={submit}>
         <section className="panel">
           <h3>Patient</h3>
           <div className="form-grid">
-            <Field label="Full name">
-              <input value={patientName} onChange={(event) => setPatientName(event.target.value)} required />
+            <Field label="Full name" hint={knownPatients.length > 0 ? "Type a returning patient's name to reuse their contact details." : undefined}>
+              <input list="known-patients" value={patientName} onChange={(event) => selectPatientName(event.target.value)} required />
             </Field>
             <Field label="Email" hint="Where the QR code is sent. Leave blank to hand over the code in person.">
               <input type="email" value={patientEmail} onChange={(event) => setPatientEmail(event.target.value)} />
@@ -203,25 +309,13 @@ export default function NewPrescriptionPage() {
           {items.map((item, index) => (
             <div key={item.key} className="rx-item-row">
               <div className="form-grid">
-                <Field label={`Item ${index + 1} — from catalog`}>
-                  <select
-                    value={item.medicine}
-                    onChange={(event) => {
-                      const selected = catalog.find((entry) => entry.id === event.target.value);
-                      update(item.key, {
-                        medicine: event.target.value,
-                        medicine_text: selected?.display_name || item.medicine_text
-                      });
-                    }}
-                  >
-                    <option value="">Not in catalog — type it below</option>
-                    {catalog.map((medicine) => (
-                      <option key={medicine.id} value={medicine.id}>
-                        {medicine.display_name}
-                        {medicine.requires_prescription ? " (Rx)" : ""}
-                      </option>
-                    ))}
-                  </select>
+                <Field label={`Item ${index + 1} — from catalog`} hint="Type to search.">
+                  <input
+                    list="medicine-catalog"
+                    value={item.catalog_query}
+                    onChange={(event) => selectCatalogEntry(item.key, event.target.value)}
+                    placeholder="Start typing a medicine name"
+                  />
                 </Field>
                 <Field label="Or write it" hint="Kept verbatim for the pharmacist.">
                   <input
@@ -251,23 +345,29 @@ export default function NewPrescriptionPage() {
                     placeholder="1 tablet twice daily for 7 days"
                   />
                 </Field>
-                <label className="field checkbox-field">
-                  <span>Generic substitution</span>
-                  <input
-                    type="checkbox"
-                    checked={item.allow_generic_substitution}
-                    onChange={(event) => update(item.key, { allow_generic_substitution: event.target.checked })}
-                  />
-                  <small>Allow the pharmacy to substitute an equivalent generic.</small>
-                </label>
+                <div className="field">
+                  <span>&nbsp;</span>
+                  <label className="checkbox-field">
+                    <span>Generic substitution</span>
+                    <input
+                      type="checkbox"
+                      checked={item.allow_generic_substitution}
+                      onChange={(event) => update(item.key, { allow_generic_substitution: event.target.checked })}
+                    />
+                    <small>Allow the pharmacy to substitute an equivalent generic.</small>
+                  </label>
+                </div>
                 {items.length > 1 ? (
-                  <Button
-                    type="button"
-                    variant="danger"
-                    onClick={() => setItems((current) => current.filter((entry) => entry.key !== item.key))}
-                  >
-                    Remove item
-                  </Button>
+                  <div className="field">
+                    <span>&nbsp;</span>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      onClick={() => setItems((current) => current.filter((entry) => entry.key !== item.key))}
+                    >
+                      Remove item
+                    </Button>
+                  </div>
                 ) : null}
               </div>
             </div>

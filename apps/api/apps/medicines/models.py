@@ -6,6 +6,13 @@ from django.db import models
 from django.db.models.functions import Lower
 
 from apps.common.models import UUIDTimeStampedModel
+from apps.medicines.storage import ProductImageStorage
+
+
+def medicine_image_path(instance, filename):
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    suffix = f".{extension}" if extension else ""
+    return f"medicines/{instance.pk}{suffix}"
 
 
 class ProductCategory(models.TextChoices):
@@ -21,6 +28,19 @@ class PriceRegime(models.TextChoices):
     FREE = "FREE", "Free pricing"
 
 
+class DrugSchedule(models.TextChoices):
+    """
+    Not sourced from an official Lebanese controlled-substance list - every medicine defaults
+    to NONE. A platform admin classifies individual items as they're identified, and only
+    CONTROLLED items get the stricter dispensing rules in eprescriptions/services/dispense.py
+    and orders/services/schedule.py.
+    """
+
+    NONE = "NONE", "Not scheduled"
+    PRESCRIPTION = "PRESCRIPTION", "Prescription required"
+    CONTROLLED = "CONTROLLED", "Controlled substance"
+
+
 class Medicine(UUIDTimeStampedModel):
     brand_name = models.CharField(max_length=255, db_index=True)
     generic_name = models.CharField(max_length=255, blank=True, db_index=True)
@@ -29,6 +49,9 @@ class Medicine(UUIDTimeStampedModel):
     manufacturer = models.CharField(max_length=160, blank=True)
     classification = models.CharField(max_length=120, blank=True)
     notes = models.TextField(blank=True)
+    image = models.ImageField(
+        upload_to=medicine_image_path, storage=ProductImageStorage(), blank=True, null=True, help_text="Product photo shown to shoppers."
+    )
     is_active = models.BooleanField(default=True)
 
     category = models.CharField(max_length=20, choices=ProductCategory.choices, default=ProductCategory.MEDICINE, db_index=True)
@@ -44,10 +67,15 @@ class Medicine(UUIDTimeStampedModel):
     regulated_price_reference = models.CharField(max_length=120, blank=True, help_text="MoPH price list / decision reference.")
     regulated_price_updated_at = models.DateTimeField(null=True, blank=True)
     requires_prescription = models.BooleanField(default=False)
+    drug_schedule = models.CharField(max_length=20, choices=DrugSchedule.choices, default=DrugSchedule.NONE, db_index=True)
 
     @property
     def is_price_regulated(self) -> bool:
         return self.price_regime == PriceRegime.REGULATED and self.regulated_price is not None
+
+    @property
+    def is_controlled(self) -> bool:
+        return self.drug_schedule == DrugSchedule.CONTROLLED
 
     def clean(self):
         if self.price_regime == PriceRegime.REGULATED and self.regulated_price is None:

@@ -19,7 +19,7 @@ from apps.eprescriptions.services.activation import ActivationError, activate_do
 from apps.eprescriptions.services.access import PrescriptionAuthError, authenticate
 from apps.eprescriptions.services.dispense import DispenseError, dispense_prescription
 from apps.eprescriptions.services.issue import issue_prescription
-from apps.medicines.models import Medicine, PriceRegime, ProductCategory
+from apps.medicines.models import DrugSchedule, Medicine, PriceRegime, ProductCategory
 from apps.pharmacies.models import Pharmacy
 
 
@@ -268,6 +268,39 @@ class PrescriptionDispenseTests(TestCase):
                 lines=[{"prescription_item": str(self.items[0].id), "quantity": 1}],
                 pharmacy_details=self._details(),
             )
+
+    def test_controlled_item_must_be_dispensed_in_full_by_one_pharmacy(self):
+        self.antibiotic.drug_schedule = DrugSchedule.CONTROLLED
+        self.antibiotic.save(update_fields=["drug_schedule"])
+
+        with self.assertRaises(DispenseError) as context:
+            dispense_prescription(
+                prescription=self.prescription,
+                lines=[{"prescription_item": str(self.items[0].id), "quantity": 7}],
+                pharmacy_details=self._details("First Pharmacy"),
+            )
+        self.assertIn("controlled substance", str(context.exception))
+
+        # Taking the full remaining quantity in one pharmacy is fine.
+        dispense_prescription(
+            prescription=self.prescription,
+            lines=[{"prescription_item": str(self.items[0].id), "quantity": 14}],
+            pharmacy_details=self._details("First Pharmacy"),
+        )
+        self.items[0].refresh_from_db()
+        self.assertEqual(self.items[0].quantity_remaining, 0)
+
+    def test_deactivated_doctor_licence_blocks_dispensing(self):
+        self.doctor.is_active = False
+        self.doctor.save(update_fields=["is_active"])
+
+        with self.assertRaises(DispenseError) as context:
+            dispense_prescription(
+                prescription=self.prescription,
+                lines=[{"prescription_item": str(self.items[0].id), "quantity": 1}],
+                pharmacy_details=self._details(),
+            )
+        self.assertIn("no longer active", str(context.exception))
 
     def test_items_from_another_prescription_are_refused(self):
         other, _secret, _pin = issue_prescription(

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 from django.utils.html import escape
 
+from apps.common.mailer import send_email
 from apps.eprescriptions.services.qr import prescription_qr_svg, prescription_url
 
 
@@ -40,16 +40,14 @@ def send_prescription_email(prescription, *, secret: str, pin: str) -> None:
     point EMAIL_* settings at a real SMTP host and nothing else changes.
     """
     url = prescription_url(prescription.code, secret)
-    message = EmailMultiAlternatives(
+    send_email(
+        to=[prescription.patient_email],
         subject=f"Prescription {prescription.code} from Dr. {prescription.doctor.full_name}",
-        body=(
+        text_body=(
             f"Prescription {prescription.code} for {prescription.patient_name}.\n"
             f"Open: {url}\nOr enter code {prescription.code} with PIN {pin} at {settings.PUBLIC_WEB_BASE_URL}/rx\n"
             f"Valid until {prescription.valid_until:%d %b %Y %H:%M}.\n"
         ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[prescription.patient_email],
+        html_body=_html_body(prescription, url, pin),
+        attachments=[(f"prescription-{prescription.code}.svg", prescription_qr_svg(prescription.code, secret), "image/svg+xml")],
     )
-    message.attach_alternative(_html_body(prescription, url, pin), "text/html")
-    message.attach(f"prescription-{prescription.code}.svg", prescription_qr_svg(prescription.code, secret), "image/svg+xml")
-    message.send(fail_silently=False)

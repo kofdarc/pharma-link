@@ -44,6 +44,7 @@ class Order(UUIDTimeStampedModel):
         COLLECTED = "COLLECTED", "Collected in store"
         PARTIALLY_CANCELLED = "PARTIALLY_CANCELLED", "Partially cancelled"
         CANCELLED = "CANCELLED", "Cancelled"
+        EXPIRED = "EXPIRED", "Stock hold expired before a pharmacy accepted"
 
     class FulfillmentType(models.TextChoices):
         DELIVERY = "DELIVERY", "Delivery"
@@ -55,6 +56,12 @@ class Order(UUIDTimeStampedModel):
 
     reference = models.CharField(max_length=24, unique=True, db_index=True)
     customer = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="orders", db_index=True)
+    idempotency_key = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="Client-supplied Idempotency-Key header. A repeat request with the same key "
+        "returns the original order instead of placing a duplicate.",
+    )
     fulfillment_type = models.CharField(max_length=20, choices=FulfillmentType.choices, default=FulfillmentType.DELIVERY)
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.PENDING, db_index=True)
     source = models.CharField(max_length=20, choices=Source.choices, default=Source.WEB)
@@ -84,6 +91,13 @@ class Order(UUIDTimeStampedModel):
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["status", "scheduled_for"]), models.Index(fields=["customer", "created_at"])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["customer", "idempotency_key"],
+                condition=~models.Q(idempotency_key=""),
+                name="unique_idempotency_key_per_customer",
+            )
+        ]
 
     def __str__(self) -> str:
         return self.reference
@@ -113,6 +127,8 @@ class OrderFulfillment(UUIDTimeStampedModel):
         COLLECTED = "COLLECTED", "Collected in store"
         REJECTED = "REJECTED", "Rejected"
         CANCELLED = "CANCELLED", "Cancelled"
+        EXPIRED = "EXPIRED", "Stock hold expired before a pharmacy accepted"
+        DELIVERY_FAILED = "DELIVERY_FAILED", "Delivery failed"
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="fulfillments")
     pharmacy = models.ForeignKey("pharmacies.Pharmacy", on_delete=models.PROTECT, related_name="order_fulfillments", db_index=True)
@@ -175,6 +191,14 @@ class RecurringOrder(UUIDTimeStampedModel):
     customer = models.ForeignKey("accounts.User", on_delete=models.CASCADE, related_name="recurring_orders")
     address = models.ForeignKey(DeliveryAddress, on_delete=models.PROTECT, related_name="recurring_orders")
     label = models.CharField(max_length=120, default="Monthly refill")
+    prescription = models.ForeignKey(
+        "eprescriptions.Prescription",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="recurring_orders",
+        help_text="Required if any repeated item requires a prescription. Each cycle draws down its remaining quantity.",
+    )
     items = models.JSONField(default=list, help_text="[{medicine: uuid, quantity: int}] - re-sourced each cycle, so a closed pharmacy never blocks a refill.")
     interval_days = models.PositiveIntegerField(default=30, validators=[MinValueValidator(1)])
     preferred_hour = models.PositiveIntegerField(default=10, validators=[MaxValueValidator(23)])
@@ -200,6 +224,8 @@ class PharmacyReview(UUIDTimeStampedModel):
     rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     comment = models.TextField(blank=True)
     was_complete = models.BooleanField(default=True)
+    is_hidden = models.BooleanField(default=False, help_text="Hidden reviews are excluded from the pharmacy's rating rollup.")
+    hidden_reason = models.CharField(max_length=255, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

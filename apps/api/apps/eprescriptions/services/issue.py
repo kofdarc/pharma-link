@@ -5,6 +5,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from apps.audit.services import write_audit_log
 from apps.eprescriptions.models import Doctor, Prescription, PrescriptionItem
@@ -23,9 +24,9 @@ def issue_prescription(*, doctor: Doctor, patient: dict, items: list[dict], diag
     The secret and PIN are returned once and never recoverable afterwards - only their hashes are stored.
     """
     if not doctor.is_activated or not doctor.is_active:
-        raise IssueError("This licence is not active for issuing prescriptions.")
+        raise IssueError(_("This licence is not active for issuing prescriptions."))
     if not items:
-        raise IssueError("A prescription needs at least one item.")
+        raise IssueError(_("A prescription needs at least one item."))
 
     validity_days = validity_days or settings.PRESCRIPTION_VALIDITY_DAYS
     secret = tokens.generate_secret()
@@ -50,9 +51,9 @@ def issue_prescription(*, doctor: Doctor, patient: dict, items: list[dict], diag
             break
         except IntegrityError:
             if attempt == 4:
-                raise IssueError("Could not allocate a prescription code. Please retry.")
+                raise IssueError(_("Could not allocate a prescription code. Please retry."))
     else:  # pragma: no cover - loop always breaks or raises
-        raise IssueError("Could not allocate a prescription code. Please retry.")
+        raise IssueError(_("Could not allocate a prescription code. Please retry."))
 
     for raw in items:
         medicine = None
@@ -89,7 +90,7 @@ def issue_prescription(*, doctor: Doctor, patient: dict, items: list[dict], diag
 def cancel_prescription(*, prescription: Prescription, reason: str = "") -> Prescription:
     prescription = Prescription.objects.select_for_update().get(id=prescription.id)
     if prescription.status == Prescription.Status.FULLY_DISPENSED:
-        raise IssueError("A fully dispensed prescription cannot be cancelled.")
+        raise IssueError(_("A fully dispensed prescription cannot be cancelled."))
     prescription.status = Prescription.Status.CANCELLED
     prescription.cancelled_at = timezone.now()
     prescription.cancellation_reason = reason

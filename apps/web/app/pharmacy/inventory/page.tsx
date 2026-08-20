@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch, asList } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { InventoryBatch } from "@/types/api";
 import { Badge, statusTone } from "@/components/ui/Badge";
 import { Button, LinkButton } from "@/components/ui/Button";

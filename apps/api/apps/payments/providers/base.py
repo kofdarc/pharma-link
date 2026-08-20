@@ -24,3 +24,6 @@ class PaymentProvider(ABC):
 
     @abstractmethod
     def charge(self, payment) -> ChargeResult: ...
+
+    @abstractmethod
+    def refund(self, payment) -> ChargeResult: ...

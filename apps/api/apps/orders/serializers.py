@@ -171,6 +171,7 @@ class OrderCreateSerializer(serializers.Serializer):
 
 class RecurringOrderSerializer(serializers.ModelSerializer):
     items = BasketItemSerializer(many=True)
+    prescription_code = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=24)
 
     class Meta:
         model = RecurringOrder
@@ -179,6 +180,8 @@ class RecurringOrderSerializer(serializers.ModelSerializer):
             "label",
             "address",
             "items",
+            "prescription",
+            "prescription_code",
             "interval_days",
             "preferred_hour",
             "next_run_at",
@@ -188,7 +191,7 @@ class RecurringOrderSerializer(serializers.ModelSerializer):
             "last_error",
             "created_at",
         ]
-        read_only_fields = ["id", "last_run_at", "occurrences_created", "last_error", "created_at"]
+        read_only_fields = ["id", "prescription", "last_run_at", "occurrences_created", "last_error", "created_at"]
 
     def validate_items(self, items):
         if not items:
@@ -197,10 +200,12 @@ class RecurringOrderSerializer(serializers.ModelSerializer):
 
 
 class PharmacyReviewSerializer(serializers.ModelSerializer):
+    customer_email = serializers.EmailField(source="customer.email", read_only=True)
+
     class Meta:
         model = PharmacyReview
-        fields = ["id", "order", "pharmacy", "rating", "comment", "was_complete", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "order", "pharmacy", "customer_email", "rating", "comment", "was_complete", "is_hidden", "hidden_reason", "created_at"]
+        read_only_fields = ["id", "customer_email", "is_hidden", "hidden_reason", "created_at"]
 
 
 class RejectFulfillmentSerializer(serializers.Serializer):

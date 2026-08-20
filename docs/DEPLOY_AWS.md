@@ -82,6 +82,32 @@ aws s3api put-bucket-encryption --bucket pharmalink-prescriptions-prod \
 Files are already encrypted at the application layer before they're written (see
 `apps/prescriptions/storage.py`), so SSE here is defense-in-depth, not the only layer.
 
+### Product images (public)
+
+Medicine/supplement photos (`apps/medicines/storage.py`) are written to the same bucket under
+a `product-images/` prefix, but unlike prescriptions they need to be publicly readable so the
+web app can render them directly. Scope public read to just that prefix rather than opening the
+whole bucket:
+
+```bash
+aws s3api put-public-access-block --bucket pharmalink-prescriptions-prod \
+  --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=false,RestrictPublicBuckets=false
+
+aws s3api put-bucket-policy --bucket pharmalink-prescriptions-prod --policy '{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Sid": "PublicReadProductImages",
+    "Effect": "Allow",
+    "Principal": "*",
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::pharmalink-prescriptions-prod/product-images/*"
+  }]
+}'
+```
+
+ACLs stay blocked (access is via the bucket policy, not per-object ACLs) and every other prefix
+in the bucket - prescriptions included - stays private; the policy only opens `product-images/*`.
+
 ## 3. Push the API image to ECR
 
 ```bash
@@ -183,6 +209,119 @@ To seed demo data against the deployed DB, run `python manage.py seed_poc` from 
 that can reach RDS - easiest is temporarily adding your IP to the RDS security group and
 pointing `DATABASE_URL` at the endpoint from your local `.venv`, then reverting the security
 group rule.
+
+## 7. Background scheduler (EventBridge Scheduler + ECS Fargate)
+
+`python manage.py run_scheduler` (see `apps/orders/management/commands/run_scheduler.py`)
+expires stale stock holds, generates due recurring orders, releases scheduled orders into
+the dispatch pool, optionally re-plans routes, and delivers pending outgoing webhooks. It
+needs to run on a timer somewhere. App Runner has no native cron or background-loop support
+- every App Runner instance only ever serves HTTP, and there is no "worker" instance type -
+so this cannot live on the same service as the API. The `scheduler` service in
+`docker-compose.yml` covers local/self-hosted deployments (it loops forever with
+`--loop --plan`); in AWS the equivalent is a **scheduled ECS Fargate task**, invoked by
+**EventBridge Scheduler** on a fixed interval, running a single pass (no `--loop` - the
+schedule itself provides the periodicity).
+
+This section documents the approach; it is not automated (no Terraform/CDK exists in this
+repo to extend, matching the manual-console-plus-CLI style of the rest of this guide).
+
+**Reuse the same image** already pushed to ECR in step 3 - no separate build.
+
+**ECS cluster** (a cheap Fargate-only cluster, no EC2 capacity to manage):
+
+```bash
+aws ecs create-cluster --cluster-name pharmalink
+```
+
+**Task execution role** (lets ECS pull the image and write logs) and **task role** (what the
+container itself can do - same S3 access as the App Runner instance role, since the
+scheduler's webhook/notification paths don't touch S3 but staying consistent is simplest):
+
+```bash
+aws iam create-role --role-name pharmalink-ecs-execution \
+  --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+aws iam attach-role-policy --role-name pharmalink-ecs-execution \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+aws iam create-role --role-name pharmalink-scheduler-task \
+  --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+```
+
+**Task definition** (`scheduler-task-def.json`) - same `DATABASE_URL`/`DJANGO_SECRET_KEY`/etc.
+as the App Runner service, plus a `command` override so the container runs the scheduler
+pass instead of gunicorn:
+
+```json
+{
+  "family": "pharmalink-scheduler",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::<account-id>:role/pharmalink-ecs-execution",
+  "taskRoleArn": "arn:aws:iam::<account-id>:role/pharmalink-scheduler-task",
+  "containerDefinitions": [
+    {
+      "name": "scheduler",
+      "image": "<account-id>.dkr.ecr.<region>.amazonaws.com/pharmalink-api:latest",
+      "command": ["python", "manage.py", "run_scheduler", "--plan"],
+      "environment": [
+        {"name": "DJANGO_DEBUG", "value": "false"},
+        {"name": "DATABASE_URL", "value": "postgresql://pharmalink:<password>@<rds-endpoint>:5432/pharmalink"},
+        {"name": "PUBLIC_WEB_BASE_URL", "value": "https://yourdomain.com"}
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {"awslogs-group": "/ecs/pharmalink-scheduler", "awslogs-region": "<region>", "awslogs-stream-prefix": "scheduler"}
+      }
+    }
+  ]
+}
+```
+
+Put `DJANGO_SECRET_KEY` and the DB password in Secrets Manager and reference them via
+`secrets` instead of plaintext `environment`, same as the security checklist below asks for
+the App Runner service.
+
+```bash
+aws logs create-log-group --log-group-name /ecs/pharmalink-scheduler
+aws ecs register-task-definition --cli-input-json file://scheduler-task-def.json
+```
+
+**EventBridge Scheduler rule**, firing the task on a fixed interval (every 5 minutes here -
+match whatever `--every` you'd otherwise pass to `--loop`):
+
+```bash
+aws scheduler create-schedule \
+  --name pharmalink-scheduler-tick \
+  --schedule-expression "rate(5 minutes)" \
+  --flexible-time-window '{"Mode":"OFF"}' \
+  --target '{
+    "Arn": "arn:aws:ecs:<region>:<account-id>:cluster/pharmalink",
+    "RoleArn": "arn:aws:iam::<account-id>:role/pharmalink-scheduler-invoke",
+    "EcsParameters": {
+      "TaskDefinitionArn": "arn:aws:ecs:<region>:<account-id>:task-definition/pharmalink-scheduler",
+      "LaunchType": "FARGATE",
+      "NetworkConfiguration": {
+        "awsvpcConfiguration": {
+          "Subnets": ["<subnet-1>", "<subnet-2>"],
+          "SecurityGroups": ["<sg-that-can-reach-rds>"],
+          "AssignPublicIp": "DISABLED"
+        }
+      }
+    }
+  }'
+```
+
+`pharmalink-scheduler-invoke` is a small role EventBridge Scheduler assumes to call
+`ecs:RunTask`, trusted to `scheduler.amazonaws.com` and scoped to `RunTask` on that one task
+definition plus `iam:PassRole` for the two roles above - create it the same way as the other
+roles in this guide.
+
+Each firing runs one pass and exits; there is nothing long-running to monitor beyond the
+task's CloudWatch Logs (`/ecs/pharmalink-scheduler`) and EventBridge Scheduler's own
+invocation history/dead-letter queue if you configure one.
 
 ## Updating a deployed environment
 

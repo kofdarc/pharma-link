@@ -91,9 +91,16 @@ def build_jobs(*, anchor: datetime | None = None, fulfillments=None) -> tuple[li
         else:
             dropoff_earliest = 0.0
             dropoff_latest = float(settings.ASAP_DELIVERY_PROMISE_MINUTES)
-        # A dropoff can never precede the last pickup being ready.
-        dropoff_earliest = max(dropoff_earliest, max(leg.earliest_minute for leg in pickups))
-        dropoff_latest = max(dropoff_latest, dropoff_earliest + 30)
+        # A dropoff can never precede the last pickup being ready. When that pushes the
+        # window forward (pharmacy still closed, or slow prep), keep the promised window's
+        # full length rather than collapsing it to a fixed pad - a multi-pharmacy basket
+        # needs real travel time between pickups, and 30 minutes flat isn't always enough
+        # to reach more than one pharmacy before the customer.
+        pushed_earliest = max(dropoff_earliest, max(leg.earliest_minute for leg in pickups))
+        if pushed_earliest > dropoff_earliest:
+            window_length = dropoff_latest - dropoff_earliest
+            dropoff_latest = pushed_earliest + max(window_length, 30.0)
+        dropoff_earliest = pushed_earliest
 
         job = routing.Job(
             job_id=order_id,

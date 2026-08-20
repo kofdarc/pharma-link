@@ -1,16 +1,18 @@
 from datetime import timedelta
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
-from apps.accounts.permissions import IsPharmacyUserWithActivePharmacy, IsShopper
+from apps.accounts.permissions import IsPharmacyUserWithActivePharmacy, IsPlatformAdmin, IsShopper
 from apps.eprescriptions.models import Prescription
-from apps.orders.models import DeliveryAddress, Order, OrderFulfillment, RecurringOrder
+from apps.medicines.models import Medicine
+from apps.orders.models import DeliveryAddress, Order, OrderFulfillment, PharmacyReview, RecurringOrder
 from apps.orders.serializers import (
     BasketQuoteSerializer,
     DeliveryAddressSerializer,
@@ -29,6 +31,7 @@ from apps.orders.services.lifecycle import (
     hand_over,
     mark_ready,
     reject_fulfillment,
+    set_review_visibility,
     submit_review,
 )
 from apps.orders.services.placement import OrderError, place_order
@@ -87,6 +90,8 @@ class ShopperOrderViewSet(ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
+        if not request.user.email_verified:
+            return Response({"detail": _("Verify your email before placing an order.")}, status=status.HTTP_403_FORBIDDEN)
         serializer = OrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -95,13 +100,15 @@ class ShopperOrderViewSet(ModelViewSet):
         if data.get("address"):
             address = DeliveryAddress.objects.filter(id=data["address"], user=request.user).first()
             if address is None:
-                return Response({"detail": "Address not found."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"detail": _("Address not found.")}, status=status.HTTP_400_BAD_REQUEST)
         elif data["fulfillment_type"] == Order.FulfillmentType.DELIVERY:
             address = DeliveryAddress.objects.filter(user=request.user, is_default=True).first()
 
         prescription = None
         if data.get("prescription_code"):
             prescription = Prescription.objects.filter(code=data["prescription_code"].strip().upper()).first()
+
+        idempotency_key = request.headers.get("Idempotency-Key", "")[:120]
 
         try:
             order = place_order(
@@ -114,9 +121,17 @@ class ShopperOrderViewSet(ModelViewSet):
                 notes=data.get("notes", ""),
                 prescription=prescription,
                 payment_method=data["payment_method"],
+                idempotency_key=idempotency_key,
             )
         except OrderError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except IntegrityError:
+            # Lost the race against an identical concurrent request; the winner's order is
+            # the correct response either way.
+            order = Order.objects.filter(customer=request.user, idempotency_key=idempotency_key).first()
+            if order is None:
+                raise
+            return Response(self.get_serializer(order).data, status=status.HTTP_200_OK)
         return Response(self.get_serializer(order).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
@@ -157,9 +172,23 @@ class RecurringOrderViewSet(ModelViewSet):
     def perform_create(self, serializer):
         address = serializer.validated_data["address"]
         if address.user_id != self.request.user.id:
-            raise FulfillmentError("That address belongs to another account.")
+            raise FulfillmentError(_("That address belongs to another account."))
+
+        prescription = None
+        prescription_code = serializer.validated_data.pop("prescription_code", "")
+        if prescription_code:
+            prescription = Prescription.objects.filter(code=prescription_code.strip().upper()).first()
+            if prescription is None:
+                raise FulfillmentError(_("No prescription was found with that code."))
+
+        needs_prescription = Medicine.objects.filter(
+            id__in=[entry["medicine"] for entry in serializer.validated_data["items"]], requires_prescription=True
+        ).exists()
+        if needs_prescription and (prescription is None or not prescription.is_consumable):
+            raise FulfillmentError(_("A valid prescription code is required to repeat an order containing prescription items."))
+
         next_run = serializer.validated_data.get("next_run_at") or timezone.now() + timedelta(days=serializer.validated_data.get("interval_days", 30))
-        serializer.save(customer=self.request.user, next_run_at=next_run)
+        serializer.save(customer=self.request.user, next_run_at=next_run, prescription=prescription)
 
 
 class PharmacyOrderViewSet(ReadOnlyModelViewSet):
@@ -218,3 +247,21 @@ class PharmacyOrderViewSet(ReadOnlyModelViewSet):
             collected_in_store=serializer.validated_data.get("collected_in_store", False),
         )
         return error or Response(self.get_serializer(result).data)
+
+
+class AdminReviewViewSet(ReadOnlyModelViewSet):
+    """Lets a platform admin moderate reviews that are abusive or off-topic."""
+
+    serializer_class = PharmacyReviewSerializer
+    permission_classes = [IsPlatformAdmin]
+    queryset = PharmacyReview.objects.select_related("order", "pharmacy", "customer").order_by("-created_at")
+
+    @action(detail=True, methods=["post"])
+    def hide(self, request, pk=None):
+        review = set_review_visibility(review=self.get_object(), is_hidden=True, reason=request.data.get("reason", ""), user=request.user)
+        return Response(self.get_serializer(review).data)
+
+    @action(detail=True, methods=["post"])
+    def unhide(self, request, pk=None):
+        review = set_review_visibility(review=self.get_object(), is_hidden=False, user=request.user)
+        return Response(self.get_serializer(review).data)

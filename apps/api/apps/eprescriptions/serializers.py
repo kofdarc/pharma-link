@@ -24,6 +24,26 @@ class DoctorSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class AdminDoctorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Doctor
+        fields = [
+            "id",
+            "license_number",
+            "full_name",
+            "specialty",
+            "email",
+            "phone",
+            "clinic_name",
+            "clinic_address",
+            "clinic_area",
+            "is_activated",
+            "activated_at",
+            "is_active",
+        ]
+        read_only_fields = ["id", "license_number", "full_name", "specialty", "email", "phone", "clinic_name", "clinic_address", "clinic_area", "is_activated", "activated_at"]
+
+
 class DoctorActivationSerializer(serializers.Serializer):
     license_number = serializers.CharField(max_length=60)
     email = serializers.EmailField()

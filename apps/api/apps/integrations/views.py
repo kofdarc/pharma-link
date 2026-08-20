@@ -1,3 +1,4 @@
+import logging
 import secrets
 
 from django.db.models import Q
@@ -23,9 +24,13 @@ from apps.integrations.serializers import (
 )
 from apps.integrations.services.keys import create_integration_key, revoke_integration_key
 from apps.integrations.services.sync import sync_sales, sync_stock
+from apps.integrations.services.webhooks import dispatch_webhook_event
+from apps.integrations.throttling import IntegrationKeyThrottle
 from apps.orders.models import OrderFulfillment
 from apps.orders.serializers import PharmacyOrderFulfillmentSerializer
 from apps.orders.services.lifecycle import FulfillmentError, accept_fulfillment, mark_ready, reject_fulfillment
+
+logger = logging.getLogger(__name__)
 
 
 class IntegrationKeyViewSet(ModelViewSet):
@@ -163,6 +168,7 @@ class IntegrationEndpoint(APIView):
 
     authentication_classes = [IntegrationKeyAuthentication]
     permission_classes = [HasIntegrationScope]
+    throttle_classes = [IntegrationKeyThrottle]
     required_scope = ""
 
     @property
@@ -205,6 +211,20 @@ class IntegrationStockSyncView(IntegrationEndpoint):
             integration_key=request.user.integration_key,
             idempotency_key=serializer.validated_data["idempotency_key"],
         )
+        if run.status != SyncRun.Status.REPLAYED:
+            try:
+                dispatch_webhook_event(
+                    pharmacy=self.pharmacy,
+                    event_type="stock.synced",
+                    payload={
+                        "sync_run_id": str(run.id),
+                        "rows_applied": run.rows_applied,
+                        "rows_unmapped": run.rows_unmapped,
+                        "rows_failed": run.rows_failed,
+                    },
+                )
+            except Exception:
+                logger.exception("Failed to dispatch stock.synced webhook for pharmacy %s", self.pharmacy.id)
         return Response(SyncRunSerializer(run).data, status=status.HTTP_200_OK if run.status == SyncRun.Status.REPLAYED else status.HTTP_201_CREATED)
 
 

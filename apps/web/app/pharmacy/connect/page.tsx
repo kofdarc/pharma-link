@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch, asList } from "@/lib/api-client";
-import type { IntegrationKey, Medicine, OnboardingStatus, Paginated, SkuMapping, SyncRun } from "@/types/api";
+import type { IntegrationKey, Medicine, OnboardingStatus, Paginated, SkuMapping, SyncRun, WebhookEndpoint } from "@/types/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -25,23 +25,27 @@ export default function ConnectPage() {
   const [unmappedOnly, setUnmappedOnly] = useState(true);
   const [catalog, setCatalog] = useState<Medicine[]>([]);
   const [runs, setRuns] = useState<SyncRun[]>([]);
+  const [webhooks, setWebhooks] = useState<WebhookEndpoint[]>([]);
+  const [newWebhookUrl, setNewWebhookUrl] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
     try {
-      const [statusData, keyData, mappingData, runData, catalogData] = await Promise.all([
+      const [statusData, keyData, mappingData, runData, catalogData, webhookData] = await Promise.all([
         apiFetch<OnboardingStatus>("/pharmacy/onboarding/"),
         apiFetch<Paginated<IntegrationKey> | IntegrationKey[]>("/pharmacy/integration-keys/").catch(() => []),
         apiFetch<Paginated<SkuMapping> | SkuMapping[]>(`/pharmacy/sku-mappings/${unmappedOnly ? "?unmapped=true" : ""}`),
         apiFetch<Paginated<SyncRun> | SyncRun[]>("/pharmacy/sync-runs/"),
-        apiFetch<Paginated<Medicine> | Medicine[]>("/medicines/")
+        apiFetch<Paginated<Medicine> | Medicine[]>("/medicines/"),
+        apiFetch<Paginated<WebhookEndpoint> | WebhookEndpoint[]>("/pharmacy/webhooks/")
       ]);
       setStatus(statusData);
       setKeys(asList(keyData as Paginated<IntegrationKey> | IntegrationKey[]));
       setMappings(asList(mappingData));
       setRuns(asList(runData));
       setCatalog(asList(catalogData));
+      setWebhooks(asList(webhookData));
     } catch {
       setError("Could not load the connection settings.");
     }
@@ -70,6 +74,30 @@ export default function ConnectPage() {
     try {
       await apiFetch(`/pharmacy/integration-keys/${key.id}/`, { method: "DELETE" });
       setMessage("Key revoked.");
+      void load();
+    } catch (exception) {
+      setError((exception as ApiError).message);
+    }
+  }
+
+  async function addWebhook() {
+    if (!newWebhookUrl.trim()) return;
+    setError("");
+    try {
+      await apiFetch("/pharmacy/webhooks/", { method: "POST", body: JSON.stringify({ url: newWebhookUrl.trim(), events: [] }) });
+      setNewWebhookUrl("");
+      setMessage("Webhook added.");
+      void load();
+    } catch (exception) {
+      setError((exception as ApiError).message || "Could not add that webhook.");
+    }
+  }
+
+  async function removeWebhook(webhook: WebhookEndpoint) {
+    if (!window.confirm(`Remove the webhook to ${webhook.url}?`)) return;
+    try {
+      await apiFetch(`/pharmacy/webhooks/${webhook.id}/`, { method: "DELETE" });
+      setMessage("Webhook removed.");
       void load();
     } catch (exception) {
       setError((exception as ApiError).message);
@@ -302,6 +330,66 @@ export default function ConnectPage() {
                     <td>{run.rows_applied}</td>
                     <td>{run.rows_unmapped}</td>
                     <td>{run.rows_failed}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Table>
+        )}
+      </section>
+
+      <section className="panel">
+        <div className="section-header">
+          <div>
+            <h3>Webhooks</h3>
+            <p className="muted small">
+              Get a signed HTTP POST to your own software when something happens on the platform (a new order,
+              a stock sync completing), instead of polling for changes.
+            </p>
+          </div>
+        </div>
+        <div className="form-grid">
+          <Field label="Endpoint URL">
+            <input
+              value={newWebhookUrl}
+              onChange={(event) => setNewWebhookUrl(event.target.value)}
+              placeholder="https://your-system.example.com/pharmalink-webhook"
+            />
+          </Field>
+          <Button type="button" onClick={addWebhook}>
+            Add webhook
+          </Button>
+        </div>
+        {webhooks.length === 0 ? (
+          <EmptyState title="No webhooks configured." />
+        ) : (
+          <Table>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>URL</th>
+                  <th>Status</th>
+                  <th>Last delivery</th>
+                  <th>Consecutive failures</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {webhooks.map((webhook) => (
+                  <tr key={webhook.id} className={webhook.consecutive_failures > 0 ? "row-warning" : ""}>
+                    <td>
+                      <code>{webhook.url}</code>
+                    </td>
+                    <td>
+                      <Badge tone={webhook.is_active ? "success" : "neutral"}>{webhook.is_active ? "Active" : "Disabled"}</Badge>
+                    </td>
+                    <td className="muted small">{webhook.last_delivery_at ? new Date(webhook.last_delivery_at).toLocaleString() : "never"}</td>
+                    <td>{webhook.consecutive_failures}</td>
+                    <td>
+                      <Button type="button" variant="danger" onClick={() => removeWebhook(webhook)}>
+                        Remove
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -17,9 +17,10 @@ from rest_framework.test import APITestCase
 from apps.accounts.models import UserRole
 from apps.inventory.services.stock import create_inventory_batch
 from apps.medicines.models import Medicine
-from apps.orders.services.lifecycle import accept_fulfillment, hand_over
+from apps.orders.services.lifecycle import accept_fulfillment, cancel_order, hand_over
 from apps.orders.services.placement import place_order
 from apps.payments.models import Payment
+from apps.payments.providers.mock_gateway import MockGatewayProvider
 from apps.pharmacies.models import Pharmacy
 
 HAMRA = (33.8975, 35.4790)
@@ -84,6 +85,35 @@ class PaymentFlowTests(TestCase):
         order.payment.refresh_from_db()
         self.assertEqual(order.payment.status, Payment.Status.PAID)
         self.assertIsNotNone(order.payment.paid_at)
+
+    def test_a_declined_charge_blocks_the_order_from_being_placed_at_all(self):
+        from unittest.mock import patch
+
+        from apps.payments.providers.base import ChargeResult
+
+        with patch.object(MockGatewayProvider, "charge", return_value=ChargeResult(status=Payment.Status.FAILED, failure_reason="Card declined")):
+            with self.assertRaises(Exception):
+                self.place(payment_method=Payment.Provider.MOCK_GATEWAY)
+        from apps.orders.models import Order
+
+        self.assertFalse(Order.objects.exists())
+
+    def test_cancelling_a_paid_order_refunds_it(self):
+        order = self.place(payment_method=Payment.Provider.MOCK_GATEWAY)
+        self.assertEqual(order.payment.status, Payment.Status.PAID)
+
+        cancel_order(order=order, user=self.shopper, reason="Changed my mind")
+
+        order.payment.refresh_from_db()
+        self.assertEqual(order.payment.status, Payment.Status.REFUNDED)
+        self.assertTrue(order.payment.external_reference.startswith("MOCK-REFUND-"))
+
+    def test_cancelling_an_unpaid_cod_order_does_not_touch_the_payment(self):
+        order = self.place()  # COD, still PENDING
+        cancel_order(order=order, user=self.shopper, reason="Changed my mind")
+
+        order.payment.refresh_from_db()
+        self.assertEqual(order.payment.status, Payment.Status.PENDING)
 
 
 class PaymentApiTests(APITestCase):

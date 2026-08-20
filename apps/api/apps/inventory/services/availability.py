@@ -59,6 +59,7 @@ def public_availability_search(
     latitude: float | None = None,
     longitude: float | None = None,
     sort: str = "best",
+    request=None,
 ):
     today = timezone.localdate()
     if medicine_id:
@@ -141,6 +142,9 @@ def public_availability_search(
             unit_price = medicine.regulated_price
 
         latest_batch = qs.filter(medicine_id=row["medicine_id"], pharmacy_id=row["pharmacy_id"]).order_by("-updated_at").first()
+        image_url = None
+        if medicine and medicine.image:
+            image_url = request.build_absolute_uri(medicine.image.url) if request else medicine.image.url
         results.append(
             {
                 "medicine": {
@@ -151,6 +155,7 @@ def public_availability_search(
                     "form": medicine.form if medicine else "",
                     "category": medicine.category if medicine else "",
                     "requires_prescription": bool(medicine and medicine.requires_prescription),
+                    "image": image_url,
                 },
                 "pharmacy": {
                     "id": row["pharmacy_id"],

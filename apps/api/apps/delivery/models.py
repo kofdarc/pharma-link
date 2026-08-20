@@ -45,10 +45,11 @@ class DeliveryRoute(UUIDTimeStampedModel):
         OFFERED = "OFFERED", "Offered to driver"
         ACTIVE = "ACTIVE", "Active"
         COMPLETED = "COMPLETED", "Completed"
+        COMPLETED_WITH_ISSUES = "COMPLETED_WITH_ISSUES", "Completed with issues"
         CANCELLED = "CANCELLED", "Cancelled"
 
     driver = models.ForeignKey(Driver, null=True, blank=True, on_delete=models.SET_NULL, related_name="routes", db_index=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PROPOSED, db_index=True)
+    status = models.CharField(max_length=22, choices=Status.choices, default=Status.PROPOSED, db_index=True)
     planned_distance_km = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     planned_duration_minutes = models.PositiveIntegerField(default=0)
     naive_distance_km = models.DecimalField(max_digits=8, decimal_places=2, default=0, help_text="Same work done as one dedicated trip per order, for comparison.")

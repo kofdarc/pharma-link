@@ -5,7 +5,18 @@ from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.throttling import AnonRateThrottle
 
-from apps.accounts.views import AdminUserViewSet, LoginView, LogoutView, MeView, PharmacyStaffViewSet, ShopperRegisterView
+from apps.accounts.views import (
+    AdminUserViewSet,
+    LoginView,
+    LogoutView,
+    MeView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
+    PharmacyStaffViewSet,
+    ResendVerificationView,
+    ShopperRegisterView,
+    VerifyEmailView,
+)
 from apps.analytics.views import (
     AnalyticsDemandView,
     AnalyticsInventoryView,
@@ -36,6 +47,7 @@ from apps.delivery.views import (
     RouteReoptimiseView,
 )
 from apps.eprescriptions.views import (
+    AdminDoctorViewSet,
     DoctorActivationView,
     DoctorPrescriptionViewSet,
     DoctorProfileView,
@@ -62,14 +74,22 @@ from apps.inventory.services.availability import public_availability_search
 from apps.inventory.views import InventoryBatchViewSet, StockMovementViewSet
 from apps.medicines.views import AdminMedicineViewSet, MedicineViewSet, medicine_search
 from apps.orders.views import (
+    AdminReviewViewSet,
     BasketQuoteView,
     DeliveryAddressViewSet,
     PharmacyOrderViewSet,
     RecurringOrderViewSet,
     ShopperOrderViewSet,
 )
-from apps.payments.views import OrderPaymentView, PaymentMethodsView
-from apps.pharmacies.views import AdminPharmacyViewSet, PharmacyDashboardView, PharmacyProfileView, PublicPharmacyViewSet
+from apps.payments.views import AdminOrderRefundView, OrderPaymentView, PaymentMethodsView
+from apps.pharmacies.views import (
+    AdminPharmacyApplicationViewSet,
+    AdminPharmacyViewSet,
+    PharmacyApplicationSubmitView,
+    PharmacyDashboardView,
+    PharmacyProfileView,
+    PublicPharmacyViewSet,
+)
 from apps.prescriptions.views import PrescriptionRecordViewSet
 from apps.sales.views import SaleViewSet
 
@@ -96,6 +116,7 @@ def public_search(request):
             latitude=float(latitude) if latitude else None,
             longitude=float(longitude) if longitude else None,
             sort=request.query_params.get("sort", "best"),
+            request=request,
         )
     )
 
@@ -109,14 +130,17 @@ router.register("shop/recurring-orders", RecurringOrderViewSet, basename="shop-r
 
 # Platform admin
 router.register("admin/pharmacies", AdminPharmacyViewSet, basename="admin-pharmacies")
+router.register("admin/pharmacy-applications", AdminPharmacyApplicationViewSet, basename="admin-pharmacy-applications")
 router.register("admin/users", AdminUserViewSet, basename="admin-users")
 router.register("admin/medicines", AdminMedicineViewSet, basename="admin-medicines")
+router.register("admin/doctors", AdminDoctorViewSet, basename="admin-doctors")
 router.register("admin/audit-logs", AdminAuditLogViewSet, basename="admin-audit-logs")
 router.register("admin/imports", AdminImportViewSet, basename="admin-imports")
 router.register("admin/drivers", AdminDriverViewSet, basename="admin-drivers")
 router.register("admin/subscription-plans", AdminSubscriptionPlanViewSet, basename="admin-subscription-plans")
 router.register("admin/pharmacy-subscriptions", AdminPharmacySubscriptionViewSet, basename="admin-pharmacy-subscriptions")
 router.register("admin/service-fees", AdminServiceFeeViewSet, basename="admin-service-fees")
+router.register("admin/reviews", AdminReviewViewSet, basename="admin-reviews")
 
 # Pharmacy workspace
 router.register("pharmacy/inventory", InventoryBatchViewSet, basename="pharmacy-inventory")
@@ -147,15 +171,21 @@ urlpatterns = [
     path("auth/logout/", LogoutView.as_view()),
     path("auth/me/", MeView.as_view()),
     path("auth/register/", ShopperRegisterView.as_view()),
+    path("auth/password-reset/", PasswordResetRequestView.as_view()),
+    path("auth/password-reset/confirm/", PasswordResetConfirmView.as_view()),
+    path("auth/verify-email/", VerifyEmailView.as_view()),
+    path("auth/verify-email/resend/", ResendVerificationView.as_view()),
     # Public
     path("public/search/", public_search),
     path("public/pharmacy-directory/", public_pharmacy_directory),
+    path("public/pharmacy-applications/", PharmacyApplicationSubmitView.as_view()),
     path("public/rx/lookup/", public_prescription_lookup),
     path("public/rx/dispense/", public_prescription_dispense),
     # Shopper
     path("shop/quote/", BasketQuoteView.as_view()),
     path("shop/payment-methods/", PaymentMethodsView.as_view()),
     path("shop/orders/<uuid:pk>/pay/", OrderPaymentView.as_view()),
+    path("admin/orders/<uuid:pk>/refund/", AdminOrderRefundView.as_view()),
     # Doctors
     path("doctors/activate/", DoctorActivationView.as_view()),
     path("doctor/profile/", DoctorProfileView.as_view()),

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch, asList } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { OrderFulfillment, Paginated } from "@/types/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +17,7 @@ function tone(status: string) {
 }
 
 export default function PharmacyOrdersPage() {
+  const t = useTranslations();
   const [orders, setOrders] = useState<OrderFulfillment[]>([]);
   const [openOnly, setOpenOnly] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -27,8 +29,9 @@ export default function PharmacyOrdersPage() {
     setLoading(true);
     apiFetch<Paginated<OrderFulfillment> | OrderFulfillment[]>(`/pharmacy/orders/${openOnly ? "?open=true" : ""}`)
       .then((payload) => setOrders(asList(payload)))
-      .catch(() => setError("Could not load online orders."))
+      .catch(() => setError(t("pharmacyOrders.loadError")))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openOnly]);
 
   useEffect(load, [load]);
@@ -39,10 +42,10 @@ export default function PharmacyOrdersPage() {
     setMessage("");
     try {
       await apiFetch(`/pharmacy/orders/${id}/${verb}/`, { method: "POST", body: JSON.stringify(body ?? {}) });
-      setMessage(successMessage || "Done.");
+      setMessage(successMessage || t("pharmacyOrders.done"));
       load();
     } catch (exception) {
-      setError((exception as ApiError).message || "That action failed.");
+      setError((exception as ApiError).message || t("pharmacyOrders.actionFailed"));
     } finally {
       setBusy("");
     }
@@ -52,21 +55,20 @@ export default function PharmacyOrdersPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Online orders</h1>
-          <p className="muted">
-            Stock is already held for each accepted order, so nothing here can be sold twice. It only leaves your
-            shelf when you hand it over and an invoice is written.
-          </p>
+          <h1>{t("pharmacyOrders.title")}</h1>
+          <p className="muted">{t("pharmacyOrders.subtitle")}</p>
         </div>
         <Button type="button" variant="secondary" onClick={() => setOpenOnly((current) => !current)}>
-          {openOnly ? "Show all" : "Show open only"}
+          {openOnly ? t("pharmacyOrders.showAll") : t("pharmacyOrders.showOpenOnly")}
         </Button>
       </div>
 
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {message ? <Notice tone="success">{message}</Notice> : null}
       {loading ? <div className="skeleton-card" /> : null}
-      {!loading && orders.length === 0 ? <EmptyState title={openOnly ? "No open online orders." : "No online orders yet."} /> : null}
+      {!loading && orders.length === 0 ? (
+        <EmptyState title={openOnly ? t("pharmacyOrders.noOpenOrders") : t("pharmacyOrders.noOrdersYet")} />
+      ) : null}
 
       {orders.map((order) => (
         <section className="panel" key={order.id}>
@@ -76,28 +78,25 @@ export default function PharmacyOrdersPage() {
                 {order.order_reference} · {order.contact_name}
               </h3>
               <p className="muted small">
-                {order.order_area} · {order.fulfillment_type === "PICKUP" ? "customer collects" : "delivery"}
-                {order.scheduled_for ? ` · scheduled ${new Date(order.scheduled_for).toLocaleString()}` : " · as soon as possible"}
-                {order.is_shared_order ? " · part of a multi-pharmacy order" : ""}
+                {order.order_area} · {order.fulfillment_type === "PICKUP" ? t("pharmacyOrders.customerCollects") : t("pharmacyOrders.delivery")}
+                {order.scheduled_for
+                  ? t("pharmacyOrders.scheduledFor", { when: new Date(order.scheduled_for).toLocaleString() })
+                  : t("pharmacyOrders.asSoonAsPossible")}
+                {order.is_shared_order ? t("pharmacyOrders.sharedOrderNote") : ""}
               </p>
             </div>
             <Badge tone={tone(order.status)}>{order.status.replace(/_/g, " ")}</Badge>
           </div>
 
-          {order.is_shared_order ? (
-            <Notice>
-              This customer is also buying from another pharmacy. A single driver collects both parts, so prepare
-              only your items below.
-            </Notice>
-          ) : null}
+          {order.is_shared_order ? <Notice>{t("pharmacyOrders.sharedOrderNotice")}</Notice> : null}
 
           <table className="table">
             <thead>
               <tr>
-                <th>Item</th>
-                <th>Quantity</th>
-                <th>Unit price</th>
-                <th>Line total</th>
+                <th>{t("pharmacyOrders.item")}</th>
+                <th>{t("pharmacyOrders.quantity")}</th>
+                <th>{t("pharmacyOrders.unitPrice")}</th>
+                <th>{t("pharmacyOrders.lineTotal")}</th>
               </tr>
             </thead>
             <tbody>
@@ -105,7 +104,7 @@ export default function PharmacyOrdersPage() {
                 <tr key={line.id}>
                   <td>
                     {line.medicine_detail?.display_name || line.medicine}
-                    {line.is_price_regulated ? <span className="tag tag-regulated">MoPH price</span> : null}
+                    {line.is_price_regulated ? <span className="tag tag-regulated">{t("pharmacyOrders.mophPrice")}</span> : null}
                   </td>
                   <td>{line.quantity}</td>
                   <td>${line.unit_price}</td>
@@ -117,12 +116,12 @@ export default function PharmacyOrdersPage() {
 
           <div className="checkout-summary">
             <div>
-              <span className="muted">Your subtotal</span>
+              <span className="muted">{t("pharmacyOrders.yourSubtotal")}</span>
               <strong className="price">${order.subtotal}</strong>
             </div>
             {order.status === "ACCEPTED" || order.status === "READY" ? (
               <div>
-                <span className="muted">Handover code for the driver</span>
+                <span className="muted">{t("pharmacyOrders.handoverCode")}</span>
                 <strong className="big-code">{order.handover_code}</strong>
               </div>
             ) : null}
@@ -131,25 +130,29 @@ export default function PharmacyOrdersPage() {
           <div className="actions">
             {order.status === "PENDING" ? (
               <>
-                <Button type="button" onClick={() => act(order.id, "accept", {}, "Order accepted.")} disabled={busy === order.id + "accept"}>
-                  Accept
+                <Button
+                  type="button"
+                  onClick={() => act(order.id, "accept", {}, t("pharmacyOrders.acceptedMessage"))}
+                  disabled={busy === order.id + "accept"}
+                >
+                  {t("pharmacyOrders.accept")}
                 </Button>
                 <Button
                   type="button"
                   variant="danger"
                   onClick={() => {
-                    const reason = window.prompt("Why are you rejecting this order?") || "";
-                    if (reason) act(order.id, "reject", { reason }, "Order rejected and stock released.");
+                    const reason = window.prompt(t("pharmacyOrders.rejectPrompt")) || "";
+                    if (reason) act(order.id, "reject", { reason }, t("pharmacyOrders.rejectedMessage"));
                   }}
                 >
-                  Reject
+                  {t("pharmacyOrders.reject")}
                 </Button>
               </>
             ) : null}
 
             {order.status === "ACCEPTED" ? (
-              <Button type="button" onClick={() => act(order.id, "ready", {}, "Marked ready for pickup.")} disabled={busy === order.id + "ready"}>
-                Mark ready
+              <Button type="button" onClick={() => act(order.id, "ready", {}, t("pharmacyOrders.readyMessage"))} disabled={busy === order.id + "ready"}>
+                {t("pharmacyOrders.markReady")}
               </Button>
             ) : null}
 
@@ -157,14 +160,18 @@ export default function PharmacyOrdersPage() {
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => act(order.id, "handover", { handover_code: order.handover_code, collected_in_store: true }, "Collected in store and invoiced.")}
+                onClick={() =>
+                  act(order.id, "handover", { handover_code: order.handover_code, collected_in_store: true }, t("pharmacyOrders.collectedMessage"))
+                }
               >
-                Customer collected it
+                {t("pharmacyOrders.customerCollectedIt")}
               </Button>
             ) : null}
           </div>
 
-          {order.rejection_reason ? <Notice tone="danger">Rejected: {order.rejection_reason}</Notice> : null}
+          {order.rejection_reason ? (
+            <Notice tone="danger">{t("pharmacyOrders.rejectedLabel", { reason: order.rejection_reason })}</Notice>
+          ) : null}
         </section>
       ))}
     </>

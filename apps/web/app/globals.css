@@ -380,6 +380,7 @@ textarea {
 
 .table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -535,6 +536,25 @@ tbody tr:hover {
   color: var(--navy);
 }
 
+.product-thumb {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #f4f6f8;
+  object-fit: cover;
+}
+
+.product-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -544,6 +564,15 @@ tbody tr:hover {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.language-switcher {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  color: inherit;
 }
 
 @keyframes shimmer {
@@ -632,5 +661,18 @@ tbody tr:hover {
   .section-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  /* Tables still scroll horizontally at this width (a full per-row stacked layout would need
+     column labels threaded through every table consumer) - tighten them so more columns are
+     readable before that scroll kicks in, and make the scrollability obvious to touch users. */
+  table {
+    min-width: 560px;
+  }
+
+  th,
+  td {
+    padding: 8px 10px;
+    font-size: 0.85rem;
   }
 }

@@ -6,7 +6,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from apps.accounts.permissions import IsPharmacyUserWithActivePharmacy, IsPlatformAdmin
 from apps.imports.models import InventoryImport
 from apps.imports.serializers import ImportUploadSerializer, InventoryImportSerializer
-from apps.imports.services.workflow import confirm_import, create_import_preview
+from apps.imports.services.workflow import DuplicateImportError, confirm_import, create_import_preview
 
 
 class PharmacyImportViewSet(ReadOnlyModelViewSet):
@@ -20,7 +20,10 @@ class PharmacyImportViewSet(ReadOnlyModelViewSet):
     def upload(self, request):
         serializer = ImportUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        inventory_import = create_import_preview(uploaded_file=serializer.validated_data["file"], user=request.user)
+        try:
+            inventory_import = create_import_preview(uploaded_file=serializer.validated_data["file"], user=request.user)
+        except DuplicateImportError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         return Response(self.get_serializer(inventory_import).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])

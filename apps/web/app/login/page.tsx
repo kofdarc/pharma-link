@@ -1,17 +1,22 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch, setToken } from "@/lib/api-client";
 import { ROLE_HOME } from "@/lib/constants";
+import { useTranslations } from "@/lib/i18n/context";
 import type { User } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const t = useTranslations();
+  const expired = searchParams.get("expired") === "1";
   const [email, setEmail] = useState("owner@cedarcare.test");
   const [password, setPassword] = useState("Password123!");
   const [loading, setLoading] = useState(false);
@@ -29,7 +34,7 @@ export default function LoginPage() {
       setToken(response.token);
       router.push(ROLE_HOME[response.user.role] || "/pharmacy/dashboard");
     } catch {
-      setError("Invalid email or password.");
+      setError(t("login.error"));
     } finally {
       setLoading(false);
     }
@@ -38,30 +43,45 @@ export default function LoginPage() {
   return (
     <div className="center-screen">
       <section className="panel login-card">
-        <Link href="/" className="brand">
-          <span className="brand-mark">M</span>
-          <span>PharmaLink</span>
-        </Link>
-        <h1>Login</h1>
+        <div className="section-header">
+          <Link href="/" className="brand">
+            <span className="brand-mark">M</span>
+            <span>PharmaLink</span>
+          </Link>
+          <LanguageSwitcher />
+        </div>
+        <h1>{t("login.title")}</h1>
+        {expired ? <Notice tone="info">{t("login.expired")}</Notice> : null}
         <form className="form-grid" onSubmit={submit}>
-          <Field label="Email">
+          <Field label={t("common.email")}>
             <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
           </Field>
-          <Field label="Password">
+          <Field label={t("common.password")}>
             <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
           </Field>
           <Button type="submit" disabled={loading}>
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? t("common.signingIn") : t("common.signIn")}
           </Button>
         </form>
+        <p className="muted small">
+          <Link href="/forgot-password">{t("login.forgotPassword")}</Link>
+        </p>
         {error ? <Notice tone="danger">{error}</Notice> : null}
         <p className="muted small">
-          Shopper? <Link href="/register">Create an account</Link>. Doctor?{" "}
-          <Link href="/activate">Activate your prescriber account</Link>. Dispensing a QR prescription without an
-          account? <Link href="/rx">Go here</Link>.
+          {t("login.shopperQuestion")} <Link href="/register">{t("login.createAccount")}</Link>. {t("login.doctorQuestion")}{" "}
+          <Link href="/activate">{t("login.activateAccount")}</Link>. {t("login.dispensingQuestion")}{" "}
+          <Link href="/rx">{t("login.goHere")}</Link>.
         </p>
       </section>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="center-screen" />}>
+      <LoginForm />
+    </Suspense>
   );
 }
 

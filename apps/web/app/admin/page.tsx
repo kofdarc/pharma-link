@@ -1,68 +1,74 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch, asList } from "@/lib/api-client";
-import type { AuditLog, InventoryImport, Medicine, Pharmacy, User } from "@/types/api";
+import { apiFetch } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
+import type { AuditLog, InventoryImport, Medicine, Paginated, Pharmacy, User } from "@/types/api";
 import { LinkButton } from "@/components/ui/Button";
 import { Notice } from "@/components/ui/Notice";
 
+function totalCount<T>(payload: T[] | Paginated<T>): number {
+  return Array.isArray(payload) ? payload.length : payload.count;
+}
+
 export default function AdminDashboardPage() {
+  const t = useTranslations();
   const [counts, setCounts] = useState({ pharmacies: 0, users: 0, medicines: 0, imports: 0, audit: 0 });
   const [error, setError] = useState("");
 
   useEffect(() => {
     Promise.all([
-      apiFetch<Pharmacy[] | { results: Pharmacy[] }>("/admin/pharmacies/"),
-      apiFetch<User[] | { results: User[] }>("/admin/users/"),
-      apiFetch<Medicine[] | { results: Medicine[] }>("/admin/medicines/"),
-      apiFetch<InventoryImport[] | { results: InventoryImport[] }>("/admin/imports/"),
-      apiFetch<AuditLog[] | { results: AuditLog[] }>("/admin/audit-logs/")
+      apiFetch<Pharmacy[] | Paginated<Pharmacy>>("/admin/pharmacies/"),
+      apiFetch<User[] | Paginated<User>>("/admin/users/"),
+      apiFetch<Medicine[] | Paginated<Medicine>>("/admin/medicines/"),
+      apiFetch<InventoryImport[] | Paginated<InventoryImport>>("/admin/imports/"),
+      apiFetch<AuditLog[] | Paginated<AuditLog>>("/admin/audit-logs/")
     ])
       .then(([pharmacies, users, medicines, imports, audit]) =>
         setCounts({
-          pharmacies: asList(pharmacies).length,
-          users: asList(users).length,
-          medicines: asList(medicines).length,
-          imports: asList(imports).length,
-          audit: asList(audit).length
+          pharmacies: totalCount(pharmacies),
+          users: totalCount(users),
+          medicines: totalCount(medicines),
+          imports: totalCount(imports),
+          audit: totalCount(audit)
         })
       )
-      .catch(() => setError("Admin metrics failed to load."));
-  }, []);
+      .catch(() => setError(t("adminDashboard.loadError")));
+  }, [t]);
 
   return (
     <>
       <div className="section-header">
         <div>
-          <h1>Admin</h1>
-          <p>Platform-level management for pharmacies, users, catalog records, import issues, and audit logs.</p>
+          <h1>{t("adminDashboard.title")}</h1>
+          <p>{t("adminDashboard.subtitle")}</p>
         </div>
       </div>
       {error ? <Notice tone="danger">{error}</Notice> : null}
       <section className="metrics-grid">
         <div className="metric-card">
-          <span>Pharmacies</span>
+          <span>{t("adminDashboard.pharmacies")}</span>
           <strong>{counts.pharmacies}</strong>
         </div>
         <div className="metric-card">
-          <span>Users</span>
+          <span>{t("adminDashboard.users")}</span>
           <strong>{counts.users}</strong>
         </div>
         <div className="metric-card">
-          <span>Medicines</span>
+          <span>{t("adminDashboard.medicines")}</span>
           <strong>{counts.medicines}</strong>
         </div>
         <div className="metric-card">
-          <span>Audit logs</span>
+          <span>{t("adminDashboard.auditLogs")}</span>
           <strong>{counts.audit}</strong>
         </div>
       </section>
       <div className="actions">
         <LinkButton href="/admin/pharmacies" variant="primary">
-          Manage pharmacies
+          {t("adminDashboard.managePharmacies")}
         </LinkButton>
-        <LinkButton href="/admin/medicines">Manage catalog</LinkButton>
-        <LinkButton href="/admin/audit-logs">View audit logs</LinkButton>
+        <LinkButton href="/admin/medicines">{t("adminDashboard.manageCatalog")}</LinkButton>
+        <LinkButton href="/admin/audit-logs">{t("adminDashboard.viewAuditLogs")}</LinkButton>
       </div>
     </>
   );

@@ -12,6 +12,8 @@ Each pass, in order:
   2. generate the next order for any due repeat schedule
   3. move scheduled orders into the dispatch pool as their window approaches
   4. optionally re-plan routes so the new arrivals get batched
+  5. delivers any pending outgoing webhooks (there is no task queue in this codebase -
+     this polling loop is the only place the signed HTTP POST actually happens)
 """
 
 from __future__ import annotations
@@ -68,5 +70,11 @@ class Command(BaseCommand):
                 f"({summary.get('optimised_distance_km', 0)} km vs {summary.get('naive_distance_km', 0)} km naive)"
             )
 
-        if not (released_holds or recurring["created"] or released_orders or plan):
+        from apps.integrations.services.webhooks import deliver_pending_webhooks
+
+        delivered_webhooks = deliver_pending_webhooks()
+        if delivered_webhooks:
+            self.stdout.write(f"[{stamp}] attempted {delivered_webhooks} pending webhook delivery(ies)")
+
+        if not (released_holds or recurring["created"] or released_orders or plan or delivered_webhooks):
             self.stdout.write(f"[{stamp}] nothing to do")

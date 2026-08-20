@@ -39,6 +39,9 @@ class User(AbstractUser):
     email = models.EmailField(unique=True, db_index=True)
     role = models.CharField(max_length=32, choices=UserRole.choices)
     pharmacy = models.ForeignKey("pharmacies.Pharmacy", null=True, blank=True, on_delete=models.PROTECT, related_name="users")
+    email_verified = models.BooleanField(
+        default=False, help_text="Shoppers must verify before checkout; other roles are created by staff and pre-verified."
+    )
     last_login_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

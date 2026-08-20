@@ -4,12 +4,14 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch, asList } from "@/lib/api-client";
 import { useBasket } from "@/lib/basket";
+import { useTranslations } from "@/lib/i18n/context";
 import type { DeliveryAddress, Paginated, PublicAvailability } from "@/types/api";
 import { Badge, statusTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import { ProductThumb } from "@/components/ui/ProductThumb";
 
 type SortMode = "best" | "distance" | "price" | "rating";
 
@@ -22,6 +24,7 @@ type SortMode = "best" | "distance" | "price" | "rating";
  */
 export default function ShopSearchPage() {
   const basket = useBasket();
+  const t = useTranslations();
   const [addresses, setAddresses] = useState<DeliveryAddress[]>([]);
   const [addressId, setAddressId] = useState("");
   const [query, setQuery] = useState("");
@@ -58,7 +61,7 @@ export default function ShopSearchPage() {
     try {
       setResults(await apiFetch<PublicAvailability[]>(`/public/search/?${params.toString()}`));
     } catch {
-      setError("Search failed. Please try again.");
+      setError(t("search.searchFailed"));
     } finally {
       setLoading(false);
     }
@@ -74,29 +77,26 @@ export default function ShopSearchPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Find a medicine near you</h1>
-          <p className="muted">
-            Search once across every connected pharmacy. We rank by how close it is, how well the pharmacy has
-            served people before, and price where the pharmacy sets it.
-          </p>
+          <h1>{t("shop.browseTitle")}</h1>
+          <p className="muted">{t("shop.browseSubtitle")}</p>
         </div>
         <Link className="button button-primary" href="/shop/basket">
-          Basket ({basket.count})
+          {t("shop.basketCount", { count: basket.count })}
         </Link>
       </div>
 
       <section className="panel">
         <form className="search-bar" onSubmit={search}>
-          <Field label="Medicine or active ingredient">
+          <Field label={t("shop.medicineOrIngredient")}>
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="paracetamol, Panadol, vitamin D..."
+              placeholder={t("shop.medicineSearchPlaceholder")}
             />
           </Field>
-          <Field label="Deliver to">
+          <Field label={t("shop.deliverTo")}>
             <select value={addressId} onChange={(event) => setAddressId(event.target.value)}>
-              <option value="">No address selected</option>
+              <option value="">{t("shop.noAddressSelected")}</option>
               {addresses.map((entry) => (
                 <option key={entry.id} value={entry.id}>
                   {entry.label} — {entry.area}
@@ -104,20 +104,20 @@ export default function ShopSearchPage() {
               ))}
             </select>
           </Field>
-          <Field label="Sort by">
+          <Field label={t("shop.sortBy")}>
             <select value={sort} onChange={(event) => setSort(event.target.value as SortMode)}>
-              <option value="best">Best match</option>
-              <option value="distance">Closest</option>
-              <option value="price">Cheapest</option>
-              <option value="rating">Best rated</option>
+              <option value="best">{t("shop.sortBest")}</option>
+              <option value="distance">{t("shop.sortClosest")}</option>
+              <option value="price">{t("shop.sortCheapest")}</option>
+              <option value="rating">{t("shop.sortRated")}</option>
             </select>
           </Field>
-          <Button type="submit">Search</Button>
+          <Button type="submit">{t("common.search")}</Button>
         </form>
 
         {addresses.length === 0 ? (
           <Notice>
-            <Link href="/shop/addresses">Add a delivery address</Link> to get distance-based ranking and to order.
+            <Link href="/shop/addresses">{t("shop.addAddress")}</Link> {t("shop.addAddressHint")}
           </Notice>
         ) : null}
       </section>
@@ -125,21 +125,21 @@ export default function ShopSearchPage() {
       {loading ? <div className="skeleton-card" /> : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {searched && !loading && results.length === 0 && !error ? (
-        <EmptyState
-          title="No connected pharmacy nearby has this right now."
-          detail="We recorded the request so pharmacies in your area can see the demand they are missing."
-        />
+        <EmptyState title={t("shop.noResultsTitle")} detail={t("shop.noResultsDetail")} />
       ) : null}
 
       <section className="result-grid">
         {results.map((result) => (
           <article className="result-card" key={`${result.medicine.id}-${result.pharmacy.id}`}>
             <div className="section-header">
-              <div>
-                <h3>{result.medicine.brand_name}</h3>
-                <p className="muted">
-                  {[result.medicine.generic_name, result.medicine.strength, result.medicine.form].filter(Boolean).join(" ")}
-                </p>
+              <div className="actions">
+                <ProductThumb src={result.medicine.image} alt={result.medicine.brand_name} />
+                <div>
+                  <h3>{result.medicine.brand_name}</h3>
+                  <p className="muted">
+                    {[result.medicine.generic_name, result.medicine.strength, result.medicine.form].filter(Boolean).join(" ")}
+                  </p>
+                </div>
               </div>
               <Badge tone={statusTone(result.availability_status)}>{result.availability_status}</Badge>
             </div>
@@ -153,20 +153,17 @@ export default function ShopSearchPage() {
               <strong>{result.pharmacy.name}</strong>
               <p className="muted small">
                 {result.pharmacy.area}
-                {result.distance_km !== null ? ` · ${result.distance_km} km away` : ""}
+                {result.distance_km !== null ? ` · ${t("shop.distanceAway", { distance: result.distance_km })}` : ""}
                 {result.pharmacy.rating_count > 0
                   ? ` · ★ ${result.pharmacy.rating} (${result.pharmacy.rating_count})`
-                  : " · not yet rated"}
+                  : ` · ${t("shop.notYetRated")}`}
               </p>
               <p className="muted small">
-                {result.pharmacy.fulfillment_success_rate}% of accepted orders fulfilled · ready in ~
-                {result.pharmacy.preparation_minutes} min
+                {t("shop.fulfillmentRate", { rate: result.pharmacy.fulfillment_success_rate, minutes: result.pharmacy.preparation_minutes })}
               </p>
             </div>
 
-            {result.medicine.requires_prescription ? (
-              <Notice tone="danger">Prescription required. Add your prescription code at checkout.</Notice>
-            ) : null}
+            {result.medicine.requires_prescription ? <Notice tone="danger">{t("shop.prescriptionRequired")}</Notice> : null}
 
             <div className="actions">
               <Button
@@ -181,15 +178,17 @@ export default function ShopSearchPage() {
                 }
                 disabled={!result.pharmacy.accepts_online_orders || result.available_up_to === 0}
               >
-                Add to basket
+                {t("shop.addToBasket")}
               </Button>
               <a className="button button-secondary" href={`tel:${result.pharmacy.phone}`}>
-                Call
+                {t("shop.call")}
               </a>
             </div>
             <small className="muted">
-              Orderable up to {result.available_up_to} unit(s) at a time. Updated{" "}
-              {result.last_updated ? new Date(result.last_updated).toLocaleString() : "recently"}.
+              {t("shop.orderableUpTo", {
+                count: result.available_up_to,
+                when: result.last_updated ? new Date(result.last_updated).toLocaleString() : t("shop.recently")
+              })}
             </small>
           </article>
         ))}

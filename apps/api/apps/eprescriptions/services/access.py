@@ -5,6 +5,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from apps.eprescriptions.models import Prescription, PrescriptionAccessLog
 from apps.eprescriptions.services import tokens
@@ -66,10 +67,10 @@ def authenticate(*, code: str, key: str = "", pin: str = "", request=None) -> tu
                 request=request,
                 detail="Unknown code",
             )
-            failure = PrescriptionAuthError("No prescription matches that code.")
+            failure = PrescriptionAuthError(_("No prescription matches that code."))
         elif prescription.is_locked:
             log_access(prescription=prescription, code_attempted=code, action=PrescriptionAccessLog.Action.LOCKED, request=request, detail="Locked out")
-            failure = PrescriptionAuthError("Too many failed attempts. Try again shortly.", status=429)
+            failure = PrescriptionAuthError(_("Too many failed attempts. Try again shortly."), status=429)
         else:
             if key and tokens.verify_hash(key, prescription.secret_hash):
                 method = "QR"
@@ -92,7 +93,7 @@ def authenticate(*, code: str, key: str = "", pin: str = "", request=None) -> tu
                     request=request,
                     detail="Bad key or PIN",
                 )
-                failure = PrescriptionAuthError("The prescription key or PIN is not valid.", status=403)
+                failure = PrescriptionAuthError(_("The prescription key or PIN is not valid."), status=403)
             else:
                 if prescription.failed_auth_count:
                     prescription.failed_auth_count = 0
@@ -100,7 +101,7 @@ def authenticate(*, code: str, key: str = "", pin: str = "", request=None) -> tu
 
                 if prescription.status == Prescription.Status.CANCELLED:
                     log_access(prescription=prescription, code_attempted=code, action=PrescriptionAccessLog.Action.VIEW, method=method, request=request, detail="Cancelled")
-                    failure = PrescriptionAuthError("This prescription was cancelled by the prescribing doctor.", status=409)
+                    failure = PrescriptionAuthError(_("This prescription was cancelled by the prescribing doctor."), status=409)
                 else:
                     if prescription.is_expired and prescription.status != Prescription.Status.EXPIRED:
                         prescription.status = Prescription.Status.EXPIRED

@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.db.models import Count, Q, Sum
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
@@ -9,6 +10,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from apps.accounts.permissions import IsPharmacyUserWithActivePharmacy, IsPlatformAdmin
 from apps.billing.models import PharmacySubscription, PlatformServiceFee, SubscriptionPlan
 from apps.billing.serializers import PharmacySubscriptionSerializer, PlatformServiceFeeSerializer, SubscriptionPlanSerializer
+from apps.billing.services import mark_service_fee_paid
 
 
 class AdminSubscriptionPlanViewSet(ModelViewSet):
@@ -47,6 +49,14 @@ class AdminServiceFeeViewSet(ReadOnlyModelViewSet):
     serializer_class = PlatformServiceFeeSerializer
     permission_classes = [IsPlatformAdmin]
     queryset = PlatformServiceFee.objects.select_related("pharmacy", "fulfillment__order").order_by("-created_at")
+
+    @action(detail=True, methods=["post"], url_path="mark-paid")
+    def mark_paid(self, request, pk=None):
+        try:
+            fee = mark_service_fee_paid(fee=self.get_object(), user=request.user)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(self.get_serializer(fee).data)
 
 
 class PlatformRevenueOverviewView(APIView):

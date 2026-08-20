@@ -3,12 +3,15 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "@/lib/i18n/context";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 
 export default function HomePage() {
   const router = useRouter();
+  const t = useTranslations();
   const [query, setQuery] = useState("");
 
   function submit(event: FormEvent) {
@@ -24,78 +27,66 @@ export default function HomePage() {
           <span>PharmaLink</span>
         </Link>
         <div className="actions">
-          <LinkButton href="/search">Public Search</LinkButton>
+          <LanguageSwitcher />
+          <LinkButton href="/search">{t("nav.publicSearch")}</LinkButton>
           <LinkButton href="/login" variant="primary">
-            Pharmacy Login
+            {t("nav.pharmacyLogin")}
           </LinkButton>
         </div>
       </header>
       <main className="public-main intro-grid">
         <section>
-          <h1 className="page-title">Find connected pharmacies that may have your medicine.</h1>
-          <p className="lead">
-            PharmaLink helps Lebanese pharmacies manage stock, batches, expiry risk, sales, prescriptions, and public availability from one operational workspace.
-          </p>
-          <Notice>
-            Availability information is provided by connected pharmacies and may change. Please confirm with the pharmacy before visiting or using any medication.
-          </Notice>
+          <h1 className="page-title">{t("home.title")}</h1>
+          <p className="lead">{t("home.lead")}</p>
+          <Notice>{t("home.disclaimer")}</Notice>
         </section>
         <section className="panel">
-          <h2>Medication search</h2>
-          <p className="muted">Search by brand, generic name, alias, or partial spelling.</p>
+          <h2>{t("home.searchTitle")}</h2>
+          <p className="muted">{t("home.searchHint")}</p>
           <form className="search-bar" onSubmit={submit}>
-            <Field label="Medicine">
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Panadol, paracetamol..." />
+            <Field label={t("common.search")}>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("home.searchPlaceholder")} />
             </Field>
-            <Button type="submit">Search</Button>
+            <Button type="submit">{t("common.search")}</Button>
           </form>
         </section>
       </main>
 
       <section className="public-main">
-        <h2>Who is this for?</h2>
+        <h2>{t("home.whoTitle")}</h2>
         <div className="role-grid">
           <article className="role-card">
-            <h3>Pharmacies</h3>
-            <p>
-              Stock, batches and expiry risk, invoicing, client records, analytics — and a connector that keeps your
-              existing software in sync instead of replacing it.
-            </p>
+            <h3>{t("home.pharmacies.title")}</h3>
+            <p>{t("home.pharmacies.body")}</p>
             <LinkButton href="/login" variant="primary">
-              Pharmacy login
+              {t("home.pharmacies.cta")}
             </LinkButton>
+            <p className="muted small">
+              {t("home.pharmacies.newPharmacy")} <Link href="/pharmacy-signup">{t("home.pharmacies.apply")}</Link>.
+            </p>
           </article>
 
           <article className="role-card">
-            <h3>Doctors</h3>
-            <p>
-              Your details are already on file from the Order of Physicians. Activate in a minute and issue
-              prescriptions as secure QR codes.
-            </p>
+            <h3>{t("home.doctors.title")}</h3>
+            <p>{t("home.doctors.body")}</p>
             <LinkButton href="/activate" variant="primary">
-              Activate your account
+              {t("home.doctors.cta")}
             </LinkButton>
           </article>
 
           <article className="role-card">
-            <h3>Any pharmacy, no account</h3>
-            <p>
-              Holding a patient&apos;s prescription QR? Scan it, view the items, and dispense in full or in part. No
-              registration, no login.
-            </p>
+            <h3>{t("home.anyPharmacy.title")}</h3>
+            <p>{t("home.anyPharmacy.body")}</p>
             <LinkButton href="/rx" variant="primary">
-              Dispense a prescription
+              {t("home.anyPharmacy.cta")}
             </LinkButton>
           </article>
 
           <article className="role-card">
-            <h3>Patients</h3>
-            <p>
-              Find what you need across every connected pharmacy at once, order it, and schedule repeat refills for
-              chronic medication.
-            </p>
+            <h3>{t("home.patients.title")}</h3>
+            <p>{t("home.patients.body")}</p>
             <LinkButton href="/register" variant="primary">
-              Create an account
+              {t("home.patients.cta")}
             </LinkButton>
           </article>
         </div>

@@ -4,14 +4,17 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch, setToken } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { User } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 
 /** Shopper self-signup. Only the CUSTOMER role can be self-assigned. */
 export default function RegisterPage() {
   const router = useRouter();
+  const t = useTranslations();
   const [form, setForm] = useState({ first_name: "", last_name: "", email: "", password: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -31,7 +34,7 @@ export default function RegisterPage() {
       const apiError = exception as ApiError;
       const details = apiError.details as Record<string, string[]> | undefined;
       const firstField = details ? Object.values(details)[0] : undefined;
-      setError(Array.isArray(firstField) ? firstField[0] : apiError.message || "Could not create the account.");
+      setError(Array.isArray(firstField) ? firstField[0] : apiError.message || t("register.error"));
     } finally {
       setBusy(false);
     }
@@ -40,36 +43,39 @@ export default function RegisterPage() {
   return (
     <div className="center-screen">
       <div className="auth-card">
-        <Link href="/" className="brand">
-          <span className="brand-mark">M</span>
-          <span>PharmaLink</span>
-        </Link>
-        <h1>Create your account</h1>
-        <p className="muted">Search every connected pharmacy at once, order, and set up repeat refills.</p>
+        <div className="section-header">
+          <Link href="/" className="brand">
+            <span className="brand-mark">M</span>
+            <span>PharmaLink</span>
+          </Link>
+          <LanguageSwitcher />
+        </div>
+        <h1>{t("register.title")}</h1>
+        <p className="muted">{t("register.lead")}</p>
 
         {error ? <Notice tone="danger">{error}</Notice> : null}
 
         <form onSubmit={submit} className="stacked-form">
-          <Field label="First name">
+          <Field label={t("register.firstName")}>
             <input value={form.first_name} onChange={(event) => setForm({ ...form, first_name: event.target.value })} />
           </Field>
-          <Field label="Last name">
+          <Field label={t("register.lastName")}>
             <input value={form.last_name} onChange={(event) => setForm({ ...form, last_name: event.target.value })} />
           </Field>
-          <Field label="Email">
+          <Field label={t("common.email")}>
             <input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required />
           </Field>
-          <Field label="Password" hint="At least 8 characters.">
+          <Field label={t("common.password")} hint={t("register.passwordHint")}>
             <input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength={8} required />
           </Field>
           <Button type="submit" disabled={busy}>
-            {busy ? "Creating..." : "Create account"}
+            {busy ? t("register.creating") : t("register.createAccount")}
           </Button>
         </form>
 
         <p className="muted small">
-          Already have an account? <Link href="/login">Sign in</Link>. Are you a doctor?{" "}
-          <Link href="/activate">Activate your prescriber account</Link>.
+          {t("register.haveAccountQuestion")} <Link href="/login">{t("register.signIn")}</Link>. {t("register.doctorQuestion")}{" "}
+          <Link href="/activate">{t("register.activateAccount")}</Link>.
         </p>
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch, asList } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { Pharmacy, User } from "@/types/api";
 import { Badge, statusTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -10,10 +11,18 @@ import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
 
 export default function AdminUsersPage() {
+  const t = useTranslations();
   const [users, setUsers] = useState<User[]>([]);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const roleLabels: Record<string, string> = {
+    PHARMACY_STAFF: t("adminUsers.rolePharmacyStaff"),
+    PHARMACY_OWNER: t("adminUsers.rolePharmacyOwner"),
+    DOCTOR: t("adminUsers.roleDoctor"),
+    PLATFORM_ADMIN: t("adminUsers.rolePlatformAdmin")
+  };
 
   function load() {
     Promise.all([
@@ -24,10 +33,10 @@ export default function AdminUsersPage() {
         setUsers(asList(userPayload));
         setPharmacies(asList(pharmacyPayload));
       })
-      .catch(() => setError("Users failed to load."));
+      .catch(() => setError(t("adminUsers.loadError")));
   }
 
-  useEffect(load, []);
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,11 +52,11 @@ export default function AdminUsersPage() {
           is_active: true
         })
       });
-      setMessage("User created.");
+      setMessage(t("adminUsers.created"));
       event.currentTarget.reset();
       load();
     } catch {
-      setError("Create failed. Pharmacy users must be assigned to a pharmacy.");
+      setError(t("adminUsers.createFailed"));
     }
   }
 
@@ -55,28 +64,28 @@ export default function AdminUsersPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Users</h1>
-          <p>Manage platform admins, pharmacy owners, pharmacy staff, and optional doctors.</p>
+          <h1>{t("adminUsers.title")}</h1>
+          <p>{t("adminUsers.subtitle")}</p>
         </div>
       </div>
       <form className="panel form-grid" onSubmit={create}>
-        <Field label="Email">
+        <Field label={t("adminUsers.email")}>
           <input name="email" type="email" required />
         </Field>
-        <Field label="Password">
+        <Field label={t("adminUsers.password")}>
           <input name="password" type="password" minLength={8} required />
         </Field>
-        <Field label="Role">
+        <Field label={t("adminUsers.role")}>
           <select name="role">
-            <option value="PHARMACY_STAFF">Pharmacy staff</option>
-            <option value="PHARMACY_OWNER">Pharmacy owner</option>
-            <option value="DOCTOR">Doctor</option>
-            <option value="PLATFORM_ADMIN">Platform admin</option>
+            <option value="PHARMACY_STAFF">{t("adminUsers.rolePharmacyStaff")}</option>
+            <option value="PHARMACY_OWNER">{t("adminUsers.rolePharmacyOwner")}</option>
+            <option value="DOCTOR">{t("adminUsers.roleDoctor")}</option>
+            <option value="PLATFORM_ADMIN">{t("adminUsers.rolePlatformAdmin")}</option>
           </select>
         </Field>
-        <Field label="Pharmacy">
+        <Field label={t("adminUsers.pharmacy")}>
           <select name="pharmacy">
-            <option value="">No pharmacy</option>
+            <option value="">{t("adminUsers.noPharmacy")}</option>
             {pharmacies.map((pharmacy) => (
               <option key={pharmacy.id} value={pharmacy.id}>
                 {pharmacy.name}
@@ -84,7 +93,7 @@ export default function AdminUsersPage() {
             ))}
           </select>
         </Field>
-        <Button type="submit">Create user</Button>
+        <Button type="submit">{t("adminUsers.createUser")}</Button>
       </form>
       {message ? <Notice tone="success">{message}</Notice> : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
@@ -92,20 +101,22 @@ export default function AdminUsersPage() {
         <table>
           <thead>
             <tr>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Pharmacy</th>
-              <th>Status</th>
+              <th>{t("adminUsers.emailCol")}</th>
+              <th>{t("adminUsers.roleCol")}</th>
+              <th>{t("adminUsers.pharmacyCol")}</th>
+              <th>{t("adminUsers.statusCol")}</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
               <tr key={user.id}>
                 <td>{user.email}</td>
-                <td>{user.role}</td>
+                <td>{roleLabels[user.role] || user.role}</td>
                 <td>{user.pharmacy_detail?.name || ""}</td>
                 <td>
-                  <Badge tone={statusTone(user.is_active ? "Active" : "Inactive")}>{user.is_active ? "Active" : "Inactive"}</Badge>
+                  <Badge tone={statusTone(user.is_active ? "Active" : "Inactive")}>
+                    {user.is_active ? t("adminUsers.active") : t("adminUsers.inactive")}
+                  </Badge>
                 </td>
               </tr>
             ))}

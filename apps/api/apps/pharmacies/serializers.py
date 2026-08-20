@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.pharmacies.models import Pharmacy
+from apps.pharmacies.models import Pharmacy, PharmacyApplication
 
 
 class PublicPharmacySerializer(serializers.ModelSerializer):
@@ -30,4 +30,30 @@ class PharmacySerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class PharmacyApplicationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PharmacyApplication
+        fields = [
+            "id",
+            "pharmacy_name",
+            "owner_name",
+            "email",
+            "phone",
+            "city",
+            "area",
+            "license_number",
+            "message",
+            "status",
+            "review_note",
+            "reviewed_at",
+            "created_pharmacy",
+            "created_at",
+        ]
+        read_only_fields = ["id", "status", "review_note", "reviewed_at", "created_pharmacy", "created_at"]
+
+
+class PharmacyApplicationReviewSerializer(serializers.Serializer):
+    note = serializers.CharField(required=False, allow_blank=True, max_length=255)
 

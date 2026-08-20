@@ -114,6 +114,43 @@ class RegulatedPriceTests(PricingTestCase):
         self.free.validate_selling_price(Decimal("999.00"))  # must not raise
 
 
+class RegulatedPriceAuditTests(PricingTestCase):
+    def test_changing_the_regulated_price_writes_an_audit_log(self):
+        from django.contrib.auth import get_user_model
+        from rest_framework.test import APIClient
+
+        from apps.accounts.models import UserRole
+        from apps.audit.models import AuditLog
+
+        admin = get_user_model().objects.create_user(email="admin@platform.test", password="Password123!", role=UserRole.PLATFORM_ADMIN)
+        client = APIClient()
+        client.force_authenticate(admin)
+
+        response = client.patch(f"/api/admin/medicines/{self.regulated.id}/", {"regulated_price": "2.75"}, format="json")
+
+        self.assertEqual(response.status_code, 200, response.data)
+        log = AuditLog.objects.filter(action="medicines.price_updated", entity_id=str(self.regulated.id)).first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.before_data["regulated_price"], "2.25")
+        self.assertEqual(log.after_data["regulated_price"], "2.75")
+
+    def test_unrelated_field_changes_do_not_write_a_price_audit_log(self):
+        from django.contrib.auth import get_user_model
+        from rest_framework.test import APIClient
+
+        from apps.accounts.models import UserRole
+        from apps.audit.models import AuditLog
+
+        admin = get_user_model().objects.create_user(email="admin2@platform.test", password="Password123!", role=UserRole.PLATFORM_ADMIN)
+        client = APIClient()
+        client.force_authenticate(admin)
+
+        response = client.patch(f"/api/admin/medicines/{self.regulated.id}/", {"classification": "Analgesic"}, format="json")
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertFalse(AuditLog.objects.filter(action="medicines.price_updated", entity_id=str(self.regulated.id)).exists())
+
+
 class ImportPriceSnappingTests(PricingTestCase):
     def test_import_replaces_an_off_price_with_the_moph_price_instead_of_failing_the_row(self):
         """

@@ -1,11 +1,32 @@
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 
 from django.utils import timezone
 
+from apps.common.mailer import send_email
 from apps.orders.models import Order, RecurringOrder
 from apps.orders.services.placement import OrderError, place_order
+
+logger = logging.getLogger(__name__)
+
+
+def _notify_recurring_failed(recurring: RecurringOrder, error: str) -> None:
+    customer = recurring.customer
+    if not customer.email:
+        return
+    try:
+        send_email(
+            to=[customer.email],
+            subject=f"Your recurring order '{recurring.label}' could not be refilled",
+            text_body=(
+                f"Hi,\n\nWe couldn't generate your next refill for '{recurring.label}': {error}\n"
+                f"We'll try again on the next cycle - no action is needed unless the problem persists.\n"
+            ),
+        )
+    except Exception:
+        logger.exception("Failed to send recurring-order-failed email for %s", recurring.id)
 
 
 def advance(recurring: RecurringOrder, *, now=None) -> None:
@@ -41,6 +62,7 @@ def run_due_recurring_orders(*, now=None, lead_time_hours: int = 24) -> dict:
                 notes=f"Recurring: {recurring.label}",
                 source=Order.Source.RECURRING,
                 recurring_order=recurring,
+                prescription=recurring.prescription,
             )
             recurring.occurrences_created += 1
             recurring.last_error = ""
@@ -50,6 +72,7 @@ def run_due_recurring_orders(*, now=None, lead_time_hours: int = 24) -> dict:
             recurring.last_error = str(exc)[:255]
             advance(recurring, now=now)
             failed.append({"recurring_order": str(recurring.id), "error": str(exc)})
+            _notify_recurring_failed(recurring, str(exc))
     return {"created": created, "failed": failed}
 
 

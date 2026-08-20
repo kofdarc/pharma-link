@@ -1,6 +1,11 @@
+from django.conf import settings
 from django.db import models
 
 from apps.common.models import UUIDTimeStampedModel
+
+
+def default_currency() -> str:
+    return settings.PLATFORM_CURRENCY
 
 
 class Payment(UUIDTimeStampedModel):
@@ -25,7 +30,7 @@ class Payment(UUIDTimeStampedModel):
     provider = models.CharField(max_length=20, choices=Provider.choices)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    currency = models.CharField(max_length=3, default="USD")
+    currency = models.CharField(max_length=3, default=default_currency)
     external_reference = models.CharField(max_length=120, blank=True, help_text="The provider's own transaction id, once one exists.")
     paid_at = models.DateTimeField(null=True, blank=True)
     failure_reason = models.CharField(max_length=255, blank=True)

@@ -37,6 +37,7 @@ export interface Medicine {
   strength: string;
   form: string;
   manufacturer?: string;
+  image?: string | null;
   is_active: boolean;
   display_name: string;
   category?: ProductCategory;
@@ -69,7 +70,7 @@ export interface InventoryBatch {
 }
 
 export interface PublicAvailability {
-  medicine: Pick<Medicine, "id" | "brand_name" | "generic_name" | "strength" | "form"> & {
+  medicine: Pick<Medicine, "id" | "brand_name" | "generic_name" | "strength" | "form" | "image"> & {
     category?: ProductCategory;
     requires_prescription?: boolean;
   };
@@ -229,8 +230,10 @@ export interface Doctor {
   email: string;
   phone: string;
   clinic_name: string;
+  clinic_address: string;
   clinic_area: string;
   is_activated: boolean;
+  activated_at?: string | null;
   is_active: boolean;
 }
 
@@ -255,10 +258,13 @@ export interface Prescription {
   patient_name: string;
   patient_email?: string;
   patient_phone?: string;
+  patient_date_of_birth?: string | null;
   diagnosis_note?: string;
   status: PrescriptionStatus;
   issued_at: string;
   valid_until: string;
+  cancelled_at?: string | null;
+  cancellation_reason?: string;
   email_sent_at?: string | null;
   is_expired: boolean;
   is_consumable: boolean;
@@ -695,5 +701,84 @@ export interface OnboardingStatus {
   completed_steps: number;
   total_steps: number;
   last_sync: SyncRun | null;
+}
+
+export interface WebhookEndpoint {
+  id: string;
+  url: string;
+  events: string[];
+  is_active: boolean;
+  last_delivery_at?: string | null;
+  consecutive_failures: number;
+  created_at: string;
+}
+
+/* --- Billing ------------------------------------------------------------------------ */
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  monthly_fee: string;
+  service_fee_per_request: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface PharmacySubscription {
+  id: string;
+  pharmacy: string;
+  pharmacy_name: string;
+  plan: string;
+  plan_detail: SubscriptionPlan;
+  status: "ACTIVE" | "PAST_DUE" | "CANCELLED";
+  current_period_start: string;
+  current_period_end?: string | null;
+}
+
+export interface PlatformServiceFee {
+  id: string;
+  pharmacy: string;
+  pharmacy_name: string;
+  fulfillment: string;
+  order_reference: string;
+  amount: string;
+  status: "PENDING" | "INVOICED" | "PAID" | "WAIVED";
+  created_at: string;
+}
+
+export interface PlatformRevenueOverview {
+  active_subscriptions: number;
+  monthly_recurring_revenue: string;
+  service_fees_collected: string;
+  service_fees_pending: string;
+  service_fee_requests: number;
+}
+
+export interface PharmacyApplication {
+  id: string;
+  pharmacy_name: string;
+  owner_name: string;
+  email: string;
+  phone: string;
+  city: string;
+  area: string;
+  license_number: string;
+  message: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  review_note: string;
+  reviewed_at: string | null;
+  created_pharmacy: string | null;
+  created_at: string;
+}
+
+/* --- Dispatch order offers --------------------------------------------------------- */
+
+export interface OrderOffer {
+  driver: string;
+  driver_name: string;
+  marginal_distance_km: number;
+  total_distance_km: number;
+  stops_after: number;
+  shares_a_pickup: boolean;
 }
 

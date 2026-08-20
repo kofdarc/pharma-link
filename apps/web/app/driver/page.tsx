@@ -292,12 +292,17 @@ export default function DriverConsolePage() {
           <section className="panel">
             <div className="section-header">
               <h3>Full route</h3>
-              {route.status === "ACTIVE" && stops.filter((stop) => stop.status === "PENDING").length >= 3 ? (
+              {route.status === "ACTIVE" ? (
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={() => void act(() => apiFetch(`/driver/routes/${route.id}/reoptimise/`, { method: "POST" }), "Remaining stops re-sequenced from your current position.")}
-                  disabled={busy}
+                  disabled={busy || stops.filter((stop) => stop.status === "PENDING").length < 2}
+                  title={
+                    stops.filter((stop) => stop.status === "PENDING").length < 2
+                      ? "Nothing left to re-sequence — fewer than two stops remain."
+                      : "Re-sequence the stops you haven't visited yet, from your current position."
+                  }
                 >
                   Re-optimise what is left
                 </Button>

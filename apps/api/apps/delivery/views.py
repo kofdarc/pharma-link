@@ -26,7 +26,8 @@ from apps.delivery.services.operations import (
     record_ping,
 )
 from apps.delivery.services.routing import summarise
-from apps.orders.models import Order
+from apps.orders.models import Order, OrderFulfillment
+from apps.orders.serializers import PharmacyOrderFulfillmentSerializer
 
 ROUTE_PREFETCH = ("stops__tasks__order_fulfillment__lines__medicine", "stops__tasks__order_fulfillment__pharmacy", "stops__tasks__order_fulfillment__order")
 
@@ -51,14 +52,22 @@ class DispatchBoardView(APIView):
             .prefetch_related(*ROUTE_PREFETCH)
             .order_by("-created_at")[:20]
         )
+        needs_redispatch = (
+            OrderFulfillment.objects.filter(status=OrderFulfillment.Status.DELIVERY_FAILED)
+            .select_related("order", "pharmacy")
+            .prefetch_related("lines__medicine")
+            .order_by("-updated_at")[:50]
+        )
+        active_statuses = {DeliveryRoute.Status.COMPLETED, DeliveryRoute.Status.COMPLETED_WITH_ISSUES}
         return Response(
             {
                 "pending_jobs": len(jobs),
                 "drivers_online": len(vehicles),
                 "routes": DeliveryRouteSerializer(routes, many=True).data,
+                "needs_redispatch": PharmacyOrderFulfillmentSerializer(needs_redispatch, many=True).data,
                 "totals": {
-                    "planned_km": sum(float(route.planned_distance_km) for route in routes if route.status != DeliveryRoute.Status.COMPLETED),
-                    "naive_km": sum(float(route.naive_distance_km) for route in routes if route.status != DeliveryRoute.Status.COMPLETED),
+                    "planned_km": sum(float(route.planned_distance_km) for route in routes if route.status not in active_statuses),
+                    "naive_km": sum(float(route.naive_distance_km) for route in routes if route.status not in active_statuses),
                 },
             }
         )

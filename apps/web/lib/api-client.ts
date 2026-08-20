@@ -1,5 +1,11 @@
 import { API_BASE_URL } from "./constants";
 
+// Fired on window when a request comes back 401 with a token attached - i.e. the session
+// itself expired mid-use, not just "you're not logged in yet". ProtectedLayout listens for
+// this (see lib/auth.tsx) and redirects to /login with a "session expired" notice, instead
+// of every page independently guessing why its data suddenly stopped loading.
+export const AUTH_EXPIRED_EVENT = "pharmalink:auth-expired";
+
 export class ApiError extends Error {
   status: number;
   details: unknown;
@@ -42,6 +48,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json") ? await response.json() : await response.text();
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      clearToken();
+      if (typeof window !== "undefined") window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+    }
     const message = typeof payload === "object" && payload && "detail" in payload ? String(payload.detail) : "Request failed";
     throw new ApiError(message, response.status, payload);
   }

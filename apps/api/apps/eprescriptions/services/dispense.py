@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.db import transaction
+from django.utils.translation import gettext as _
 
 from apps.audit.services import write_audit_log
 from apps.eprescriptions.models import (
@@ -24,23 +25,37 @@ def dispense_prescription(*, prescription: Prescription, lines: list[dict], phar
     can get two of four items here and the rest elsewhere, and the remaining quantities
     stay claimable exactly once each.
     """
-    prescription = Prescription.objects.select_for_update().get(id=prescription.id)
+    prescription = Prescription.objects.select_related("doctor").select_for_update().get(id=prescription.id)
     if not prescription.is_consumable:
-        raise DispenseError(f"This prescription is {prescription.get_status_display().lower()} and cannot be dispensed.")
+        raise DispenseError(
+            _("This prescription is %(status)s and cannot be dispensed.") % {"status": prescription.get_status_display().lower()}
+        )
+    if not prescription.doctor.is_active:
+        raise DispenseError(_("The prescribing doctor's license is no longer active. This prescription cannot be dispensed."))
 
     requested = {str(line["prescription_item"]): int(line["quantity"]) for line in lines if int(line.get("quantity", 0)) > 0}
     if not requested:
-        raise DispenseError("Enter at least one quantity to dispense.")
+        raise DispenseError(_("Enter at least one quantity to dispense."))
 
-    items = {str(item.id): item for item in PrescriptionItem.objects.select_for_update().filter(prescription=prescription)}
+    items = {str(item.id): item for item in PrescriptionItem.objects.select_related("medicine").select_for_update().filter(prescription=prescription)}
     unknown = set(requested) - set(items)
     if unknown:
-        raise DispenseError("One or more items do not belong to this prescription.")
+        raise DispenseError(_("One or more items do not belong to this prescription."))
 
     for item_id, quantity in requested.items():
         item = items[item_id]
         if quantity > item.quantity_remaining:
-            raise DispenseError(f"{item.medicine_text}: only {item.quantity_remaining} {item.unit} remain on this prescription.")
+            raise DispenseError(
+                _("%(medicine)s: only %(remaining)s %(unit)s remain on this prescription.")
+                % {"medicine": item.medicine_text, "remaining": item.quantity_remaining, "unit": item.unit}
+            )
+        # Controlled items cannot be split across pharmacies: the first pharmacy to touch it
+        # must take everything remaining, so there is nothing left for a second pharmacy to claim.
+        if item.medicine_id and item.medicine.is_controlled and quantity != item.quantity_remaining:
+            raise DispenseError(
+                _("%(medicine)s is a controlled substance and must be dispensed in full (%(remaining)s %(unit)s) by a single pharmacy.")
+                % {"medicine": item.medicine_text, "remaining": item.quantity_remaining, "unit": item.unit}
+            )
 
     dispense = PrescriptionDispense.objects.create(
         prescription=prescription,

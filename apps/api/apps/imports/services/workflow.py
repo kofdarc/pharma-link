@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+from datetime import timedelta
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -10,12 +13,39 @@ from apps.inventory.models import StockMovement
 from apps.inventory.services.stock import create_inventory_batch
 from apps.medicines.services.search import best_catalog_match, normalize_name
 
+DUPLICATE_UPLOAD_WINDOW = timedelta(hours=24)
+
+
+class DuplicateImportError(Exception):
+    pass
+
 
 def create_import_preview(*, uploaded_file, user):
+    content = uploaded_file.read()
+    uploaded_file.seek(0)
+    content_hash = hashlib.sha256(content).hexdigest()
+
+    duplicate = (
+        InventoryImport.objects.filter(
+            pharmacy=user.pharmacy,
+            content_hash=content_hash,
+            created_at__gte=timezone.now() - DUPLICATE_UPLOAD_WINDOW,
+        )
+        .exclude(status=InventoryImport.Status.CANCELLED)
+        .order_by("-created_at")
+        .first()
+    )
+    if duplicate is not None:
+        raise DuplicateImportError(
+            f"This exact file was already uploaded {duplicate.created_at:%Y-%m-%d %H:%M} "
+            f"(import {duplicate.id}, status {duplicate.get_status_display()}). Re-upload only if that's intentional."
+        )
+
     inventory_import = InventoryImport.objects.create(
         pharmacy=user.pharmacy,
         uploaded_by=user,
         original_filename=uploaded_file.name,
+        content_hash=content_hash,
         status=InventoryImport.Status.UPLOADED,
     )
     try:

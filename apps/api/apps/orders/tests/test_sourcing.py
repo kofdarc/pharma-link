@@ -272,6 +272,85 @@ class ReservationTests(SourcingTestCase):
         self.assertEqual(released, 1)
         self.assertEqual(batch.reserved_quantity, 0)
 
+    def test_a_stock_hold_expiring_moves_the_pending_order_out_of_limbo(self):
+        self.stock(self.hamra, self.panadol, 10)
+        order = place_order(customer=self.shopper, items=[{"medicine": str(self.panadol.id), "quantity": 4}], address=self.address)
+        StockReservation.objects.update(expires_at=timezone.now() - timezone.timedelta(minutes=1))
+
+        expire_stale_reservations()
+        order.refresh_from_db()
+        fulfillment = order.fulfillments.first()
+        fulfillment.refresh_from_db()
+
+        self.assertEqual(fulfillment.status, OrderFulfillment.Status.EXPIRED)
+        self.assertEqual(order.status, Order.Status.CANCELLED)
+
+    def test_a_pharmacy_cannot_accept_a_slice_whose_hold_already_lapsed(self):
+        from apps.orders.services.lifecycle import FulfillmentError, accept_fulfillment
+
+        self.stock(self.hamra, self.panadol, 10)
+        order = place_order(customer=self.shopper, items=[{"medicine": str(self.panadol.id), "quantity": 4}], address=self.address)
+        fulfillment = order.fulfillments.first()
+        # Simulate the race: the hold has lapsed but the sweep hasn't run yet, so the
+        # fulfillment is still nominally PENDING.
+        StockReservation.objects.update(expires_at=timezone.now() - timezone.timedelta(minutes=1))
+
+        with self.assertRaises(FulfillmentError):
+            accept_fulfillment(fulfillment=fulfillment, user=self.hamra_owner)
+
+
+class IdempotentOrderPlacementTests(SourcingTestCase):
+    def test_repeating_the_same_idempotency_key_returns_the_original_order(self):
+        self.stock(self.hamra, self.panadol, 10)
+
+        first = place_order(
+            customer=self.shopper, items=[{"medicine": str(self.panadol.id), "quantity": 2}], address=self.address, idempotency_key="basket-abc123"
+        )
+        second = place_order(
+            customer=self.shopper, items=[{"medicine": str(self.panadol.id), "quantity": 2}], address=self.address, idempotency_key="basket-abc123"
+        )
+
+        self.assertEqual(first.id, second.id)
+        self.assertEqual(Order.objects.filter(customer=self.shopper).count(), 1)
+
+    def test_a_different_key_places_a_separate_order(self):
+        self.stock(self.hamra, self.panadol, 10)
+
+        first = place_order(
+            customer=self.shopper, items=[{"medicine": str(self.panadol.id), "quantity": 2}], address=self.address, idempotency_key="key-1"
+        )
+        second = place_order(
+            customer=self.shopper, items=[{"medicine": str(self.panadol.id), "quantity": 2}], address=self.address, idempotency_key="key-2"
+        )
+
+        self.assertNotEqual(first.id, second.id)
+
+
+class ReviewModerationTests(SourcingTestCase):
+    def _delivered_order(self):
+        from apps.orders.services.lifecycle import accept_fulfillment, hand_over
+
+        self.stock(self.hamra, self.panadol, 10)
+        order = place_order(customer=self.shopper, items=[{"medicine": str(self.panadol.id), "quantity": 2}], address=self.address)
+        fulfillment = order.fulfillments.first()
+        accept_fulfillment(fulfillment=fulfillment, user=self.hamra_owner)
+        hand_over(fulfillment=fulfillment, user=self.hamra_owner, handover_code=fulfillment.handover_code, collected_in_store=True)
+        order.refresh_from_db()
+        return order
+
+    def test_hiding_a_review_removes_it_from_the_pharmacy_rating(self):
+        from apps.orders.services.lifecycle import set_review_visibility, submit_review
+
+        order = self._delivered_order()
+        review = submit_review(order=order, pharmacy=self.hamra, customer=self.shopper, rating=1, comment="Bad experience")
+        self.hamra.refresh_from_db()
+        self.assertEqual(self.hamra.rating_count, 1)
+
+        set_review_visibility(review=review, is_hidden=True, reason="Abusive language")
+        self.hamra.refresh_from_db()
+
+        self.assertEqual(self.hamra.rating_count, 0)
+
 
 class UnmetDemandTests(SourcingTestCase):
     def test_a_basket_nobody_can_fill_is_recorded_as_demand(self):
@@ -335,4 +414,47 @@ class ScheduledOrderTests(SourcingTestCase):
                 items=[{"medicine": str(self.panadol.id), "quantity": 2}],
                 address=self.address,
                 scheduled_for=timezone.now() - timezone.timedelta(hours=1),
+            )
+
+
+class PrescriptionRequirementTests(SourcingTestCase):
+    def setUp(self):
+        super().setUp()
+        from apps.eprescriptions.models import Doctor
+        from apps.eprescriptions.services.issue import issue_prescription
+
+        self.nexium.requires_prescription = True
+        self.nexium.save(update_fields=["requires_prescription"])
+        self.stock(self.hamra, self.nexium, 10)
+        self.doctor = Doctor.objects.create(license_number="LB-MD-9", full_name="Rima Khalil", email="doc@doctors.test", is_active=True)
+        doctor_user = self.shopper.__class__.objects.create_user(email="doc@doctors.test", password="Password123!", role=UserRole.DOCTOR)
+        self.doctor.user = doctor_user
+        self.doctor.is_activated = True
+        self.doctor.activated_at = timezone.now()
+        self.doctor.save()
+        self.issue_prescription = issue_prescription
+
+    def test_prescription_required_item_is_refused_without_one(self):
+        with self.assertRaises(OrderError):
+            place_order(customer=self.shopper, items=[{"medicine": str(self.nexium.id), "quantity": 1}], address=self.address)
+
+    def test_prescription_required_item_succeeds_with_a_covering_prescription(self):
+        prescription, _secret, _pin = self.issue_prescription(
+            doctor=self.doctor, patient={"patient_name": "Shopper"}, items=[{"medicine": str(self.nexium.id), "quantity_prescribed": 3}]
+        )
+
+        order = place_order(
+            customer=self.shopper, items=[{"medicine": str(self.nexium.id), "quantity": 2}], address=self.address, prescription=prescription
+        )
+
+        self.assertEqual(order.status, Order.Status.PENDING)
+
+    def test_prescription_with_insufficient_remaining_quantity_is_refused(self):
+        prescription, _secret, _pin = self.issue_prescription(
+            doctor=self.doctor, patient={"patient_name": "Shopper"}, items=[{"medicine": str(self.nexium.id), "quantity_prescribed": 1}]
+        )
+
+        with self.assertRaises(OrderError):
+            place_order(
+                customer=self.shopper, items=[{"medicine": str(self.nexium.id), "quantity": 2}], address=self.address, prescription=prescription
             )

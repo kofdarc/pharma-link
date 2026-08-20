@@ -1,0 +1,349 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-20 14:40+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+msgid "Invalid email or password."
+msgstr "البريد الإلكتروني أو كلمة المرور غير صحيحة."
+
+msgid "This account is inactive."
+msgstr "هذا الحساب غير نشط."
+
+msgid "This pharmacy account is inactive."
+msgstr "حساب هذه الصيدلية غير نشط."
+
+msgid "An account already exists for this email."
+msgstr "يوجد حساب بالفعل لهذا البريد الإلكتروني."
+
+msgid "Pharmacy users must be assigned to a pharmacy."
+msgstr "يجب ربط مستخدمي الصيدلية بصيدلية."
+
+msgid "Reset your PharmaLink password"
+msgstr "إعادة تعيين كلمة مرور PharmaLink"
+
+#, python-format
+msgid ""
+"Hi,\n"
+"\n"
+"Use this link to set a new password: %(url)s\n"
+"\n"
+"If you didn't request this, you can ignore this email - your password hasn't changed.\n"
+msgstr ""
+"مرحبًا،\n"
+"\n"
+"استخدم هذا الرابط لتعيين كلمة مرور جديدة: %(url)s\n"
+"\n"
+"إذا لم تطلب ذلك، يمكنك تجاهل هذه الرسالة - لم تتغير كلمة مرورك.\n"
+
+msgid "Verify your PharmaLink email"
+msgstr "تحقق من بريدك الإلكتروني في PharmaLink"
+
+#, python-format
+msgid ""
+"Hi,\n"
+"\n"
+"Confirm your email to start ordering: %(url)s\n"
+msgstr ""
+"مرحبًا،\n"
+"\n"
+"أكّد بريدك الإلكتروني لتبدأ الطلب: %(url)s\n"
+
+msgid "If an account exists for that email, a reset link has been sent."
+msgstr ""
+"إذا كان هناك حساب لهذا البريد الإلكتروني، فقد تم إرسال رابط إعادة التعيين."
+
+msgid "This reset link is invalid or has expired."
+msgstr "رابط إعادة التعيين هذا غير صالح أو انتهت صلاحيته."
+
+msgid "Password updated. You can now log in."
+msgstr "تم تحديث كلمة المرور. يمكنك الآن تسجيل الدخول."
+
+msgid "If that account needs verification, a new link has been sent."
+msgstr "إذا كان هذا الحساب بحاجة إلى تحقق، فقد تم إرسال رابط جديد."
+
+msgid "This verification link is invalid or has expired."
+msgstr "رابط التحقق هذا غير صالح أو انتهت صلاحيته."
+
+msgid "Email verified."
+msgstr "تم التحقق من البريد الإلكتروني."
+
+#, python-format
+msgid "A driver is on the way for order %(reference)s"
+msgstr "السائق في طريقه لتوصيل الطلب %(reference)s"
+
+#, python-format
+msgid ""
+"Hi %(name)s,\n"
+"\n"
+"%(driver)s has been assigned to deliver your order %(reference)s.\n"
+msgstr ""
+"مرحبًا %(name)s،\n"
+"\n"
+"تم تكليف %(driver)s بتوصيل طلبك %(reference)s.\n"
+
+msgid "This route was planned for another driver."
+msgstr "تم تخطيط هذا المسار لسائق آخر."
+
+msgid "This route can no longer be accepted."
+msgstr "لم يعد بالإمكان قبول هذا المسار."
+
+msgid "Finish your active route first."
+msgstr "أنهِ مسارك النشط أولاً."
+
+msgid "This stop is not on your route."
+msgstr "هذه المحطة ليست ضمن مسارك."
+
+msgid "Accept the route before starting it."
+msgstr "اقبل المسار قبل بدئه."
+
+msgid "This stop is not pending."
+msgstr "هذه المحطة ليست معلقة."
+
+msgid "This stop is not a pickup."
+msgstr "هذه المحطة ليست نقطة استلام."
+
+msgid "This stop is already closed."
+msgstr "هذه المحطة مغلقة بالفعل."
+
+msgid "This stop is not a delivery."
+msgstr "هذه المحطة ليست نقطة تسليم."
+
+msgid "No prescription matches that code."
+msgstr "لا توجد وصفة طبية تطابق هذا الرمز."
+
+msgid "Too many failed attempts. Try again shortly."
+msgstr "عدد كبير جدًا من المحاولات الفاشلة. حاول مرة أخرى بعد قليل."
+
+msgid "The prescription key or PIN is not valid."
+msgstr "مفتاح الوصفة الطبية أو الرقم السري غير صالح."
+
+msgid "This prescription was cancelled by the prescribing doctor."
+msgstr "تم إلغاء هذه الوصفة الطبية من قبل الطبيب المعالج."
+
+msgid ""
+"No matching licence and email were found in the Order of Physicians roster."
+msgstr "لم يتم العثور على رخصة وبريد إلكتروني مطابقين في سجل نقابة الأطباء."
+
+msgid "This licence is not currently active."
+msgstr "هذه الرخصة غير نشطة حاليًا."
+
+msgid ""
+"This account is already activated. Use the login page or reset your "
+"password."
+msgstr ""
+"تم تفعيل هذا الحساب بالفعل. استخدم صفحة تسجيل الدخول أو أعد تعيين كلمة "
+"المرور."
+
+msgid "A user already exists for this email address."
+msgstr "يوجد مستخدم بالفعل لهذا البريد الإلكتروني."
+
+#, python-format
+msgid "This prescription is %(status)s and cannot be dispensed."
+msgstr "هذه الوصفة الطبية %(status)s ولا يمكن صرفها."
+
+msgid ""
+"The prescribing doctor's license is no longer active. This prescription "
+"cannot be dispensed."
+msgstr "لم تعد رخصة الطبيب المعالج نشطة. لا يمكن صرف هذه الوصفة الطبية."
+
+msgid "Enter at least one quantity to dispense."
+msgstr "أدخل كمية واحدة على الأقل للصرف."
+
+msgid "One or more items do not belong to this prescription."
+msgstr "عنصر واحد أو أكثر لا ينتمي إلى هذه الوصفة الطبية."
+
+#, python-format
+msgid "%(medicine)s: only %(remaining)s %(unit)s remain on this prescription."
+msgstr "%(medicine)s: تبقّى %(remaining)s %(unit)s فقط في هذه الوصفة الطبية."
+
+#, python-format
+msgid ""
+"%(medicine)s is a controlled substance and must be dispensed in full "
+"(%(remaining)s %(unit)s) by a single pharmacy."
+msgstr ""
+"%(medicine)s مادة خاضعة للرقابة ويجب صرفها بالكامل (%(remaining)s %(unit)s) "
+"من قبل صيدلية واحدة."
+
+msgid "This licence is not active for issuing prescriptions."
+msgstr "هذه الرخصة غير نشطة لإصدار الوصفات الطبية."
+
+msgid "A prescription needs at least one item."
+msgstr "يجب أن تحتوي الوصفة الطبية على عنصر واحد على الأقل."
+
+msgid "Could not allocate a prescription code. Please retry."
+msgstr "تعذّر تخصيص رمز للوصفة الطبية. يرجى إعادة المحاولة."
+
+msgid "A fully dispensed prescription cannot be cancelled."
+msgstr "لا يمكن إلغاء وصفة طبية تم صرفها بالكامل."
+
+msgid "This session expired. Scan the prescription again."
+msgstr "انتهت صلاحية هذه الجلسة. امسح الوصفة الطبية مرة أخرى."
+
+msgid "Invalid session. Scan the prescription again."
+msgstr "جلسة غير صالحة. امسح الوصفة الطبية مرة أخرى."
+
+msgid "Prescription not found."
+msgstr "الوصفة الطبية غير موجودة."
+
+msgid "Enter the pharmacy name."
+msgstr "أدخل اسم الصيدلية."
+
+msgid "Only a pending order slice can be accepted."
+msgstr "لا يمكن قبول سوى جزء الطلب المعلق."
+
+msgid ""
+"The stock hold for this order has expired and can no longer be accepted."
+msgstr "انتهت صلاحية حجز المخزون لهذا الطلب ولم يعد بالإمكان قبوله."
+
+msgid "This order slice is already closed."
+msgstr "جزء الطلب هذا مغلق بالفعل."
+
+msgid "Accept the order before marking it ready."
+msgstr "اقبل الطلب قبل تحديده كجاهز."
+
+msgid "This order slice is not ready for handover."
+msgstr "جزء الطلب هذا غير جاهز للتسليم."
+
+msgid "Handover code does not match."
+msgstr "رمز التسليم غير مطابق."
+
+msgid "Only a picked-up order slice can be delivered."
+msgstr "لا يمكن تسليم سوى جزء الطلب الذي تم استلامه."
+
+msgid "This order is already closed."
+msgstr "هذا الطلب مغلق بالفعل."
+
+msgid "Part of this order already left the pharmacy. Contact support instead."
+msgstr ""
+"جزء من هذا الطلب غادر الصيدلية بالفعل. يرجى التواصل مع الدعم بدلاً من ذلك."
+
+msgid "You can only review your own orders."
+msgstr "يمكنك تقييم طلباتك الخاصة فقط."
+
+msgid "Review an order once it has been delivered."
+msgstr "قيّم الطلب بعد تسليمه."
+
+msgid "That pharmacy was not part of this order."
+msgstr "هذه الصيدلية لم تكن جزءًا من هذا الطلب."
+
+#, python-format
+msgid "Order %(reference)s placed"
+msgstr "تم تقديم الطلب %(reference)s"
+
+#, python-format
+msgid ""
+"Hi %(name)s,\n"
+"\n"
+"We've received your order %(reference)s totalling %(total)s %(currency)s. We'll email you again as soon as a pharmacy accepts it.\n"
+msgstr ""
+"مرحبًا %(name)s،\n"
+"\n"
+"لقد استلمنا طلبك %(reference)s بإجمالي %(total)s %(currency)s. سنراسلك مرة أخرى بمجرد أن تقبله إحدى الصيدليات.\n"
+
+#, python-format
+msgid "A valid prescription is required to order: %(names)s."
+msgstr "مطلوب وصفة طبية صالحة لطلب: %(names)s."
+
+#, python-format
+msgid "The prescription does not cover enough %(medicine)s for this order."
+msgstr "لا تغطي الوصفة الطبية كمية كافية من %(medicine)s لهذا الطلب."
+
+#, python-format
+msgid ""
+"%(medicine)s is no longer available in the requested quantity at "
+"%(pharmacy)s."
+msgstr "%(medicine)s لم يعد متوفرًا بالكمية المطلوبة لدى %(pharmacy)s."
+
+msgid "A delivery address is required."
+msgstr "عنوان التوصيل مطلوب."
+
+msgid "That address belongs to another account."
+msgstr "هذا العنوان يخص حسابًا آخر."
+
+#, python-format
+msgid "Online orders are limited to %(cap)s units of %(medicine)s at a time."
+msgstr ""
+"الطلبات عبر الإنترنت محدودة بـ %(cap)s وحدة من %(medicine)s في المرة "
+"الواحدة."
+
+msgid "an item"
+msgstr "عنصر"
+
+msgid "A geocoded address is required to source a basket."
+msgstr "يلزم عنوان محدد جغرافيًا لتحديد مصدر السلة."
+
+msgid "Pick a time in the future for a scheduled order."
+msgstr "اختر وقتًا في المستقبل للطلب المجدول."
+
+#, python-format
+msgid "Orders can be scheduled up to %(days)s days ahead."
+msgstr "يمكن جدولة الطلبات حتى %(days)s يومًا مقدمًا."
+
+msgid "No pharmacy near you can supply these items right now."
+msgstr "لا توجد صيدلية قريبة منك يمكنها توفير هذه العناصر الآن."
+
+#, python-format
+msgid "Payment failed: %(reason)s"
+msgstr "فشل الدفع: %(reason)s"
+
+msgid "the charge was declined."
+msgstr "تم رفض عملية الدفع."
+
+msgid "Verify your email before placing an order."
+msgstr "يرجى التحقق من بريدك الإلكتروني قبل تقديم الطلب."
+
+msgid "Address not found."
+msgstr "العنوان غير موجود."
+
+msgid "No prescription was found with that code."
+msgstr "لم يتم العثور على وصفة طبية بهذا الرمز."
+
+msgid ""
+"A valid prescription code is required to repeat an order containing "
+"prescription items."
+msgstr "مطلوب رمز وصفة طبية صالح لتكرار طلب يحتوي على عناصر بوصفة طبية."
+
+#, python-format
+msgid "Payment failed for order %(reference)s"
+msgstr "فشل الدفع للطلب %(reference)s"
+
+#, python-format
+msgid ""
+"Hi %(name)s,\n"
+"\n"
+"Your payment for order %(reference)s could not be processed%(reason)s\n"
+msgstr ""
+"مرحبًا %(name)s،\n"
+"\n"
+"تعذّرت معالجة دفعتك للطلب %(reference)s%(reason)s\n"
+
+#, python-format
+msgid ": %(reason)s"
+msgstr ": %(reason)s"
+
+msgid "This order already has a payment on file."
+msgstr "يوجد بالفعل دفعة مسجلة لهذا الطلب."
+
+msgid "Order not found."
+msgstr "الطلب غير موجود."
+
+msgid "This order has no payment on file."
+msgstr "لا توجد دفعة مسجلة لهذا الطلب."
+
+msgid "Cash on delivery settles at handover, not online."
+msgstr "الدفع عند الاستلام يتم تسويته عند التسليم، وليس عبر الإنترنت."

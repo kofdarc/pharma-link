@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apps.accounts.models import User, UserRole
@@ -14,11 +15,11 @@ class LoginSerializer(serializers.Serializer):
     def validate(self, attrs):
         user = authenticate(username=attrs["email"], password=attrs["password"])
         if not user:
-            raise serializers.ValidationError("Invalid email or password.")
+            raise serializers.ValidationError(_("Invalid email or password."))
         if not user.is_active:
-            raise serializers.ValidationError("This account is inactive.")
+            raise serializers.ValidationError(_("This account is inactive."))
         if user.is_pharmacy_user and (not user.pharmacy_id or not user.pharmacy.is_active):
-            raise serializers.ValidationError("This pharmacy account is inactive.")
+            raise serializers.ValidationError(_("This pharmacy account is inactive."))
         attrs["user"] = user
         return attrs
 
@@ -33,7 +34,7 @@ class ShopperRegisterSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         if User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("An account already exists for this email.")
+            raise serializers.ValidationError(_("An account already exists for this email."))
         return value.lower()
 
     def validate_password(self, value):
@@ -51,7 +52,34 @@ class ShopperRegisterSerializer(serializers.Serializer):
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),
             is_active=True,
+            email_verified=False,
         )
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_password(self, value):
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+        return value
+
+
+class EmailVerificationConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+
+
+class ResendVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -69,18 +97,19 @@ class UserSerializer(serializers.ModelSerializer):
             "pharmacy",
             "pharmacy_detail",
             "is_active",
+            "email_verified",
             "created_at",
             "updated_at",
             "last_login_at",
             "password",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "last_login_at"]
+        read_only_fields = ["id", "email_verified", "created_at", "updated_at", "last_login_at"]
 
     def validate(self, attrs):
         role = attrs.get("role", getattr(self.instance, "role", None))
         pharmacy = attrs.get("pharmacy", getattr(self.instance, "pharmacy", None))
         if role in {UserRole.PHARMACY_OWNER, UserRole.PHARMACY_STAFF} and not pharmacy:
-            raise serializers.ValidationError({"pharmacy": "Pharmacy users must be assigned to a pharmacy."})
+            raise serializers.ValidationError({"pharmacy": _("Pharmacy users must be assigned to a pharmacy.")})
         return attrs
 
     def create(self, validated_data):

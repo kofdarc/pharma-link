@@ -1,9 +1,11 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ApiError, apiFetch, asList } from "@/lib/api-client";
 import { ORDER_STATUS_LABELS } from "@/lib/constants";
+import { useTranslations } from "@/lib/i18n/context";
 import type { Order, Paginated } from "@/types/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -18,13 +20,6 @@ function orderTone(status: string) {
   return "info" as const;
 }
 
-const PAYMENT_STATUS_LABELS: Record<string, string> = {
-  PENDING: "Cash on delivery",
-  PAID: "Paid",
-  FAILED: "Payment failed",
-  REFUNDED: "Refunded"
-};
-
 function paymentTone(status: string) {
   if (status === "PAID") return "success" as const;
   if (status === "FAILED") return "danger" as const;
@@ -33,7 +28,9 @@ function paymentTone(status: string) {
 
 function OrdersView() {
   const params = useSearchParams();
+  const t = useTranslations();
   const highlight = params.get("highlight");
+  const recurringFailed = params.get("recurringFailed") === "1";
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -44,7 +41,7 @@ function OrdersView() {
   const load = useCallback(() => {
     apiFetch<Paginated<Order> | Order[]>("/shop/orders/")
       .then((payload) => setOrders(asList(payload)))
-      .catch(() => setError("Could not load your orders."))
+      .catch(() => setError(t("orders.loadError")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -85,11 +82,16 @@ function OrdersView() {
 
   return (
     <>
-      <h1>My orders</h1>
+      <h1>{t("orders.title")}</h1>
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      {highlight ? <Notice tone="success">Order {highlight} placed. The pharmacies have been notified.</Notice> : null}
+      {highlight ? <Notice tone="success">{t("orders.placedNotice", { reference: highlight })}</Notice> : null}
+      {recurringFailed ? (
+        <Notice tone="danger">
+          {t("orders.recurringFailedNotice")} <Link href="/shop/refills">{t("orders.refills")}</Link>.
+        </Notice>
+      ) : null}
       {loading ? <div className="skeleton-card" /> : null}
-      {!loading && orders.length === 0 ? <EmptyState title="No orders yet." /> : null}
+      {!loading && orders.length === 0 ? <EmptyState title={t("orders.noOrders")} /> : null}
 
       {orders.map((order) => {
         const cancellable = !["DELIVERED", "COLLECTED", "CANCELLED", "IN_TRANSIT"].includes(order.status);
@@ -100,19 +102,19 @@ function OrdersView() {
               <div>
                 <h3>{order.reference}</h3>
                 <p className="muted small">
-                  Placed {new Date(order.created_at).toLocaleString()} ·{" "}
-                  {order.fulfillment_type === "PICKUP" ? "Store collection" : "Delivery"}
-                  {order.scheduled_for ? ` · scheduled for ${new Date(order.scheduled_for).toLocaleString()}` : ""}
-                  {order.source === "RECURRING" ? " · from a repeat schedule" : ""}
+                  {t("orders.placed", {
+                    when: new Date(order.created_at).toLocaleString(),
+                    type: order.fulfillment_type === "PICKUP" ? t("orders.storeCollection") : t("orders.delivery")
+                  })}
+                  {order.scheduled_for ? ` · ${t("orders.scheduledFor", { when: new Date(order.scheduled_for).toLocaleString() })}` : ""}
+                  {order.source === "RECURRING" ? ` · ${t("orders.fromRepeatSchedule")}` : ""}
                 </p>
               </div>
               <Badge tone={orderTone(order.status)}>{ORDER_STATUS_LABELS[order.status] || order.status}</Badge>
             </div>
 
             {order.fulfillments.length > 1 ? (
-              <p className="muted small">
-                Sourced from {order.fulfillments.length} pharmacies and delivered together in one trip.
-              </p>
+              <p className="muted small">{t("orders.sourcedFrom", { count: order.fulfillments.length })}</p>
             ) : null}
 
             {order.fulfillments.map((fulfillment) => (
@@ -131,7 +133,7 @@ function OrdersView() {
                   {fulfillment.lines.map((line) => (
                     <li key={line.id}>
                       {line.quantity} × {line.medicine_detail?.display_name || line.medicine} — ${line.line_total}
-                      {line.is_price_regulated ? <span className="tag tag-regulated">MoPH price</span> : null}
+                      {line.is_price_regulated ? <span className="tag tag-regulated">{t("orders.mophPrice")}</span> : null}
                     </li>
                   ))}
                 </ul>
@@ -141,7 +143,7 @@ function OrdersView() {
                     variant="secondary"
                     onClick={() => setReviewFor({ order: order.id, pharmacy: fulfillment.pharmacy, name: fulfillment.pharmacy_name })}
                   >
-                    Rate {fulfillment.pharmacy_name}
+                    {t("orders.rate", { pharmacy: fulfillment.pharmacy_name })}
                   </Button>
                 ) : null}
               </div>
@@ -149,33 +151,31 @@ function OrdersView() {
 
             <div className="checkout-summary">
               <div>
-                <span className="muted">Items</span>
+                <span className="muted">{t("orders.items")}</span>
                 <strong>${order.items_subtotal}</strong>
               </div>
               <div>
-                <span className="muted">Delivery</span>
+                <span className="muted">{t("orders.delivery2")}</span>
                 <strong>${order.delivery_fee}</strong>
               </div>
               <div>
-                <span className="muted">Total</span>
+                <span className="muted">{t("orders.total")}</span>
                 <strong className="price">${order.total}</strong>
               </div>
               {order.payment ? (
                 <div>
-                  <span className="muted">Payment</span>
-                  <Badge tone={paymentTone(order.payment.status)}>
-                    {PAYMENT_STATUS_LABELS[order.payment.status] || order.payment.status}
-                  </Badge>
+                  <span className="muted">{t("orders.payment")}</span>
+                  <Badge tone={paymentTone(order.payment.status)}>{t(`orders.paymentStatus.${order.payment.status}`)}</Badge>
                 </div>
               ) : null}
               {order.payment && order.payment.provider !== "COD" && order.payment.status === "FAILED" ? (
                 <Button type="button" onClick={() => payNow(order)}>
-                  Retry payment
+                  {t("orders.retryPayment")}
                 </Button>
               ) : null}
               {cancellable ? (
                 <Button type="button" variant="danger" onClick={() => cancel(order)}>
-                  Cancel order
+                  {t("orders.cancelOrder")}
                 </Button>
               ) : null}
             </div>
@@ -185,10 +185,10 @@ function OrdersView() {
 
       {reviewFor ? (
         <section className="panel">
-          <h3>Rate {reviewFor.name}</h3>
-          <p className="muted small">Your rating feeds directly into how we rank pharmacies for other shoppers.</p>
+          <h3>{t("orders.rateTitle", { pharmacy: reviewFor.name })}</h3>
+          <p className="muted small">{t("orders.rateHint")}</p>
           <div className="form-grid">
-            <Field label="Rating">
+            <Field label={t("orders.rating")}>
               <select value={rating} onChange={(event) => setRating(Number(event.target.value))}>
                 {[5, 4, 3, 2, 1].map((value) => (
                   <option key={value} value={value}>
@@ -197,16 +197,16 @@ function OrdersView() {
                 ))}
               </select>
             </Field>
-            <Field label="Comment (optional)">
+            <Field label={t("orders.comment")}>
               <input value={comment} onChange={(event) => setComment(event.target.value)} />
             </Field>
           </div>
           <div className="actions">
             <Button type="button" onClick={submitReview}>
-              Submit rating
+              {t("orders.submitRating")}
             </Button>
             <Button type="button" variant="secondary" onClick={() => setReviewFor(null)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
           </div>
         </section>

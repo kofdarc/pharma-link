@@ -20,3 +20,10 @@ class MockGatewayProvider(PaymentProvider):
             external_reference=f"MOCK-{secrets.token_hex(6).upper()}",
             raw={"simulated": True},
         )
+
+    def refund(self, payment) -> ChargeResult:
+        return ChargeResult(
+            status=Payment.Status.REFUNDED,
+            external_reference=f"MOCK-REFUND-{secrets.token_hex(6).upper()}",
+            raw={"simulated": True, "refund_of": payment.external_reference},
+        )

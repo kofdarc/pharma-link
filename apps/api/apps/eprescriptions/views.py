@@ -1,5 +1,6 @@
 from django.core import signing
 from django.http import HttpResponse
+from django.utils.translation import gettext as _
 from rest_framework import status
 from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
@@ -8,9 +9,11 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
-from apps.accounts.permissions import IsActivatedDoctor, IsPharmacyUserWithActivePharmacy
-from apps.eprescriptions.models import Prescription
+from apps.accounts.permissions import IsActivatedDoctor, IsPharmacyUserWithActivePharmacy, IsPlatformAdmin
+from apps.audit.services import write_audit_log
+from apps.eprescriptions.models import Doctor, Prescription
 from apps.eprescriptions.serializers import (
+    AdminDoctorSerializer,
     DoctorActivationSerializer,
     DoctorSerializer,
     PrescriptionCreateSerializer,
@@ -54,6 +57,29 @@ class DoctorProfileView(APIView):
 
     def get(self, request):
         return Response(DoctorSerializer(request.user.doctor_profile).data)
+
+
+class AdminDoctorViewSet(ModelViewSet):
+    """Lets a platform admin suspend a doctor's ability to issue/dispense against prescriptions."""
+
+    queryset = Doctor.objects.order_by("full_name")
+    serializer_class = AdminDoctorSerializer
+    permission_classes = [IsPlatformAdmin]
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def perform_update(self, serializer):
+        was_active = serializer.instance.is_active
+        doctor = serializer.save()
+        if doctor.is_active != was_active:
+            write_audit_log(
+                actor_user=self.request.user,
+                action="eprescriptions.doctor_active_changed",
+                entity_type="Doctor",
+                entity_id=doctor.id,
+                summary=f"Dr. {doctor.full_name} {'reactivated' if doctor.is_active else 'deactivated'}",
+                before_data={"is_active": was_active},
+                after_data={"is_active": doctor.is_active},
+            )
 
 
 class DoctorPrescriptionViewSet(ModelViewSet):
@@ -178,19 +204,19 @@ def public_prescription_dispense(request):
     try:
         claims = tokens.read_dispense_ticket(payload.pop("ticket"))
     except signing.SignatureExpired:
-        return Response({"detail": "This session expired. Scan the prescription again."}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"detail": _("This session expired. Scan the prescription again.")}, status=status.HTTP_401_UNAUTHORIZED)
     except signing.BadSignature:
-        return Response({"detail": "Invalid session. Scan the prescription again."}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"detail": _("Invalid session. Scan the prescription again.")}, status=status.HTTP_401_UNAUTHORIZED)
 
     prescription = Prescription.objects.filter(id=claims["prescription_id"]).first()
     if prescription is None:
-        return Response({"detail": "Prescription not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"detail": _("Prescription not found.")}, status=status.HTTP_404_NOT_FOUND)
 
     lines = payload.pop("items")
     # A signed-in PharmaLink pharmacy is attributed automatically; walk-in pharmacies self-declare.
     pharmacy = request.user.pharmacy if getattr(request.user, "is_authenticated", False) and getattr(request.user, "pharmacy_id", None) else None
     if pharmacy is None and not payload.get("pharmacy_name"):
-        return Response({"detail": "Enter the pharmacy name."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": _("Enter the pharmacy name.")}, status=status.HTTP_400_BAD_REQUEST)
     payload["method"] = claims.get("method", "")
     try:
         dispense = dispense_prescription(prescription=prescription, lines=lines, pharmacy_details=payload, pharmacy=pharmacy, request=request)

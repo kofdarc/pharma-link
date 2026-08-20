@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkButton } from "@/components/ui/Button";
@@ -22,13 +23,15 @@ interface DashboardData {
 }
 
 export default function PharmacyDashboardPage() {
+  const t = useTranslations();
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     apiFetch<DashboardData>("/pharmacy/dashboard/")
       .then(setData)
-      .catch(() => setError("Dashboard failed to load."));
+      .catch(() => setError(t("pharmacyDashboard.loadError")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) return <Notice tone="danger">{error}</Notice>;
@@ -38,44 +41,44 @@ export default function PharmacyDashboardPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Dashboard</h1>
-          <p>Stock, expiry, sales, and sensitive activity for this pharmacy.</p>
+          <h1>{t("pharmacyDashboard.title")}</h1>
+          <p>{t("pharmacyDashboard.subtitle")}</p>
         </div>
         <div className="actions">
           <LinkButton href="/pharmacy/inventory/new" variant="primary">
-            Add stock
+            {t("pharmacyDashboard.addStock")}
           </LinkButton>
-          <LinkButton href="/pharmacy/sales/new">Record sale</LinkButton>
+          <LinkButton href="/pharmacy/sales/new">{t("pharmacyDashboard.recordSale")}</LinkButton>
         </div>
       </div>
       <section className="metrics-grid">
         <div className="metric-card">
-          <span>Inventory batches</span>
+          <span>{t("pharmacyDashboard.inventoryBatches")}</span>
           <strong>{data.metrics.inventory_batches}</strong>
         </div>
         <div className="metric-card">
-          <span>Low stock</span>
+          <span>{t("pharmacyDashboard.lowStock")}</span>
           <strong>{data.metrics.low_stock_count}</strong>
         </div>
         <div className="metric-card">
-          <span>Expiring soon</span>
+          <span>{t("pharmacyDashboard.expiringSoon")}</span>
           <strong>{data.metrics.expiring_soon_count}</strong>
         </div>
         <div className="metric-card">
-          <span>Sales today</span>
+          <span>{t("pharmacyDashboard.salesToday")}</span>
           <strong>{data.metrics.sales_today}</strong>
         </div>
       </section>
-      {data.metrics.inventory_batches === 0 ? <EmptyState title="No inventory yet. Import a spreadsheet or add your first medicine." /> : null}
+      {data.metrics.inventory_batches === 0 ? <EmptyState title={t("pharmacyDashboard.noInventoryYet")} /> : null}
       <section className="split-grid">
         <div className="panel">
-          <h2>Low-stock alerts</h2>
+          <h2>{t("pharmacyDashboard.lowStockAlerts")}</h2>
           <Table>
             <table>
               <thead>
                 <tr>
-                  <th>Medicine</th>
-                  <th>Status</th>
+                  <th>{t("pharmacyDashboard.medicine")}</th>
+                  <th>{t("pharmacyDashboard.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -92,13 +95,13 @@ export default function PharmacyDashboardPage() {
           </Table>
         </div>
         <div className="panel">
-          <h2>Expiring soon</h2>
+          <h2>{t("pharmacyDashboard.expiringSoon")}</h2>
           <Table>
             <table>
               <thead>
                 <tr>
-                  <th>Medicine</th>
-                  <th>Expiry</th>
+                  <th>{t("pharmacyDashboard.medicine")}</th>
+                  <th>{t("pharmacyDashboard.expiry")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -117,8 +120,8 @@ export default function PharmacyDashboardPage() {
       </section>
       <section className="split-grid" style={{ marginTop: 16 }}>
         <div className="panel">
-          <h2>Recent sales</h2>
-          {data.recent_sales.length === 0 ? <EmptyState title="No sales recorded yet." /> : null}
+          <h2>{t("pharmacyDashboard.recentSales")}</h2>
+          {data.recent_sales.length === 0 ? <EmptyState title={t("pharmacyDashboard.noSalesYet")} /> : null}
           {data.recent_sales.map((sale) => (
             <p key={sale.id}>
               <strong>{sale.invoice_number}</strong> <span className="muted">${sale.total}</span>
@@ -126,7 +129,7 @@ export default function PharmacyDashboardPage() {
           ))}
         </div>
         <div className="panel">
-          <h2>Recent activity</h2>
+          <h2>{t("pharmacyDashboard.recentActivity")}</h2>
           {data.recent_audit.map((log) => (
             <p key={log.id}>
               <strong>{log.action}</strong> <span className="muted">{log.summary}</span>

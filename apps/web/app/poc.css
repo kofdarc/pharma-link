@@ -74,7 +74,11 @@
 .panel-row { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .panel-highlight { border-left: 3px solid var(--primary); }
 .public-main.narrow { max-width: 920px; margin: 0 auto; }
-.form-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+/* Top-align, not the globals.css default of flex-end: a row routinely mixes fields
+   with and without a hint line, and bottom-aligning pins each cell to its own
+   bottom edge (hint included), so shorter fields drift down and their labels/inputs
+   stop lining up with their taller neighbour's. Top edges are always consistent. */
+.form-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; }
 .stacked-form { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
 .stacked-form .button { align-self: flex-start; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -83,7 +87,7 @@
 .detail-grid dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
 .detail-grid dd { margin: 0; }
 .small { font-size: 12px; }
-.checkbox-field { flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; }
+.checkbox-field { display: flex; flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; }
 .checkbox-field input[type="checkbox"] { width: auto; }
 .checkbox-field small { flex-basis: 100%; }
 .qty-input { width: 84px; }
@@ -158,4 +162,13 @@
 @media (max-width: 720px) {
   .rx-issued { grid-template-columns: 1fr; }
   .route-summary, .checkout-summary { gap: 16px; }
+}
+
+/* --- print --------------------------------------------------------------
+   Used by the write-prescription hand-off screen's Print button: hides app
+   chrome and anything not meant for the patient/pharmacy copy. */
+@media print {
+  .sidebar, .topbar, .nav-backdrop, .no-print { display: none !important; }
+  .app-shell { display: block !important; }
+  .panel { border: none; box-shadow: none; padding: 0; }
 }

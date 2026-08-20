@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from apps.accounts.models import UserRole
 from apps.audit.services import write_audit_log
@@ -25,11 +26,11 @@ def activate_doctor(*, license_number: str, email: str, password: str) -> Doctor
     doctor = Doctor.objects.select_for_update().filter(license_number__iexact=license_number.strip()).first()
     if doctor is None or doctor.email.lower() != email.strip().lower():
         # Same message either way so the endpoint cannot be used to enumerate the roster.
-        raise ActivationError("No matching licence and email were found in the Order of Physicians roster.")
+        raise ActivationError(_("No matching licence and email were found in the Order of Physicians roster."))
     if not doctor.is_active:
-        raise ActivationError("This licence is not currently active.")
+        raise ActivationError(_("This licence is not currently active."))
     if doctor.is_activated:
-        raise ActivationError("This account is already activated. Use the login page or reset your password.")
+        raise ActivationError(_("This account is already activated. Use the login page or reset your password."))
 
     try:
         validate_password(password)
@@ -38,7 +39,7 @@ def activate_doctor(*, license_number: str, email: str, password: str) -> Doctor
 
     User = get_user_model()
     if User.objects.filter(email__iexact=doctor.email).exists():
-        raise ActivationError("A user already exists for this email address.")
+        raise ActivationError(_("A user already exists for this email address."))
 
     names = doctor.full_name.split(" ", 1)
     user = User.objects.create_user(

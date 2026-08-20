@@ -38,11 +38,19 @@ def create_sale(
     prescription = None
     if prescription_record_id:
         prescription = PrescriptionRecord.objects.select_for_update().get(id=prescription_record_id, pharmacy=pharmacy)
+        if prescription.is_expired:
+            raise ValueError("This prescription has expired and cannot back a new sale.")
 
     if client is not None and client.pharmacy_id != pharmacy.id:
         raise ValueError("Client belongs to another pharmacy.")
     if payment_method == Sale.PaymentMethod.ON_ACCOUNT and client is None:
         raise ValueError("Select a client before charging a sale to an account.")
+
+    medicines_by_id = {str(raw_item["medicine"]): Medicine.objects.get(id=raw_item["medicine"]) for raw_item in items}
+    needs_prescription = [medicine for medicine in medicines_by_id.values() if medicine.requires_prescription]
+    if needs_prescription and prescription is None:
+        names = ", ".join(str(medicine) for medicine in needs_prescription)
+        raise ValueError(f"A valid prescription is required to sell: {names}.")
 
     sale = Sale.objects.create(
         invoice_number=next_invoice_number(pharmacy.id),
@@ -59,7 +67,7 @@ def create_sale(
     discount_total = Decimal("0")
     today = timezone.localdate()
     for raw_item in items:
-        medicine = Medicine.objects.get(id=raw_item["medicine"])
+        medicine = medicines_by_id[str(raw_item["medicine"])]
         quantity_needed = int(raw_item["quantity"])
         discount = Decimal(str(raw_item.get("discount", 0) or 0))
         batches = (
