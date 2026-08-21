@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import { BrandMark } from "@/components/ui/BrandMark";
 import { QrScanner } from "@/components/rx/QrScanner";
 
 /**
@@ -54,7 +55,7 @@ export default function PrescriptionEntryPage() {
     <div className="public-shell">
       <header className="public-header">
         <Link href="/" className="brand">
-          <span className="brand-mark">M</span>
+          <BrandMark />
           <span>PharmaLink</span>
         </Link>
         <Link className="button button-secondary" href="/login">
@@ -118,12 +119,6 @@ export default function PrescriptionEntryPage() {
               </form>
             </div>
           </div>
-
-          <Notice>
-            The code alone is not enough to open a prescription: the QR key or the PIN is always required.
-            Repeated wrong attempts lock the prescription for a short period, and every access is logged for
-            the prescribing doctor.
-          </Notice>
         </section>
       </main>
     </div>

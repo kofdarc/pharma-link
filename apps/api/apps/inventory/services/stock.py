@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.db import transaction
 
 from apps.audit.services import write_audit_log
-from apps.inventory.models import InventoryBatch, StockMovement
+from apps.inventory.models import InventoryBatch, ReservationShortfall, StockMovement
 
 
 @transaction.atomic
@@ -86,4 +86,39 @@ def adjust_stock(*, batch_id, user, quantity_delta: int, reason: str = "", movem
         after_data={"current_quantity": after},
     )
     return batch
+
+
+@transaction.atomic
+def flag_reservation_shortfall(*, batch: InventoryBatch, observed_on_hand: int, sync_run=None) -> ReservationShortfall | None:
+    """
+    Called after a POS sync applies its correction. If the shelf now holds fewer units
+    than are reserved for shoppers, this makes that fact visible instead of letting
+    `available_quantity`'s `max(0, ...)` quietly report zero with no explanation.
+    Returns None (and writes nothing) when there is no shortfall.
+    """
+    reserved = batch.reserved_quantity
+    if observed_on_hand >= reserved:
+        return None
+    shortfall = ReservationShortfall.objects.create(
+        inventory_batch=batch,
+        pharmacy=batch.pharmacy,
+        medicine=batch.medicine,
+        observed_on_hand=observed_on_hand,
+        reserved_quantity=reserved,
+        shortfall_units=reserved - observed_on_hand,
+        sync_run=sync_run,
+    )
+    write_audit_log(
+        actor_user=None,
+        pharmacy=batch.pharmacy,
+        action="inventory.reservation_shortfall",
+        entity_type="InventoryBatch",
+        entity_id=batch.id,
+        summary=(
+            f"POS reports {observed_on_hand} {batch.medicine} on hand, but {reserved} are held for shoppers "
+            f"({shortfall.shortfall_units} short)."
+        ),
+        after_data={"observed_on_hand": observed_on_hand, "reserved_quantity": reserved},
+    )
+    return shortfall
 

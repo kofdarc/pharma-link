@@ -13,6 +13,7 @@ import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
 
 export default function InventoryPage() {
+  const t = useTranslations();
   const [items, setItems] = useState<InventoryBatch[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("");
@@ -23,12 +24,13 @@ export default function InventoryPage() {
     try {
       setItems(asList(await apiFetch<InventoryBatch[] | { results: InventoryBatch[] }>(path)));
     } catch {
-      setError("Inventory failed to load.");
+      setError(t("pharmacyInventory.loadError"));
     }
   }
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function submit(event: FormEvent) {
@@ -43,43 +45,43 @@ export default function InventoryPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Inventory</h1>
-          <p>Manage medicine batches, stock status, expiry, and public availability.</p>
+          <h1>{t("pharmacyInventory.title")}</h1>
+          <p>{t("pharmacyInventory.subtitle")}</p>
         </div>
         <div className="actions">
           <LinkButton href="/pharmacy/inventory/new" variant="primary">
-            Add batch
+            {t("pharmacyInventory.addBatch")}
           </LinkButton>
-          <LinkButton href="/pharmacy/imports">Import</LinkButton>
+          <LinkButton href="/pharmacy/imports">{t("pharmacyInventory.import")}</LinkButton>
         </div>
       </div>
       <form className="toolbar panel" onSubmit={submit}>
-        <Field label="Search">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Medicine or batch" />
+        <Field label={t("pharmacyInventory.search")}>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("pharmacyInventory.searchPlaceholder")} />
         </Field>
-        <Field label="Filter">
+        <Field label={t("pharmacyInventory.filter")}>
           <select value={filter} onChange={(event) => setFilter(event.target.value)}>
-            <option value="">All inventory</option>
-            <option value="low_stock">Low stock</option>
-            <option value="expiring_soon">Expiring soon</option>
-            <option value="expired">Expired</option>
-            <option value="public">Public availability</option>
+            <option value="">{t("pharmacyInventory.allInventory")}</option>
+            <option value="low_stock">{t("pharmacyInventory.lowStock")}</option>
+            <option value="expiring_soon">{t("pharmacyInventory.expiringSoon")}</option>
+            <option value="expired">{t("pharmacyInventory.expired")}</option>
+            <option value="public">{t("pharmacyInventory.publicAvailability")}</option>
           </select>
         </Field>
-        <Button type="submit">Apply</Button>
+        <Button type="submit">{t("pharmacyInventory.apply")}</Button>
       </form>
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      {items.length === 0 ? <EmptyState title="No inventory records found." /> : null}
+      {items.length === 0 ? <EmptyState title={t("pharmacyInventory.noRecords")} /> : null}
       <Table>
         <table>
           <thead>
             <tr>
-              <th>Medicine</th>
-              <th>Batch</th>
-              <th>Stock</th>
-              <th>Expiry</th>
-              <th>Public</th>
-              <th>Price</th>
+              <th>{t("pharmacyInventory.medicine")}</th>
+              <th>{t("pharmacyInventory.batch")}</th>
+              <th>{t("pharmacyInventory.stock")}</th>
+              <th>{t("pharmacyInventory.expiry")}</th>
+              <th>{t("pharmacyInventory.public")}</th>
+              <th>{t("pharmacyInventory.price")}</th>
             </tr>
           </thead>
           <tbody>
@@ -92,18 +94,18 @@ export default function InventoryPage() {
                   <br />
                   <span className="muted">{item.medicine_detail.generic_name}</span>
                 </td>
-                <td>{item.batch_number || "Not recorded"}</td>
+                <td>{item.batch_number || t("pharmacyInventory.notRecorded")}</td>
                 <td>
                   <Badge tone={item.is_low_stock ? "warning" : item.current_quantity > 0 ? "success" : "danger"}>
-                    {item.is_low_stock ? "Low stock" : item.current_quantity > 0 ? "Available" : "Unavailable"}
+                    {item.is_low_stock ? t("pharmacyInventory.lowStock") : item.current_quantity > 0 ? t("pharmacyInventory.available") : t("pharmacyInventory.unavailable")}
                   </Badge>
                 </td>
                 <td>
                   <Badge tone={statusTone(item.is_expired ? "Expired" : item.is_expiring_soon ? "Expiring soon" : "Active")}>
-                    {item.expiry_date || "Not recorded"}
+                    {item.expiry_date || t("pharmacyInventory.notRecorded")}
                   </Badge>
                 </td>
-                <td>{item.public_availability_enabled ? "Published" : "Hidden"}</td>
+                <td>{item.public_availability_enabled ? t("pharmacyInventory.published") : t("pharmacyInventory.hidden")}</td>
                 <td>${item.selling_price}</td>
               </tr>
             ))}

@@ -8,6 +8,7 @@ import { Button, LinkButton } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 export default function HomePage() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function HomePage() {
     <div className="public-shell">
       <header className="public-header">
         <Link href="/" className="brand">
-          <span className="brand-mark">M</span>
+          <BrandMark />
           <span>PharmaLink</span>
         </Link>
         <div className="actions">
@@ -38,7 +39,7 @@ export default function HomePage() {
         <section>
           <h1 className="page-title">{t("home.title")}</h1>
           <p className="lead">{t("home.lead")}</p>
-          <Notice>{t("home.disclaimer")}</Notice>
+          <Notice tone="muted">{t("home.disclaimer")}</Notice>
         </section>
         <section className="panel">
           <h2>{t("home.searchTitle")}</h2>

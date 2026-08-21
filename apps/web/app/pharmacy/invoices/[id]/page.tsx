@@ -4,17 +4,20 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import type { Sale } from "@/types/api";
 import { apiFetch } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import { Badge, statusTone } from "@/components/ui/Badge";
 import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
 
 export default function InvoiceDetailPage() {
+  const t = useTranslations();
   const { id } = useParams<{ id: string }>();
   const [sale, setSale] = useState<Sale | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    apiFetch<Sale>(`/pharmacy/invoices/${id}/`).then(setSale).catch(() => setError("Invoice not found or unauthorized."));
+    apiFetch<Sale>(`/pharmacy/invoices/${id}/`).then(setSale).catch(() => setError(t("pharmacyInvoiceDetail.notFound")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (!sale) return error ? <Notice tone="danger">{error}</Notice> : <div className="skeleton-card" />;
@@ -24,9 +27,7 @@ export default function InvoiceDetailPage() {
       <div className="section-header">
         <div>
           <h1>{sale.invoice_number}</h1>
-          <p>
-            {new Date(sale.sale_datetime).toLocaleString()} by {sale.staff_email}
-          </p>
+          <p>{t("pharmacyInvoiceDetail.byStaff", { when: new Date(sale.sale_datetime).toLocaleString(), staff: sale.staff_email })}</p>
         </div>
         <Badge tone={statusTone(sale.status)}>{sale.status}</Badge>
       </div>
@@ -34,12 +35,12 @@ export default function InvoiceDetailPage() {
         <table>
           <thead>
             <tr>
-              <th>Medicine</th>
-              <th>Batch</th>
-              <th>Quantity</th>
-              <th>Unit price</th>
-              <th>Discount</th>
-              <th>Total</th>
+              <th>{t("pharmacyInvoiceDetail.medicine")}</th>
+              <th>{t("pharmacyInvoiceDetail.batch")}</th>
+              <th>{t("pharmacyInvoiceDetail.quantity")}</th>
+              <th>{t("pharmacyInvoiceDetail.unitPrice")}</th>
+              <th>{t("pharmacyInvoiceDetail.discount")}</th>
+              <th>{t("pharmacyInvoiceDetail.total")}</th>
             </tr>
           </thead>
           <tbody>
@@ -58,15 +59,15 @@ export default function InvoiceDetailPage() {
       </Table>
       <section className="metrics-grid" style={{ marginTop: 16 }}>
         <div className="metric-card">
-          <span>Subtotal</span>
+          <span>{t("pharmacyInvoiceDetail.subtotal")}</span>
           <strong>${sale.subtotal}</strong>
         </div>
         <div className="metric-card">
-          <span>Discount</span>
+          <span>{t("pharmacyInvoiceDetail.discount")}</span>
           <strong>${sale.discount_total}</strong>
         </div>
         <div className="metric-card">
-          <span>Total</span>
+          <span>{t("pharmacyInvoiceDetail.total")}</span>
           <strong>${sale.total}</strong>
         </div>
       </section>

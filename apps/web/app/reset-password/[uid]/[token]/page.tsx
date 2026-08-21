@@ -7,6 +7,7 @@ import { ApiError, apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 export default function ResetPasswordPage() {
   const params = useParams<{ uid: string; token: string }>();
@@ -40,7 +41,7 @@ export default function ResetPasswordPage() {
     <div className="center-screen">
       <div className="auth-card">
         <Link href="/" className="brand">
-          <span className="brand-mark">M</span>
+          <BrandMark />
           <span>PharmaLink</span>
         </Link>
         <h1>Set a new password</h1>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { InventoryImport } from "@/types/api";
 import { Badge, statusTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -10,16 +11,17 @@ import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
 
 export default function ImportDetailPage() {
+  const t = useTranslations();
   const { id } = useParams<{ id: string }>();
   const [item, setItem] = useState<InventoryImport | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   function load() {
-    apiFetch<InventoryImport>(`/pharmacy/imports/${id}/`).then(setItem).catch(() => setError("Import not found."));
+    apiFetch<InventoryImport>(`/pharmacy/imports/${id}/`).then(setItem).catch(() => setError(t("pharmacyImportDetail.notFound")));
   }
 
-  useEffect(load, [id]);
+  useEffect(load, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function confirm() {
     setError("");
@@ -27,9 +29,9 @@ export default function ImportDetailPage() {
     try {
       const updated = await apiFetch<InventoryImport>(`/pharmacy/imports/${id}/confirm/`, { method: "POST" });
       setItem(updated);
-      setMessage("Import confirmed. Matched rows created inventory batches and stock movements.");
+      setMessage(t("pharmacyImportDetail.confirmedMessage"));
     } catch {
-      setError("Confirm failed. Only parsed imports can be confirmed.");
+      setError(t("pharmacyImportDetail.confirmFailed"));
     }
   }
 
@@ -41,12 +43,17 @@ export default function ImportDetailPage() {
         <div>
           <h1>{item.original_filename}</h1>
           <p>
-            {item.created_count} created, {item.skipped_count} skipped, {item.invalid_rows} invalid, {item.unmatched_rows} unmatched.
+            {t("pharmacyImportDetail.summary", {
+              created: item.created_count,
+              skipped: item.skipped_count,
+              invalid: item.invalid_rows,
+              unmatched: item.unmatched_rows
+            })}
           </p>
         </div>
         <div className="actions">
           <Badge tone={statusTone(item.status)}>{item.status}</Badge>
-          {item.status === "PARSED" ? <Button onClick={confirm}>Confirm import</Button> : null}
+          {item.status === "PARSED" ? <Button onClick={confirm}>{t("pharmacyImportDetail.confirmImport")}</Button> : null}
         </div>
       </div>
       {message ? <Notice tone="success">{message}</Notice> : null}
@@ -55,12 +62,12 @@ export default function ImportDetailPage() {
         <table>
           <thead>
             <tr>
-              <th>Row</th>
-              <th>Medicine</th>
-              <th>Match</th>
-              <th>Quantity</th>
-              <th>Status</th>
-              <th>Error</th>
+              <th>{t("pharmacyImportDetail.row")}</th>
+              <th>{t("pharmacyImportDetail.medicine")}</th>
+              <th>{t("pharmacyImportDetail.match")}</th>
+              <th>{t("pharmacyImportDetail.quantity")}</th>
+              <th>{t("pharmacyImportDetail.status")}</th>
+              <th>{t("pharmacyImportDetail.error")}</th>
             </tr>
           </thead>
           <tbody>
@@ -68,7 +75,7 @@ export default function ImportDetailPage() {
               <tr key={row.id}>
                 <td>{row.row_number}</td>
                 <td>{row.raw_medicine_name}</td>
-                <td>{row.matched_medicine_detail?.display_name || "Manual match required"}</td>
+                <td>{row.matched_medicine_detail?.display_name || t("pharmacyImportDetail.manualMatchRequired")}</td>
                 <td>{row.quantity || ""}</td>
                 <td>
                   <Badge tone={statusTone(row.status)}>{row.status}</Badge>

@@ -79,7 +79,7 @@ All use `Password123!`:
 ```powershell
 cd apps/api
 $env:DJANGO_TEST_SQLITE='1'
-.\.venv\Scripts\python.exe manage.py test       # 110 tests
+.\.venv\Scripts\python.exe manage.py test       # 191 tests
 
 cd ../web
 pnpm exec tsc --noEmit

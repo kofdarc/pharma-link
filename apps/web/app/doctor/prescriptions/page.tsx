@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch, asList } from "@/lib/api-client";
 import { API_BASE_URL } from "@/lib/constants";
+import { useTranslations } from "@/lib/i18n/context";
 import type { Paginated, Prescription, PrescriptionStatus } from "@/types/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button, LinkButton } from "@/components/ui/Button";
@@ -19,16 +20,16 @@ function tone(status: string) {
   return "info" as const;
 }
 
-const STATUS_OPTIONS: { value: PrescriptionStatus | ""; label: string }[] = [
-  { value: "", label: "All statuses" },
-  { value: "ISSUED", label: "Issued" },
-  { value: "PARTIALLY_DISPENSED", label: "Partially dispensed" },
-  { value: "FULLY_DISPENSED", label: "Fully dispensed" },
-  { value: "EXPIRED", label: "Expired" },
-  { value: "CANCELLED", label: "Cancelled" }
-];
-
 export default function DoctorPrescriptionsPage() {
+  const t = useTranslations();
+  const STATUS_OPTIONS: { value: PrescriptionStatus | ""; label: string }[] = [
+    { value: "", label: t("doctorPrescriptions.allStatuses") },
+    { value: "ISSUED", label: t("doctorPrescriptions.issued") },
+    { value: "PARTIALLY_DISPENSED", label: t("doctorPrescriptions.partiallyDispensed") },
+    { value: "FULLY_DISPENSED", label: t("doctorPrescriptions.fullyDispensed") },
+    { value: "EXPIRED", label: t("doctorPrescriptions.expired") },
+    { value: "CANCELLED", label: t("doctorPrescriptions.cancelled") }
+  ];
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [count, setCount] = useState(0);
   const [nextPath, setNextPath] = useState<string | null>(null);
@@ -54,7 +55,7 @@ export default function DoctorPrescriptionsPage() {
           setPrevPath(payload.previous ? payload.previous.replace(API_BASE_URL, "") : null);
         }
       })
-      .catch(() => setError("Could not load your prescriptions."))
+      .catch(() => setError(t("doctorPrescriptions.loadError")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -71,14 +72,11 @@ export default function DoctorPrescriptionsPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Prescriptions you have issued</h1>
-          <p className="muted">
-            Each one was emailed to the patient as a QR code. Any pharmacy can consume it, including pharmacies
-            with no PharmaLink account.
-          </p>
+          <h1>{t("doctorPrescriptions.title")}</h1>
+          <p className="muted">{t("doctorPrescriptions.subtitle")}</p>
         </div>
         <LinkButton href="/doctor/prescriptions/new" variant="primary">
-          Write a prescription
+          {t("doctorPrescriptions.writeAPrescription")}
         </LinkButton>
       </div>
 
@@ -86,10 +84,14 @@ export default function DoctorPrescriptionsPage() {
 
       <section className="panel">
         <div className="search-bar">
-          <Field label="Patient">
-            <input value={patientQuery} onChange={(event) => setPatientQuery(event.target.value)} placeholder="Search by patient name" />
+          <Field label={t("doctorPrescriptions.patient")}>
+            <input
+              value={patientQuery}
+              onChange={(event) => setPatientQuery(event.target.value)}
+              placeholder={t("doctorPrescriptions.searchByPatientName")}
+            />
           </Field>
-          <Field label="Status">
+          <Field label={t("doctorPrescriptions.status")}>
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as PrescriptionStatus | "")}>
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -105,11 +107,11 @@ export default function DoctorPrescriptionsPage() {
 
       {!loading && prescriptions.length === 0 ? (
         <EmptyState
-          title="No prescriptions match."
+          title={t("doctorPrescriptions.noMatch")}
           detail={
             patientQuery || statusFilter
-              ? "Try a different search or clear the filters."
-              : "Write your first one and it will be emailed to the patient straight away."
+              ? t("doctorPrescriptions.tryDifferentSearch")
+              : t("doctorPrescriptions.writeFirstOne")
           }
         />
       ) : null}
@@ -120,13 +122,13 @@ export default function DoctorPrescriptionsPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Code</th>
-                  <th>Patient</th>
-                  <th>Items</th>
-                  <th>Dispensed at</th>
-                  <th>Issued</th>
-                  <th>Valid until</th>
-                  <th>Status</th>
+                  <th>{t("doctorPrescriptions.code")}</th>
+                  <th>{t("doctorPrescriptions.patient")}</th>
+                  <th>{t("doctorPrescriptions.items")}</th>
+                  <th>{t("doctorPrescriptions.dispensedAt")}</th>
+                  <th>{t("doctorPrescriptions.issuedCol")}</th>
+                  <th>{t("doctorPrescriptions.validUntil")}</th>
+                  <th>{t("doctorPrescriptions.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,10 +144,10 @@ export default function DoctorPrescriptionsPage() {
                       </td>
                       <td>{prescription.patient_name}</td>
                       <td>
-                        {prescription.items.length} item(s)
+                        {t("doctorPrescriptions.itemsCount", { count: prescription.items.length })}
                         <br />
                         <span className="muted small">
-                          {totalDispensed}/{totalPrescribed} units dispensed
+                          {t("doctorPrescriptions.unitsDispensed", { dispensed: totalDispensed, prescribed: totalPrescribed })}
                         </span>
                       </td>
                       <td className="muted small">
@@ -168,14 +170,14 @@ export default function DoctorPrescriptionsPage() {
           {nextPath || prevPath ? (
             <div className="section-header">
               <span className="muted small">
-                {prescriptions.length} of {count}
+                {t("doctorPrescriptions.ofCount", { shown: prescriptions.length, count })}
               </span>
               <div className="toolbar">
                 <Button type="button" variant="secondary" disabled={!prevPath} onClick={() => prevPath && fetchPage(prevPath)}>
-                  Previous
+                  {t("doctorPrescriptions.previous")}
                 </Button>
                 <Button type="button" variant="secondary" disabled={!nextPath} onClick={() => nextPath && fetchPage(nextPath)}>
-                  Next
+                  {t("doctorPrescriptions.next")}
                 </Button>
               </div>
             </div>

@@ -9,8 +9,14 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from apps.accounts.permissions import IsPharmacyUserWithActivePharmacy
 from apps.audit.services import write_audit_log
-from apps.inventory.models import InventoryBatch, StockMovement
-from apps.inventory.serializers import InventoryBatchSerializer, StockAdjustmentSerializer, StockMovementSerializer
+from apps.inventory.models import InventoryBatch, ReservationShortfall, StockMovement
+from apps.inventory.serializers import (
+    InventoryBatchSerializer,
+    ReservationShortfallResolveSerializer,
+    ReservationShortfallSerializer,
+    StockAdjustmentSerializer,
+    StockMovementSerializer,
+)
 from apps.inventory.services.stock import adjust_stock, create_inventory_batch
 
 
@@ -76,3 +82,42 @@ class StockMovementViewSet(ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return StockMovement.objects.filter(pharmacy=self.request.user.pharmacy).select_related("medicine", "inventory_batch", "created_by")
+
+
+class ReservationShortfallViewSet(ReadOnlyModelViewSet):
+    """
+    Surfaces `observed_on_hand < platform_reserved` events raised during POS sync, so
+    staff can see and clear them instead of the discrepancy being silently absorbed by
+    `available_quantity` reporting zero with no explanation.
+    """
+
+    serializer_class = ReservationShortfallSerializer
+    permission_classes = [IsPharmacyUserWithActivePharmacy]
+
+    def get_queryset(self):
+        qs = ReservationShortfall.objects.filter(pharmacy=self.request.user.pharmacy).select_related("medicine", "inventory_batch")
+        if self.request.query_params.get("open") == "true":
+            qs = qs.filter(resolved_at__isnull=True)
+        return qs
+
+    @action(detail=True, methods=["post"])
+    def resolve(self, request, pk=None):
+        shortfall = self.get_object()
+        if shortfall.resolved_at is not None:
+            return Response({"detail": "Already resolved."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = ReservationShortfallResolveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        shortfall.resolved_at = timezone.now()
+        shortfall.resolved_by = request.user
+        shortfall.resolution_note = serializer.validated_data.get("resolution_note", "")
+        shortfall.save(update_fields=["resolved_at", "resolved_by", "resolution_note", "updated_at"])
+        write_audit_log(
+            actor_user=request.user,
+            pharmacy=shortfall.pharmacy,
+            action="inventory.reservation_shortfall_resolved",
+            entity_type="ReservationShortfall",
+            entity_id=shortfall.id,
+            summary=f"{request.user.email} resolved a reservation shortfall on {shortfall.medicine}",
+            after_data={"resolution_note": shortfall.resolution_note},
+        )
+        return Response(self.get_serializer(shortfall).data)

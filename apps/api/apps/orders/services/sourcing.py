@@ -13,18 +13,24 @@ Cost model per candidate pharmacy (lower is better):
   + goods cost of the covered units  free-priced items differ between pharmacies
   + RATING_WEIGHT * (5 - rating)     past shopper experience
   + RELIABILITY_WEIGHT * shortfall%  how often this pharmacy fails an accepted order
+  + FRESHNESS_WEIGHT * stale hours   how long since a connected POS last confirmed this stock
 
 Greedy set-cover with this cost is a 1+ln(n) approximation, and a drop pass afterwards
 removes any pharmacy whose items the others can absorb.
+
+Freshness only penalises pharmacies whose stock is fed by the POS connector: a pharmacy
+with no `last_pos_observed_at` on its batches (dashboard-managed, or never yet synced)
+is treated as live and pays nothing, since there is no observation to call stale.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
 
 from django.conf import settings
-from django.db.models import Sum
+from django.db.models import Min, Sum
 from django.utils import timezone
 
 from apps.common.geo import road_km
@@ -36,6 +42,9 @@ STOP_PENALTY = Decimal("6.0")
 DISTANCE_WEIGHT = Decimal("1.2")
 RATING_WEIGHT = Decimal("1.5")
 RELIABILITY_WEIGHT = Decimal("0.08")
+FRESHNESS_WEIGHT = Decimal("0.15")
+STALE_GRACE_HOURS = Decimal("2")
+STALE_PENALTY_CAP_HOURS = Decimal("48")
 UNRATED_PHARMACY_RATING = Decimal("3.8")
 
 
@@ -45,12 +54,22 @@ class Candidate:
     distance_km: float
     # medicine_id -> (units it can supply, unit price)
     offer: dict = field(default_factory=dict)
+    # Oldest POS confirmation among this pharmacy's batches covering the basket; None if
+    # nothing here came from a sync (dashboard-only stock is not "stale", it's live by hand).
+    last_observed_at: datetime | None = None
 
     @property
     def rating(self) -> Decimal:
         if self.pharmacy.rating_count == 0:
             return UNRATED_PHARMACY_RATING
         return Decimal(str(self.pharmacy.rating_average))
+
+    @property
+    def stale_hours(self) -> Decimal:
+        if self.last_observed_at is None:
+            return Decimal("0")
+        elapsed_hours = Decimal(str((timezone.now() - self.last_observed_at).total_seconds() / 3600))
+        return min(max(Decimal("0"), elapsed_hours - STALE_GRACE_HOURS), STALE_PENALTY_CAP_HOURS)
 
     def coverage(self, outstanding: dict[str, int]) -> dict[str, int]:
         covered = {}
@@ -68,6 +87,7 @@ class Candidate:
             + goods
             + RATING_WEIGHT * (Decimal("5") - self.rating)
             + RELIABILITY_WEIGHT * (Decimal("100") - Decimal(str(self.pharmacy.fulfillment_success_rate)))
+            + FRESHNESS_WEIGHT * self.stale_hours
         )
 
 
@@ -114,6 +134,19 @@ def build_candidates(*, medicine_ids: list[str], latitude: float, longitude: flo
         if key not in prices or price < prices[key]:
             prices[key] = price
 
+    # Oldest POS confirmation per pharmacy across the batches in play; a pharmacy relying
+    # on a connector that has gone quiet should not rank identically to one syncing live.
+    freshness_by_pharmacy: dict = {
+        row["pharmacy_id"]: row["oldest_observation"]
+        for row in (
+            InventoryBatch.objects.filter(pharmacy_id__in=pharmacy_ids, medicine_id__in=medicine_ids, is_archived=False, current_quantity__gt=0)
+            .exclude(expiry_date__lt=today)
+            .values("pharmacy_id")
+            .annotate(oldest_observation=Min("last_pos_observed_at"))
+        )
+        if row["oldest_observation"] is not None
+    }
+
     candidates: dict = {}
     for row in rows:
         pharmacy = pharmacies[row["pharmacy_id"]]
@@ -126,7 +159,9 @@ def build_candidates(*, medicine_ids: list[str], latitude: float, longitude: flo
         visible = min(sellable, public_cap(pharmacy))
         if visible <= 0:
             continue
-        candidate = candidates.setdefault(pharmacy.id, Candidate(pharmacy=pharmacy, distance_km=distance))
+        candidate = candidates.setdefault(
+            pharmacy.id, Candidate(pharmacy=pharmacy, distance_km=distance, last_observed_at=freshness_by_pharmacy.get(pharmacy.id))
+        )
         candidate.offer[str(row["medicine_id"])] = (visible, prices.get((pharmacy.id, row["medicine_id"]), Decimal("0")))
     return list(candidates.values())
 

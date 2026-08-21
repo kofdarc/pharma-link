@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.inventory.models import InventoryBatch, StockMovement
+from apps.inventory.models import InventoryBatch, ReservationShortfall, StockMovement
 from apps.medicines.serializers import MedicineSerializer
 
 
@@ -74,4 +74,34 @@ class StockMovementSerializer(serializers.ModelSerializer):
 class StockAdjustmentSerializer(serializers.Serializer):
     quantity_delta = serializers.IntegerField()
     reason = serializers.CharField(required=False, allow_blank=True)
+
+
+class ReservationShortfallSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source="medicine.brand_name", read_only=True)
+    batch_number = serializers.CharField(source="inventory_batch.batch_number", read_only=True)
+    is_open = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = ReservationShortfall
+        fields = [
+            "id",
+            "inventory_batch",
+            "batch_number",
+            "medicine",
+            "medicine_name",
+            "observed_on_hand",
+            "reserved_quantity",
+            "shortfall_units",
+            "sync_run",
+            "resolved_at",
+            "resolved_by",
+            "resolution_note",
+            "is_open",
+            "created_at",
+        ]
+        read_only_fields = [field for field in fields if field != "resolution_note"]
+
+
+class ReservationShortfallResolveSerializer(serializers.Serializer):
+    resolution_note = serializers.CharField(required=False, allow_blank=True, max_length=255)
 

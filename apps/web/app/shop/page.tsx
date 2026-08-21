@@ -194,7 +194,7 @@ export default function ShopSearchPage() {
         ))}
       </section>
 
-      {results.length > 0 ? <Notice>{results[0].disclaimer}</Notice> : null}
+      {results.length > 0 ? <Notice tone="muted">{results[0].disclaimer}</Notice> : null}
     </>
   );
 }

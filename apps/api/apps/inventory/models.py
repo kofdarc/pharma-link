@@ -22,6 +22,9 @@ class InventoryBatch(UUIDTimeStampedModel):
     low_stock_threshold = models.PositiveIntegerField(default=5)
     public_availability_enabled = models.BooleanField(default=True)
     is_archived = models.BooleanField(default=False)
+    last_pos_observed_at = models.DateTimeField(
+        null=True, blank=True, db_index=True, help_text="When a connected pharmacy's POS last confirmed this exact quantity, via sync."
+    )
     created_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="created_batches")
     updated_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="updated_batches")
 
@@ -82,3 +85,32 @@ class StockMovement(UUIDTimeStampedModel):
         if self.inventory_batch_id and self.pharmacy_id != self.inventory_batch.pharmacy_id:
             raise ValueError("Movement pharmacy must match batch pharmacy")
         super().save(*args, **kwargs)
+
+
+class ReservationShortfall(UUIDTimeStampedModel):
+    """
+    Raised when a POS sync reports fewer units on a batch's shelf than the platform has
+    already promised to shoppers via open StockReservations. The correction to
+    `current_quantity` is still applied - the POS is authoritative for its own shelf -
+    but the discrepancy is never silently absorbed by `available_quantity`'s
+    `max(0, ...)`. It is surfaced here for staff (or automated re-sourcing) to resolve.
+    """
+
+    inventory_batch = models.ForeignKey(InventoryBatch, on_delete=models.CASCADE, related_name="shortfalls")
+    pharmacy = models.ForeignKey("pharmacies.Pharmacy", on_delete=models.CASCADE, related_name="reservation_shortfalls", db_index=True)
+    medicine = models.ForeignKey("medicines.Medicine", on_delete=models.CASCADE, related_name="reservation_shortfalls")
+    observed_on_hand = models.PositiveIntegerField(help_text="What the POS reported on this sync.")
+    reserved_quantity = models.PositiveIntegerField(help_text="What the platform had promised to shoppers at detection time.")
+    shortfall_units = models.PositiveIntegerField()
+    sync_run = models.ForeignKey("integrations.SyncRun", null=True, blank=True, on_delete=models.SET_NULL, related_name="reservation_shortfalls")
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="resolved_reservation_shortfalls")
+    resolution_note = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["pharmacy", "resolved_at"])]
+
+    @property
+    def is_open(self) -> bool:
+        return self.resolved_at is None

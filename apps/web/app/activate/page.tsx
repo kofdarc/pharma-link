@@ -8,6 +8,7 @@ import type { Doctor, User } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 /**
  * Zero-onboarding activation.
@@ -59,7 +60,7 @@ export default function DoctorActivationPage() {
     <div className="center-screen">
       <div className="auth-card">
         <Link href="/" className="brand">
-          <span className="brand-mark">M</span>
+          <BrandMark />
           <span>PharmaLink</span>
         </Link>
         <h1>Activate your prescriber account</h1>

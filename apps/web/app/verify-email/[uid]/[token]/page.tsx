@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/api-client";
 import { Notice } from "@/components/ui/Notice";
 import { Button } from "@/components/ui/Button";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 export default function VerifyEmailPage() {
   const params = useParams<{ uid: string; token: string }>();
@@ -28,7 +29,7 @@ export default function VerifyEmailPage() {
     <div className="center-screen">
       <div className="auth-card">
         <Link href="/" className="brand">
-          <span className="brand-mark">M</span>
+          <BrandMark />
           <span>PharmaLink</span>
         </Link>
         <h1>Verify your email</h1>

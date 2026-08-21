@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { DeliveryRoute, Driver, RouteStop } from "@/types/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +17,7 @@ import { Notice } from "@/components/ui/Notice";
  * in a single list - which is the whole point of consolidating pickups.
  */
 export default function DriverConsolePage() {
+  const t = useTranslations();
   const [driver, setDriver] = useState<Driver | null>(null);
   const [route, setRoute] = useState<DeliveryRoute | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +35,7 @@ export default function DriverConsolePage() {
       setDriver(me);
       setRoute(current.route);
     } catch {
-      setError("Could not load your route.");
+      setError(t("driver.loadError"));
     } finally {
       setLoading(false);
     }
@@ -52,7 +54,7 @@ export default function DriverConsolePage() {
       setMessage(successMessage);
       await load();
     } catch (exception) {
-      setError((exception as ApiError).message || "That action failed.");
+      setError((exception as ApiError).message || t("driver.actionFailed"));
     } finally {
       setBusy(false);
     }
@@ -62,13 +64,13 @@ export default function DriverConsolePage() {
     if (!driver) return;
     void act(
       () => apiFetch("/driver/me/", { method: "PATCH", body: JSON.stringify({ is_online: !driver.is_online }) }),
-      driver.is_online ? "You are now offline." : "You are online and will be included in the next plan."
+      driver.is_online ? t("driver.nowOffline") : t("driver.nowOnline")
     );
   }
 
   function shareLocation() {
     if (!navigator.geolocation) {
-      setError("This browser cannot share your location.");
+      setError(t("driver.locationUnsupported"));
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -82,9 +84,9 @@ export default function DriverConsolePage() {
                 longitude: position.coords.longitude.toFixed(6)
               })
             }),
-          "Location updated. Future plans will start from where you are."
+          t("driver.locationUpdated")
         ),
-      () => setError("Location permission refused.")
+      () => setError(t("driver.locationDenied"))
     );
   }
 
@@ -100,17 +102,19 @@ export default function DriverConsolePage() {
         <div>
           <h1>{driver?.full_name}</h1>
           <p className="muted small">
-            {driver?.vehicle_type.toLowerCase()} · capacity {driver?.capacity_units} units
-            {driver?.last_ping_at ? ` · last location ${new Date(driver.last_ping_at).toLocaleTimeString()}` : ""}
+            {driver?.vehicle_type.toLowerCase()} · {t("driver.capacityUnits", { capacity: driver?.capacity_units ?? 0 })}
+            {driver?.last_ping_at
+              ? ` · ${t("driver.lastLocation", { when: new Date(driver.last_ping_at).toLocaleTimeString() })}`
+              : ""}
           </p>
         </div>
         <div className="actions">
-          <Badge tone={driver?.is_online ? "success" : "neutral"}>{driver?.is_online ? "Online" : "Offline"}</Badge>
+          <Badge tone={driver?.is_online ? "success" : "neutral"}>{driver?.is_online ? t("driver.online") : t("driver.offline")}</Badge>
           <Button type="button" variant="secondary" onClick={toggleOnline} disabled={busy}>
-            {driver?.is_online ? "Go offline" : "Go online"}
+            {driver?.is_online ? t("driver.goOffline") : t("driver.goOnline")}
           </Button>
           <Button type="button" variant="secondary" onClick={shareLocation} disabled={busy}>
-            Update my location
+            {t("driver.updateLocation")}
           </Button>
         </div>
       </div>
@@ -120,8 +124,8 @@ export default function DriverConsolePage() {
 
       {!route ? (
         <EmptyState
-          title="No route assigned yet."
-          detail={driver?.is_online ? "You are online. A route will appear when dispatch plans the next batch." : "Go online to be included in the next plan."}
+          title={t("driver.noRouteYet")}
+          detail={driver?.is_online ? t("driver.onlineWaitingHint") : t("driver.goOnlineHint")}
         />
       ) : null}
 
@@ -129,25 +133,23 @@ export default function DriverConsolePage() {
         <>
           <section className="panel route-summary">
             <div>
-              <span className="muted">Orders on this route</span>
+              <span className="muted">{t("driver.ordersOnRoute")}</span>
               <strong>{route.orders_count}</strong>
             </div>
             <div>
-              <span className="muted">Stops</span>
-              <strong>
-                {completed}/{stops.length} done
-              </strong>
+              <span className="muted">{t("driver.stops")}</span>
+              <strong>{t("driver.stopsDone", { completed, total: stops.length })}</strong>
             </div>
             <div>
-              <span className="muted">Planned distance</span>
+              <span className="muted">{t("driver.plannedDistance")}</span>
               <strong>{route.planned_distance_km} km</strong>
             </div>
             <div>
-              <span className="muted">Saved vs one trip each</span>
+              <span className="muted">{t("driver.savedVsOneTrip")}</span>
               <strong className="price">{route.distance_saved_km.toFixed(1)} km</strong>
             </div>
             <div>
-              <span className="muted">Est. duration</span>
+              <span className="muted">{t("driver.estDuration")}</span>
               <strong>{route.planned_duration_minutes} min</strong>
             </div>
             <Badge tone={route.status === "ACTIVE" ? "success" : "info"}>{route.status}</Badge>
@@ -157,13 +159,21 @@ export default function DriverConsolePage() {
 
           {route.status === "PROPOSED" || route.status === "OFFERED" ? (
             <section className="panel">
-              <h3>Accept this route?</h3>
+              <h3>{t("driver.acceptThisRoute")}</h3>
               <p className="muted">
-                {route.orders_count} order(s) across {stops.length} stops, {route.planned_distance_km} km in about{" "}
-                {route.planned_duration_minutes} minutes.
+                {t("driver.routeSummaryLine", {
+                  orders: route.orders_count,
+                  stops: stops.length,
+                  distance: route.planned_distance_km,
+                  duration: route.planned_duration_minutes
+                })}
               </p>
-              <Button type="button" onClick={() => void act(() => apiFetch(`/driver/routes/${route.id}/accept/`, { method: "POST" }), "Route accepted. Head to your first stop.")} disabled={busy}>
-                Accept route
+              <Button
+                type="button"
+                onClick={() => void act(() => apiFetch(`/driver/routes/${route.id}/accept/`, { method: "POST" }), t("driver.routeAccepted"))}
+                disabled={busy}
+              >
+                {t("driver.acceptRoute")}
               </Button>
             </section>
           ) : null}
@@ -172,9 +182,9 @@ export default function DriverConsolePage() {
             <section className="panel panel-highlight">
               <div className="section-header">
                 <div>
-                  <span className="muted small">NEXT STOP {nextStop.sequence}</span>
+                  <span className="muted small">{t("driver.nextStop", { sequence: nextStop.sequence })}</span>
                   <h2>
-                    {nextStop.kind === "PICKUP" ? "Collect at" : "Deliver to"} {nextStop.label}
+                    {nextStop.kind === "PICKUP" ? t("driver.collectAt") : t("driver.deliverTo")} {nextStop.label}
                   </h2>
                   <p className="muted">{nextStop.address}</p>
                 </div>
@@ -182,14 +192,14 @@ export default function DriverConsolePage() {
               </div>
 
               {nextStop.kind === "PICKUP" && nextStop.orders_served > 1 ? (
-                <Notice tone="success">
-                  One visit, {nextStop.orders_served} customers. Collect everything below before you leave.
-                </Notice>
+                <Notice tone="success">{t("driver.oneVisitMultiCustomer", { count: nextStop.orders_served })}</Notice>
               ) : null}
 
               <p className="muted small">
-                {nextStop.planned_arrival ? `Planned arrival ${new Date(nextStop.planned_arrival).toLocaleTimeString()}` : ""}
-                {nextStop.window_end ? ` · due by ${new Date(nextStop.window_end).toLocaleTimeString()}` : ""}
+                {nextStop.planned_arrival
+                  ? t("driver.plannedArrival", { when: new Date(nextStop.planned_arrival).toLocaleTimeString() })
+                  : ""}
+                {nextStop.window_end ? ` · ${t("driver.dueBy", { when: new Date(nextStop.window_end).toLocaleTimeString() })}` : ""}
               </p>
 
               <div className="stop-tasks">
@@ -199,10 +209,10 @@ export default function DriverConsolePage() {
                       <div>
                         <strong>{task.order_reference}</strong>
                         <p className="muted small">
-                          {nextStop.kind === "PICKUP" ? `For ${task.contact_name}` : task.contact_phone}
+                          {nextStop.kind === "PICKUP" ? t("driver.forContact", { name: task.contact_name }) : task.contact_phone}
                         </p>
                       </div>
-                      <span className="muted small">{task.units} unit(s)</span>
+                      <span className="muted small">{t("driver.unitsCount", { count: task.units })}</span>
                     </div>
                     <ul className="clean-list">
                       {task.lines.map((line, index) => (
@@ -213,14 +223,14 @@ export default function DriverConsolePage() {
                     </ul>
                     {nextStop.kind === "PICKUP" ? (
                       <label className="field">
-                        <span>Handover code from the pharmacist</span>
+                        <span>{t("driver.handoverCodeLabel")}</span>
                         <input
                           value={codes[task.order_fulfillment] ?? ""}
                           onChange={(event) => setCodes((current) => ({ ...current, [task.order_fulfillment]: event.target.value.replace(/\D/g, "").slice(0, 6) }))}
                           inputMode="numeric"
                           placeholder="000000"
                         />
-                        <small>Ask the pharmacist for the 6-digit code shown on their screen.</small>
+                        <small>{t("driver.handoverCodeHint")}</small>
                       </label>
                     ) : null}
                   </div>
@@ -229,8 +239,13 @@ export default function DriverConsolePage() {
 
               <div className="actions">
                 {nextStop.status === "PENDING" ? (
-                  <Button type="button" variant="secondary" onClick={() => void act(() => apiFetch(`/driver/stops/${nextStop.id}/arrive/`, { method: "POST" }), "Arrival recorded.")} disabled={busy}>
-                    I have arrived
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => void act(() => apiFetch(`/driver/stops/${nextStop.id}/arrive/`, { method: "POST" }), t("driver.arrivalRecorded"))}
+                    disabled={busy}
+                  >
+                    {t("driver.iHaveArrived")}
                   </Button>
                 ) : null}
 
@@ -248,20 +263,20 @@ export default function DriverConsolePage() {
                               )
                             })
                           }),
-                        "Collected. On to the next stop."
+                        t("driver.collected")
                       )
                     }
                     disabled={busy}
                   >
-                    Confirm everything collected
+                    {t("driver.confirmEverythingCollected")}
                   </Button>
                 ) : (
                   <Button
                     type="button"
-                    onClick={() => void act(() => apiFetch(`/driver/stops/${nextStop.id}/deliver/`, { method: "POST", body: JSON.stringify({ recipient_note: "" }) }), "Delivered.")}
+                    onClick={() => void act(() => apiFetch(`/driver/stops/${nextStop.id}/deliver/`, { method: "POST", body: JSON.stringify({ recipient_note: "" }) }), t("driver.delivered"))}
                     disabled={busy}
                   >
-                    Confirm delivered
+                    {t("driver.confirmDelivered")}
                   </Button>
                 )}
 
@@ -269,12 +284,12 @@ export default function DriverConsolePage() {
                   type="button"
                   variant="danger"
                   onClick={() => {
-                    const reason = window.prompt("What went wrong at this stop?");
-                    if (reason) void act(() => apiFetch(`/driver/stops/${nextStop.id}/fail/`, { method: "POST", body: JSON.stringify({ reason }) }), "Stop marked as failed.");
+                    const reason = window.prompt(t("driver.whatWentWrongPrompt"));
+                    if (reason) void act(() => apiFetch(`/driver/stops/${nextStop.id}/fail/`, { method: "POST", body: JSON.stringify({ reason }) }), t("driver.stopFailed"));
                   }}
                   disabled={busy}
                 >
-                  Cannot complete
+                  {t("driver.cannotComplete")}
                 </Button>
 
                 <a
@@ -283,7 +298,7 @@ export default function DriverConsolePage() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Navigate
+                  {t("driver.navigate")}
                 </a>
               </div>
             </section>
@@ -291,32 +306,29 @@ export default function DriverConsolePage() {
 
           <section className="panel">
             <div className="section-header">
-              <h3>Full route</h3>
+              <h3>{t("driver.fullRoute")}</h3>
               {route.status === "ACTIVE" ? (
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => void act(() => apiFetch(`/driver/routes/${route.id}/reoptimise/`, { method: "POST" }), "Remaining stops re-sequenced from your current position.")}
+                  onClick={() => void act(() => apiFetch(`/driver/routes/${route.id}/reoptimise/`, { method: "POST" }), t("driver.reoptimised"))}
                   disabled={busy || stops.filter((stop) => stop.status === "PENDING").length < 2}
                   title={
                     stops.filter((stop) => stop.status === "PENDING").length < 2
-                      ? "Nothing left to re-sequence — fewer than two stops remain."
-                      : "Re-sequence the stops you haven't visited yet, from your current position."
+                      ? t("driver.nothingToReoptimise")
+                      : t("driver.reoptimiseHint")
                   }
                 >
-                  Re-optimise what is left
+                  {t("driver.reoptimiseWhatIsLeft")}
                 </Button>
               ) : null}
             </div>
             <ol className="route-list">
               {stops.map((stop) => (
-                <StopRow key={stop.id} stop={stop} isNext={stop.id === nextStop?.id} />
+                <StopRow key={stop.id} stop={stop} isNext={stop.id === nextStop?.id} t={t} />
               ))}
             </ol>
-            <p className="muted small">
-              Plan version {route.plan_version}. Completed stops are never re-ordered, so re-optimising mid-shift is
-              always safe.
-            </p>
+            <p className="muted small">{t("driver.planVersionNote", { version: route.plan_version })}</p>
           </section>
         </>
       ) : null}
@@ -324,20 +336,20 @@ export default function DriverConsolePage() {
   );
 }
 
-function StopRow({ stop, isNext }: { stop: RouteStop; isNext: boolean }) {
+function StopRow({ stop, isNext, t }: { stop: RouteStop; isNext: boolean; t: ReturnType<typeof useTranslations> }) {
   const tone = stop.status === "DONE" ? "success" : stop.status === "FAILED" ? "danger" : isNext ? "warning" : "neutral";
   return (
     <li className={isNext ? "route-item route-item-next" : "route-item"}>
       <div>
         <strong>
-          {stop.sequence}. {stop.kind === "PICKUP" ? "Pick up" : "Deliver"} — {stop.label}
+          {stop.sequence}. {stop.kind === "PICKUP" ? t("driver.pickUp") : t("driver.deliver")} — {stop.label}
         </strong>
         <p className="muted small">
-          {stop.orders_served > 1 ? `${stop.orders_served} orders in one visit · ` : ""}
-          {stop.units} unit(s)
+          {stop.orders_served > 1 ? t("driver.ordersInOneVisit", { count: stop.orders_served }) : ""}
+          {t("driver.unitsCount", { count: stop.units })}
           {stop.planned_arrival ? ` · ~${new Date(stop.planned_arrival).toLocaleTimeString()}` : ""}
         </p>
-        {stop.failure_reason ? <p className="muted small">Failed: {stop.failure_reason}</p> : null}
+        {stop.failure_reason ? <p className="muted small">{t("driver.failedReason", { reason: stop.failure_reason })}</p> : null}
       </div>
       <Badge tone={tone}>{stop.status}</Badge>
     </li>

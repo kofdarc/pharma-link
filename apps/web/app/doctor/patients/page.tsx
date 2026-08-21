@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, asList } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import { groupPatients } from "@/lib/patients";
 import { draftFromPrescription, saveDraft } from "@/lib/rxDraft";
 import type { Paginated, Prescription } from "@/types/api";
@@ -22,6 +23,7 @@ function tone(status: string) {
 }
 
 export default function DoctorPatientsPage() {
+  const t = useTranslations();
   const router = useRouter();
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +34,7 @@ export default function DoctorPatientsPage() {
   useEffect(() => {
     apiFetch<Paginated<Prescription> | Prescription[]>("/doctor/prescriptions/")
       .then((payload) => setPrescriptions(asList(payload)))
-      .catch(() => setError("Could not load your patients."))
+      .catch(() => setError(t("doctorPatients.loadError")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -60,8 +62,8 @@ export default function DoctorPatientsPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Patients</h1>
-          <p className="muted">Everyone you have written a prescription for, grouped from your prescription history.</p>
+          <h1>{t("doctorPatients.title")}</h1>
+          <p className="muted">{t("doctorPatients.subtitle")}</p>
         </div>
       </div>
 
@@ -71,23 +73,23 @@ export default function DoctorPatientsPage() {
       {!loading ? (
         <section className="panel">
           <div className="search-bar">
-            <Field label="Search">
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, email or phone" />
+            <Field label={t("doctorPatients.search")}>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("doctorPatients.searchPlaceholder")} />
             </Field>
           </div>
 
           {filtered.length === 0 ? (
-            <EmptyState title="No patients yet." detail="Patients appear here once you issue their first prescription." />
+            <EmptyState title={t("doctorPatients.noPatients")} detail={t("doctorPatients.noPatientsHint")} />
           ) : (
             <Table>
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Patient</th>
-                    <th>Contact</th>
-                    <th>Prescriptions</th>
-                    <th>Last issued</th>
-                    <th>Last status</th>
+                    <th>{t("doctorPatients.patient")}</th>
+                    <th>{t("doctorPatients.contact")}</th>
+                    <th>{t("doctorPatients.prescriptions")}</th>
+                    <th>{t("doctorPatients.lastIssued")}</th>
+                    <th>{t("doctorPatients.lastStatus")}</th>
                     <th />
                   </tr>
                 </thead>
@@ -109,7 +111,7 @@ export default function DoctorPatientsPage() {
                       </td>
                       <td>
                         <Button type="button" variant="secondary" onClick={() => setSelectedKey(patient.key)}>
-                          Open
+                          {t("doctorPatients.open")}
                         </Button>
                       </td>
                     </tr>
@@ -127,16 +129,16 @@ export default function DoctorPatientsPage() {
             <div>
               <h2>{selected.name}</h2>
               <p className="muted small">
-                {selected.email || "No email on file"}
+                {selected.email || t("doctorPatients.noEmailOnFile")}
                 {selected.phone ? ` · ${selected.phone}` : ""}
               </p>
             </div>
             <div className="toolbar">
               <Button type="button" variant="primary" onClick={() => prescribeAgain(selected.prescriptions[0])}>
-                Prescribe again
+                {t("doctorPatients.prescribeAgain")}
               </Button>
               <Button type="button" variant="secondary" onClick={() => setSelectedKey(null)}>
-                Close
+                {t("doctorPatients.close")}
               </Button>
             </div>
           </div>
@@ -150,28 +152,41 @@ export default function DoctorPatientsPage() {
                       <code>{prescription.code}</code>
                     </Link>{" "}
                     <span className="muted small">
-                      issued {new Date(prescription.issued_at).toLocaleDateString()} · valid until{" "}
-                      {new Date(prescription.valid_until).toLocaleDateString()}
+                      {t("doctorPatients.issuedValidUntil", {
+                        issued: new Date(prescription.issued_at).toLocaleDateString(),
+                        until: new Date(prescription.valid_until).toLocaleDateString()
+                      })}
                     </span>
                   </div>
                   <div className="toolbar">
                     <Badge tone={tone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
                     <Button type="button" variant="secondary" onClick={() => prescribeAgain(prescription)}>
-                      Prescribe again
+                      {t("doctorPatients.prescribeAgain")}
                     </Button>
                   </div>
                 </div>
-                {prescription.diagnosis_note ? <p className="muted small">Note: {prescription.diagnosis_note}</p> : null}
+                {prescription.diagnosis_note ? (
+                  <p className="muted small">{t("doctorPatients.note", { note: prescription.diagnosis_note })}</p>
+                ) : null}
                 <ul className="clean-list">
                   {prescription.items.map((item) => (
                     <li key={item.id}>
-                      {item.medicine_text} — {item.quantity_dispensed}/{item.quantity_prescribed} {item.unit} dispensed
+                      {item.medicine_text} —{" "}
+                      {t("doctorPatients.dispensedCount", {
+                        dispensed: item.quantity_dispensed,
+                        prescribed: item.quantity_prescribed,
+                        unit: item.unit
+                      })}
                       {item.dosage_instructions ? ` · ${item.dosage_instructions}` : ""}
                     </li>
                   ))}
                 </ul>
                 {prescription.dispenses.length > 0 ? (
-                  <p className="muted small">Dispensed at: {prescription.dispenses.map((entry) => entry.pharmacy_name).join(", ")}</p>
+                  <p className="muted small">
+                    {t("doctorPatients.dispensedAt", {
+                      pharmacies: prescription.dispenses.map((entry) => entry.pharmacy_name).join(", ")
+                    })}
+                  </p>
                 ) : null}
               </li>
             ))}

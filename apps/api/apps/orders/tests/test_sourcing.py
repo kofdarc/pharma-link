@@ -458,3 +458,46 @@ class PrescriptionRequirementTests(SourcingTestCase):
             place_order(
                 customer=self.shopper, items=[{"medicine": str(self.nexium.id), "quantity": 2}], address=self.address, prescription=prescription
             )
+
+
+class ConnectorFreshnessSourcingTests(SourcingTestCase):
+    """
+    Sourcing should not trust a connector-fed pharmacy's stock as much once its last POS
+    observation is old - a pharmacy whose connector has gone quiet can still show units
+    that sold out on the shelf hours ago.
+    """
+
+    def test_a_stale_connector_can_lose_a_basket_it_would_otherwise_win_on_distance(self):
+        # Hamra is far nearer to the shopper than Achrafieh (see distances above), so it
+        # wins on cost alone. A very stale POS observation should be enough to flip that.
+        self.stock(self.hamra, self.panadol, 20)
+        self.stock(self.achrafieh, self.panadol, 20)
+
+        fresh_plan = self.quote([{"medicine": str(self.panadol.id), "quantity": 2}])
+        self.assertEqual(fresh_plan["allocations"][0]["pharmacy"], self.hamra.id, "sanity check: nearer pharmacy wins when both are equally fresh")
+
+        InventoryBatch.objects.filter(pharmacy=self.hamra, medicine=self.panadol).update(
+            last_pos_observed_at=timezone.now() - timezone.timedelta(hours=200)
+        )
+
+        stale_plan = self.quote([{"medicine": str(self.panadol.id), "quantity": 2}])
+        self.assertEqual(stale_plan["allocations"][0]["pharmacy"], self.achrafieh.id, "a connector dead for days should lose to a fresher, farther pharmacy")
+
+    def test_freshness_within_the_grace_window_is_not_penalised(self):
+        self.stock(self.hamra, self.panadol, 20)
+        self.stock(self.achrafieh, self.panadol, 20)
+        InventoryBatch.objects.filter(pharmacy=self.hamra, medicine=self.panadol).update(last_pos_observed_at=timezone.now() - timezone.timedelta(hours=1))
+
+        plan = self.quote([{"medicine": str(self.panadol.id), "quantity": 2}])
+
+        self.assertEqual(plan["allocations"][0]["pharmacy"], self.hamra.id, "a sync from an hour ago is live, not stale - the nearer pharmacy should still win")
+
+    def test_dashboard_managed_stock_with_no_observation_is_never_penalised(self):
+        # Never-synced batches have last_pos_observed_at = None; that must read as "live",
+        # not as maximally stale, or every dashboard-only pharmacy would rank last.
+        self.stock(self.hamra, self.panadol, 20)
+        self.stock(self.achrafieh, self.panadol, 20)
+
+        plan = self.quote([{"medicine": str(self.panadol.id), "quantity": 2}])
+
+        self.assertEqual(plan["allocations"][0]["pharmacy"], self.hamra.id)

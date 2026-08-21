@@ -14,6 +14,7 @@ import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 import { ProductThumb } from "@/components/ui/ProductThumb";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 function SearchClient() {
   const params = useSearchParams();
@@ -59,7 +60,7 @@ function SearchClient() {
     <div className="public-shell">
       <header className="public-header">
         <Link href="/" className="brand">
-          <span className="brand-mark">M</span>
+          <BrandMark />
           <span>PharmaLink</span>
         </Link>
         <div className="actions">
@@ -94,7 +95,7 @@ function SearchClient() {
               {t("search.clear")}
             </Button>
           </form>
-          <Notice>{t("search.disclaimer")}</Notice>
+          <Notice tone="muted">{t("search.disclaimer")}</Notice>
         </section>
 
         {loading ? <div className="skeleton-card" /> : null}

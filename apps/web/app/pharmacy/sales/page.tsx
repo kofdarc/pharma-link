@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch, asList } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { Sale } from "@/types/api";
 import { Badge, statusTone } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
@@ -11,13 +12,15 @@ import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
 
 export default function SalesPage() {
+  const t = useTranslations();
   const [sales, setSales] = useState<Sale[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     apiFetch<Sale[] | { results: Sale[] }>("/pharmacy/sales/")
       .then((payload) => setSales(asList(payload)))
-      .catch(() => setError("Sales failed to load."));
+      .catch(() => setError(t("pharmacySales.loadError")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const total = sales.reduce((sum, sale) => sum + Number(sale.total), 0);
@@ -26,34 +29,34 @@ export default function SalesPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Sales and invoices</h1>
-          <p>Completed sales deduct inventory and create invoice records.</p>
+          <h1>{t("pharmacySales.title")}</h1>
+          <p>{t("pharmacySales.subtitle")}</p>
         </div>
         <LinkButton href="/pharmacy/sales/new" variant="primary">
-          Create sale
+          {t("pharmacySales.createSale")}
         </LinkButton>
       </div>
       <section className="metrics-grid">
         <div className="metric-card">
-          <span>Invoices</span>
+          <span>{t("pharmacySales.invoices")}</span>
           <strong>{sales.length}</strong>
         </div>
         <div className="metric-card">
-          <span>Total revenue</span>
+          <span>{t("pharmacySales.totalRevenue")}</span>
           <strong>${total.toFixed(2)}</strong>
         </div>
       </section>
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      {sales.length === 0 ? <EmptyState title="No sales recorded yet." /> : null}
+      {sales.length === 0 ? <EmptyState title={t("pharmacySales.noSalesYet")} /> : null}
       <Table>
         <table>
           <thead>
             <tr>
-              <th>Invoice</th>
-              <th>Date</th>
-              <th>Staff</th>
-              <th>Status</th>
-              <th>Total</th>
+              <th>{t("pharmacySales.invoice")}</th>
+              <th>{t("pharmacySales.date")}</th>
+              <th>{t("pharmacySales.staff")}</th>
+              <th>{t("pharmacySales.status")}</th>
+              <th>{t("pharmacySales.total")}</th>
             </tr>
           </thead>
           <tbody>

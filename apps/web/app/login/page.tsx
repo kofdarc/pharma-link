@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 function LoginForm() {
   const router = useRouter();
@@ -45,7 +46,7 @@ function LoginForm() {
       <section className="panel login-card">
         <div className="section-header">
           <Link href="/" className="brand">
-            <span className="brand-mark">M</span>
+            <BrandMark />
             <span>PharmaLink</span>
           </Link>
           <LanguageSwitcher />

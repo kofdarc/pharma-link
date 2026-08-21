@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch, asList } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { IntegrationKey, Medicine, OnboardingStatus, Paginated, SkuMapping, SyncRun, WebhookEndpoint } from "@/types/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +19,7 @@ import { Table } from "@/components/ui/Table";
  * keeps stock in sync.
  */
 export default function ConnectPage() {
+  const t = useTranslations();
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [keys, setKeys] = useState<IntegrationKey[]>([]);
   const [newSecret, setNewSecret] = useState<IntegrationKey | null>(null);
@@ -47,9 +49,9 @@ export default function ConnectPage() {
       setCatalog(asList(catalogData));
       setWebhooks(asList(webhookData));
     } catch {
-      setError("Could not load the connection settings.");
+      setError(t("pharmacyConnect.loadError"));
     }
-  }, [unmappedOnly]);
+  }, [unmappedOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     void load();
@@ -65,15 +67,15 @@ export default function ConnectPage() {
       setNewSecret(created);
       void load();
     } catch (exception) {
-      setError((exception as ApiError).message || "Only the pharmacy owner can issue integration keys.");
+      setError((exception as ApiError).message || t("pharmacyConnect.keyIssueFailed"));
     }
   }
 
   async function revokeKey(key: IntegrationKey) {
-    if (!window.confirm(`Revoke ${key.key_id}? Any software using it will stop syncing immediately.`)) return;
+    if (!window.confirm(t("pharmacyConnect.revokeConfirm", { keyId: key.key_id }))) return;
     try {
       await apiFetch(`/pharmacy/integration-keys/${key.id}/`, { method: "DELETE" });
-      setMessage("Key revoked.");
+      setMessage(t("pharmacyConnect.keyRevoked"));
       void load();
     } catch (exception) {
       setError((exception as ApiError).message);
@@ -86,18 +88,18 @@ export default function ConnectPage() {
     try {
       await apiFetch("/pharmacy/webhooks/", { method: "POST", body: JSON.stringify({ url: newWebhookUrl.trim(), events: [] }) });
       setNewWebhookUrl("");
-      setMessage("Webhook added.");
+      setMessage(t("pharmacyConnect.webhookAdded"));
       void load();
     } catch (exception) {
-      setError((exception as ApiError).message || "Could not add that webhook.");
+      setError((exception as ApiError).message || t("pharmacyConnect.webhookAddFailed"));
     }
   }
 
   async function removeWebhook(webhook: WebhookEndpoint) {
-    if (!window.confirm(`Remove the webhook to ${webhook.url}?`)) return;
+    if (!window.confirm(t("pharmacyConnect.webhookRemoveConfirm", { url: webhook.url }))) return;
     try {
       await apiFetch(`/pharmacy/webhooks/${webhook.id}/`, { method: "DELETE" });
-      setMessage("Webhook removed.");
+      setMessage(t("pharmacyConnect.webhookRemoved"));
       void load();
     } catch (exception) {
       setError((exception as ApiError).message);
@@ -110,7 +112,11 @@ export default function ConnectPage() {
         method: "PATCH",
         body: JSON.stringify(medicineId ? { medicine: medicineId } : { is_ignored: true })
       });
-      setMessage(medicineId ? `${mapping.external_code} mapped.` : `${mapping.external_code} will be ignored.`);
+      setMessage(
+        medicineId
+          ? t("pharmacyConnect.mappedMessage", { code: mapping.external_code })
+          : t("pharmacyConnect.ignoredMessage", { code: mapping.external_code })
+      );
       void load();
     } catch (exception) {
       setError((exception as ApiError).message);
@@ -121,11 +127,8 @@ export default function ConnectPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Connect your pharmacy software</h1>
-          <p className="muted">
-            Keep the system you already use. The connector reads whatever your software can export and pushes changes
-            to PharmaLink; your product codes stay yours.
-          </p>
+          <h1>{t("pharmacyConnect.title")}</h1>
+          <p className="muted">{t("pharmacyConnect.subtitle")}</p>
         </div>
       </div>
 
@@ -135,9 +138,9 @@ export default function ConnectPage() {
       {status ? (
         <section className="panel">
           <div className="section-header">
-            <h3>Setup progress</h3>
+            <h3>{t("pharmacyConnect.setupProgress")}</h3>
             <Badge tone={status.completed_steps === status.total_steps ? "success" : "warning"}>
-              {status.completed_steps} of {status.total_steps} done
+              {t("pharmacyConnect.doneOfTotal", { done: status.completed_steps, total: status.total_steps })}
             </Badge>
           </div>
           <ol className="checklist">
@@ -152,28 +155,23 @@ export default function ConnectPage() {
               </li>
             ))}
           </ol>
-          <p className="muted small">
-            Each step is checked against real data, not a tick box — so &quot;done&quot; always means it actually works.
-          </p>
+          <p className="muted small">{t("pharmacyConnect.eachStepChecked")}</p>
         </section>
       ) : null}
 
       {newSecret?.secret ? (
         <section className="panel panel-highlight">
-          <h3>Your new integration key</h3>
-          <Notice tone="danger">
-            The secret is shown <strong>once</strong>. Copy it into the connector config now — there is no endpoint
-            that can retrieve it again.
-          </Notice>
+          <h3>{t("pharmacyConnect.newIntegrationKey")}</h3>
+          <Notice tone="danger">{t("pharmacyConnect.secretShownOnce")}</Notice>
           <dl className="detail-grid">
             <div>
-              <dt>Key id</dt>
+              <dt>{t("pharmacyConnect.keyId")}</dt>
               <dd>
                 <code>{newSecret.key_id}</code>
               </dd>
             </div>
             <div>
-              <dt>Secret</dt>
+              <dt>{t("pharmacyConnect.secret")}</dt>
               <dd>
                 <code className="big-code">{newSecret.secret}</code>
               </dd>
@@ -181,31 +179,31 @@ export default function ConnectPage() {
           </dl>
           <p className="muted small">{newSecret.setup_hint}</p>
           <Button type="button" variant="secondary" onClick={() => setNewSecret(null)}>
-            I have saved it
+            {t("pharmacyConnect.iHaveSavedIt")}
           </Button>
         </section>
       ) : null}
 
       <section className="panel">
         <div className="section-header">
-          <h3>Integration keys</h3>
+          <h3>{t("pharmacyConnect.integrationKeys")}</h3>
           <Button type="button" onClick={createKey}>
-            Issue a key
+            {t("pharmacyConnect.issueAKey")}
           </Button>
         </div>
         {keys.length === 0 ? (
-          <EmptyState title="No keys yet." detail="Issue one, then paste it into the connector's config file." />
+          <EmptyState title={t("pharmacyConnect.noKeysYet")} detail={t("pharmacyConnect.issueKeyHint")} />
         ) : (
           <Table>
             <table className="table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Key id</th>
-                  <th>Scopes</th>
-                  <th>Requests</th>
-                  <th>Last used</th>
-                  <th>Status</th>
+                  <th>{t("pharmacyConnect.name")}</th>
+                  <th>{t("pharmacyConnect.keyId")}</th>
+                  <th>{t("pharmacyConnect.scopes")}</th>
+                  <th>{t("pharmacyConnect.requests")}</th>
+                  <th>{t("pharmacyConnect.lastUsed")}</th>
+                  <th>{t("pharmacyConnect.status")}</th>
                   <th />
                 </tr>
               </thead>
@@ -218,14 +216,18 @@ export default function ConnectPage() {
                     </td>
                     <td className="muted small">{key.scopes.join(", ")}</td>
                     <td>{key.request_count}</td>
-                    <td className="muted small">{key.last_used_at ? new Date(key.last_used_at).toLocaleString() : "never"}</td>
+                    <td className="muted small">
+                      {key.last_used_at ? new Date(key.last_used_at).toLocaleString() : t("pharmacyConnect.never")}
+                    </td>
                     <td>
-                      <Badge tone={key.is_active ? "success" : "neutral"}>{key.is_active ? "Active" : "Revoked"}</Badge>
+                      <Badge tone={key.is_active ? "success" : "neutral"}>
+                        {key.is_active ? t("pharmacyConnect.active") : t("pharmacyConnect.revoked")}
+                      </Badge>
                     </td>
                     <td>
                       {key.is_active ? (
                         <Button type="button" variant="danger" onClick={() => revokeKey(key)}>
-                          Revoke
+                          {t("pharmacyConnect.revoke")}
                         </Button>
                       ) : null}
                     </td>
@@ -235,38 +237,35 @@ export default function ConnectPage() {
             </table>
           </Table>
         )}
-        <p className="muted small">
-          Every request is signed, so no password travels and a captured request cannot be replayed or re-pointed at
-          another endpoint.
-        </p>
+        <p className="muted small">{t("pharmacyConnect.signedRequestsNote")}</p>
       </section>
 
       <section className="panel">
         <div className="section-header">
           <div>
-            <h3>Your product codes</h3>
-            <p className="muted small">
-              One-time mapping per code. Obvious names are matched automatically; the rest need a single choice from
-              you, and then your software syncs untouched forever.
-            </p>
+            <h3>{t("pharmacyConnect.yourProductCodes")}</h3>
+            <p className="muted small">{t("pharmacyConnect.mappingHint")}</p>
           </div>
           <Button type="button" variant="secondary" onClick={() => setUnmappedOnly((current) => !current)}>
-            {unmappedOnly ? "Show all codes" : "Show unmapped only"}
+            {unmappedOnly ? t("pharmacyConnect.showAllCodes") : t("pharmacyConnect.showUnmappedOnly")}
           </Button>
         </div>
 
         {mappings.length === 0 ? (
-          <EmptyState title={unmappedOnly ? "Nothing left to map." : "No product codes seen yet."} detail="Codes appear here after the connector's first sync." />
+          <EmptyState
+            title={unmappedOnly ? t("pharmacyConnect.nothingLeftToMap") : t("pharmacyConnect.noCodesSeenYet")}
+            detail={t("pharmacyConnect.codesAppearHint")}
+          />
         ) : (
           <Table>
             <table className="table">
               <thead>
                 <tr>
-                  <th>Your code</th>
-                  <th>Your description</th>
-                  <th>Matched to</th>
-                  <th>How</th>
-                  <th>Map it</th>
+                  <th>{t("pharmacyConnect.yourCode")}</th>
+                  <th>{t("pharmacyConnect.yourDescription")}</th>
+                  <th>{t("pharmacyConnect.matchedTo")}</th>
+                  <th>{t("pharmacyConnect.how")}</th>
+                  <th>{t("pharmacyConnect.mapIt")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -276,7 +275,7 @@ export default function ConnectPage() {
                       <code>{mapping.external_code}</code>
                     </td>
                     <td>{mapping.external_name || "—"}</td>
-                    <td>{mapping.medicine_detail?.display_name || <span className="muted">unmapped</span>}</td>
+                    <td>{mapping.medicine_detail?.display_name || <span className="muted">{t("pharmacyConnect.unmapped")}</span>}</td>
                     <td>
                       <Badge tone={mapping.match_method === "UNMATCHED" ? "danger" : mapping.match_method === "AUTO_FUZZY" ? "warning" : "success"}>
                         {mapping.match_method.replace(/_/g, " ").toLowerCase()}
@@ -284,7 +283,7 @@ export default function ConnectPage() {
                     </td>
                     <td>
                       <select value={mapping.medicine || ""} onChange={(event) => mapCode(mapping, event.target.value)}>
-                        <option value="">Ignore this code</option>
+                        <option value="">{t("pharmacyConnect.ignoreThisCode")}</option>
                         {catalog.map((medicine) => (
                           <option key={medicine.id} value={medicine.id}>
                             {medicine.display_name}
@@ -301,21 +300,21 @@ export default function ConnectPage() {
       </section>
 
       <section className="panel">
-        <h3>Sync history</h3>
+        <h3>{t("pharmacyConnect.syncHistory")}</h3>
         {runs.length === 0 ? (
-          <EmptyState title="No syncs yet." />
+          <EmptyState title={t("pharmacyConnect.noSyncsYet")} />
         ) : (
           <Table>
             <table className="table">
               <thead>
                 <tr>
-                  <th>When</th>
-                  <th>Kind</th>
-                  <th>Status</th>
-                  <th>Received</th>
-                  <th>Applied</th>
-                  <th>Unmapped</th>
-                  <th>Failed</th>
+                  <th>{t("pharmacyConnect.when")}</th>
+                  <th>{t("pharmacyConnect.kind")}</th>
+                  <th>{t("pharmacyConnect.status")}</th>
+                  <th>{t("pharmacyConnect.received")}</th>
+                  <th>{t("pharmacyConnect.applied")}</th>
+                  <th>{t("pharmacyConnect.unmatched")}</th>
+                  <th>{t("pharmacyConnect.failed")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -341,15 +340,12 @@ export default function ConnectPage() {
       <section className="panel">
         <div className="section-header">
           <div>
-            <h3>Webhooks</h3>
-            <p className="muted small">
-              Get a signed HTTP POST to your own software when something happens on the platform (a new order,
-              a stock sync completing), instead of polling for changes.
-            </p>
+            <h3>{t("pharmacyConnect.webhooks")}</h3>
+            <p className="muted small">{t("pharmacyConnect.webhooksHint")}</p>
           </div>
         </div>
         <div className="form-grid">
-          <Field label="Endpoint URL">
+          <Field label={t("pharmacyConnect.endpointUrl")}>
             <input
               value={newWebhookUrl}
               onChange={(event) => setNewWebhookUrl(event.target.value)}
@@ -357,20 +353,20 @@ export default function ConnectPage() {
             />
           </Field>
           <Button type="button" onClick={addWebhook}>
-            Add webhook
+            {t("pharmacyConnect.addWebhook")}
           </Button>
         </div>
         {webhooks.length === 0 ? (
-          <EmptyState title="No webhooks configured." />
+          <EmptyState title={t("pharmacyConnect.noWebhooksConfigured")} />
         ) : (
           <Table>
             <table className="table">
               <thead>
                 <tr>
-                  <th>URL</th>
-                  <th>Status</th>
-                  <th>Last delivery</th>
-                  <th>Consecutive failures</th>
+                  <th>{t("pharmacyConnect.url")}</th>
+                  <th>{t("pharmacyConnect.status")}</th>
+                  <th>{t("pharmacyConnect.lastDelivery")}</th>
+                  <th>{t("pharmacyConnect.consecutiveFailures")}</th>
                   <th />
                 </tr>
               </thead>
@@ -381,13 +377,17 @@ export default function ConnectPage() {
                       <code>{webhook.url}</code>
                     </td>
                     <td>
-                      <Badge tone={webhook.is_active ? "success" : "neutral"}>{webhook.is_active ? "Active" : "Disabled"}</Badge>
+                      <Badge tone={webhook.is_active ? "success" : "neutral"}>
+                        {webhook.is_active ? t("pharmacyConnect.active") : t("pharmacyConnect.disabled")}
+                      </Badge>
                     </td>
-                    <td className="muted small">{webhook.last_delivery_at ? new Date(webhook.last_delivery_at).toLocaleString() : "never"}</td>
+                    <td className="muted small">
+                      {webhook.last_delivery_at ? new Date(webhook.last_delivery_at).toLocaleString() : t("pharmacyConnect.never")}
+                    </td>
                     <td>{webhook.consecutive_failures}</td>
                     <td>
                       <Button type="button" variant="danger" onClick={() => removeWebhook(webhook)}>
-                        Remove
+                        {t("pharmacyConnect.remove")}
                       </Button>
                     </td>
                   </tr>
@@ -399,11 +399,8 @@ export default function ConnectPage() {
       </section>
 
       <section className="panel">
-        <h3>Running the connector</h3>
-        <p className="muted small">
-          A single Python file with no dependencies. It runs on the counter PC, reads your existing export (CSV or a
-          read-only database query), and pushes only what changed.
-        </p>
+        <h3>{t("pharmacyConnect.runningConnector")}</h3>
+        <p className="muted small">{t("pharmacyConnect.connectorDescription")}</p>
         <pre className="code-block">
 {`# 1. Copy the connector and its config
 copy tools\\connector\\pharmalink_connector.py C:\\PharmaLink\\
@@ -417,10 +414,7 @@ python pharmalink_connector.py --config connector.config.json --check
 # 4. Run it continuously (or use --once from Task Scheduler)
 python pharmalink_connector.py --config connector.config.json`}
         </pre>
-        <p className="muted small">
-          Stock is reconciled to whatever level your software reports, and the difference is written as a stock
-          movement — so your ledger still explains every change.
-        </p>
+        <p className="muted small">{t("pharmacyConnect.stockReconciledNote")}</p>
       </section>
     </>
   );

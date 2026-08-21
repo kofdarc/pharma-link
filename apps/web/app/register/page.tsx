@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 /** Shopper self-signup. Only the CUSTOMER role can be self-assigned. */
 export default function RegisterPage() {
@@ -45,7 +46,7 @@ export default function RegisterPage() {
       <div className="auth-card">
         <div className="section-header">
           <Link href="/" className="brand">
-            <span className="brand-mark">M</span>
+            <BrandMark />
             <span>PharmaLink</span>
           </Link>
           <LanguageSwitcher />

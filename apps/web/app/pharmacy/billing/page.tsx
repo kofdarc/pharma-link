@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch, asList } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { Paginated, PharmacySubscription, PlatformServiceFee } from "@/types/api";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -15,6 +16,7 @@ function feeTone(status: PlatformServiceFee["status"]) {
 }
 
 export default function PharmacyBillingPage() {
+  const t = useTranslations();
   const [subscription, setSubscription] = useState<PharmacySubscription | null>(null);
   const [fees, setFees] = useState<PlatformServiceFee[]>([]);
   const [error, setError] = useState("");
@@ -29,7 +31,7 @@ export default function PharmacyBillingPage() {
       setSubscription(subscriptionResult);
       setFees(asList(feeData));
     } catch {
-      setError("Could not load your billing information.");
+      setError(t("pharmacyBilling.loadError"));
     } finally {
       setLoading(false);
     }
@@ -47,31 +49,31 @@ export default function PharmacyBillingPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Billing</h1>
-          <p className="muted">Your subscription plan and the per-request service fees it charges.</p>
+          <h1>{t("pharmacyBilling.title")}</h1>
+          <p className="muted">{t("pharmacyBilling.subtitle")}</p>
         </div>
       </div>
 
       {error ? <Notice tone="danger">{error}</Notice> : null}
 
       <section className="panel">
-        <h3>Subscription</h3>
+        <h3>{t("pharmacyBilling.subscription")}</h3>
         {subscription ? (
           <dl className="detail-grid">
             <div>
-              <dt>Plan</dt>
+              <dt>{t("pharmacyBilling.plan")}</dt>
               <dd>{subscription.plan_detail.name}</dd>
             </div>
             <div>
-              <dt>Monthly fee</dt>
+              <dt>{t("pharmacyBilling.monthlyFee")}</dt>
               <dd>${subscription.plan_detail.monthly_fee}</dd>
             </div>
             <div>
-              <dt>Per-request fee</dt>
+              <dt>{t("pharmacyBilling.perRequestFee")}</dt>
               <dd>${subscription.plan_detail.service_fee_per_request}</dd>
             </div>
             <div>
-              <dt>Status</dt>
+              <dt>{t("pharmacyBilling.status")}</dt>
               <dd>
                 <Badge tone={subscription.status === "ACTIVE" ? "success" : subscription.status === "PAST_DUE" ? "warning" : "neutral"}>
                   {subscription.status}
@@ -80,30 +82,27 @@ export default function PharmacyBillingPage() {
             </div>
           </dl>
         ) : (
-          <EmptyState title="No subscription on file." detail="Contact PharmaLink to get set up on a plan." />
+          <EmptyState title={t("pharmacyBilling.noSubscription")} detail={t("pharmacyBilling.noSubscriptionHint")} />
         )}
       </section>
 
       <section className="panel">
         <div className="section-header">
-          <h3>Service fees</h3>
-          <span className="muted small">${pendingTotal.toFixed(2)} pending</span>
+          <h3>{t("pharmacyBilling.serviceFees")}</h3>
+          <span className="muted small">{t("pharmacyBilling.pendingAmount", { amount: `$${pendingTotal.toFixed(2)}` })}</span>
         </div>
-        <p className="muted small">
-          Charged automatically each time you accept an order request routed through the platform. A zero-fee plan or
-          no active subscription means these are never charged.
-        </p>
+        <p className="muted small">{t("pharmacyBilling.feesChargedHint")}</p>
         {fees.length === 0 ? (
-          <EmptyState title="No service fees yet." />
+          <EmptyState title={t("pharmacyBilling.noFeesYet")} />
         ) : (
           <Table>
             <table className="table">
               <thead>
                 <tr>
-                  <th>Order</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Charged</th>
+                  <th>{t("pharmacyBilling.order")}</th>
+                  <th>{t("pharmacyBilling.amount")}</th>
+                  <th>{t("pharmacyBilling.status")}</th>
+                  <th>{t("pharmacyBilling.charged")}</th>
                 </tr>
               </thead>
               <tbody>

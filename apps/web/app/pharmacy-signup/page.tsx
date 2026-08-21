@@ -6,6 +6,7 @@ import { ApiError, apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 /** Public: how a prospective pharmacy asks to join, since only a platform admin can create a Pharmacy directly. */
 export default function PharmacySignupPage() {
@@ -45,7 +46,7 @@ export default function PharmacySignupPage() {
       <div className="center-screen">
         <div className="auth-card">
           <Link href="/" className="brand">
-            <span className="brand-mark">M</span>
+            <BrandMark />
             <span>PharmaLink</span>
           </Link>
           <h1>Application received</h1>
@@ -61,7 +62,7 @@ export default function PharmacySignupPage() {
     <div className="center-screen">
       <div className="auth-card">
         <Link href="/" className="brand">
-          <span className="brand-mark">M</span>
+          <BrandMark />
           <span>PharmaLink</span>
         </Link>
         <h1>Bring your pharmacy onto PharmaLink</h1>

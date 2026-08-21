@@ -2,18 +2,21 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { Pharmacy } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 
 export default function PharmacySettingsPage() {
+  const t = useTranslations();
   const [profile, setProfile] = useState<Pharmacy | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    apiFetch<Pharmacy>("/pharmacy/profile/").then(setProfile).catch(() => setError("Profile failed to load."));
+    apiFetch<Pharmacy>("/pharmacy/profile/").then(setProfile).catch(() => setError(t("pharmacySettings.loadError")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -37,9 +40,9 @@ export default function PharmacySettingsPage() {
         })
       });
       setProfile(updated);
-      setMessage("Settings saved.");
+      setMessage(t("pharmacySettings.saved"));
     } catch {
-      setError("Save failed. Check contact and location fields.");
+      setError(t("pharmacySettings.saveFailed"));
     }
   }
 
@@ -49,40 +52,40 @@ export default function PharmacySettingsPage() {
     <section className="panel">
       <div className="section-header">
         <div>
-          <h1>Settings</h1>
+          <h1>{t("pharmacySettings.title")}</h1>
           <p>{profile.name}</p>
         </div>
       </div>
       <form className="form-grid" onSubmit={submit}>
-        <Field label="Address">
+        <Field label={t("pharmacySettings.address")}>
           <input name="address" defaultValue={profile.address} />
         </Field>
-        <Field label="City">
+        <Field label={t("pharmacySettings.city")}>
           <input name="city" defaultValue={profile.city} required />
         </Field>
-        <Field label="Area">
+        <Field label={t("pharmacySettings.area")}>
           <input name="area" defaultValue={profile.area} required />
         </Field>
-        <Field label="Phone">
+        <Field label={t("pharmacySettings.phone")}>
           <input name="phone" defaultValue={profile.phone} required />
         </Field>
-        <Field label="WhatsApp">
+        <Field label={t("pharmacySettings.whatsapp")}>
           <input name="whatsapp" defaultValue={profile.whatsapp} />
         </Field>
-        <Field label="Email">
+        <Field label={t("pharmacySettings.email")}>
           <input name="email" type="email" defaultValue={profile.email} />
         </Field>
-        <Field label="Latitude">
+        <Field label={t("pharmacySettings.latitude")}>
           <input name="latitude" type="number" step="0.000001" defaultValue={profile.latitude || ""} />
         </Field>
-        <Field label="Longitude">
+        <Field label={t("pharmacySettings.longitude")}>
           <input name="longitude" type="number" step="0.000001" defaultValue={profile.longitude || ""} />
         </Field>
         <label className="field">
-          <span>Public visibility</span>
+          <span>{t("pharmacySettings.publicVisibility")}</span>
           <input name="is_public" type="checkbox" defaultChecked={profile.is_public} />
         </label>
-        <Button type="submit">Save settings</Button>
+        <Button type="submit">{t("pharmacySettings.saveSettings")}</Button>
       </form>
       {message ? <Notice tone="success">{message}</Notice> : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}

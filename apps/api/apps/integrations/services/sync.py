@@ -21,8 +21,8 @@ from django.utils import timezone
 
 from apps.audit.services import write_audit_log
 from apps.integrations.models import SkuMapping, SyncRun
-from apps.inventory.models import InventoryBatch, StockMovement
-from apps.inventory.services.stock import adjust_stock, create_inventory_batch
+from apps.inventory.models import InventoryBatch, ReservationShortfall, StockMovement
+from apps.inventory.services.stock import adjust_stock, create_inventory_batch, flag_reservation_shortfall
 from apps.medicines.services.search import best_catalog_match
 
 SYNC_BATCH_LABEL = "POS-SYNC"
@@ -74,6 +74,8 @@ def sync_stock(*, pharmacy, user, rows: list[dict], integration_key=None, idempo
 
     applied = unmapped = failed = 0
     details = []
+    shortfall_ids = []
+    observed_at = timezone.now()
 
     for row in rows:
         code = str(row.get("external_code") or "").strip()
@@ -118,7 +120,7 @@ def sync_stock(*, pharmacy, user, rows: list[dict], integration_key=None, idempo
                 failed += 1
                 details.append({"external_code": code, "result": "failed", "reason": "First sync of an item needs selling_price."})
                 continue
-            create_inventory_batch(
+            new_batch = create_inventory_batch(
                 user=user,
                 pharmacy=pharmacy,
                 movement_type=StockMovement.MovementType.IMPORT,
@@ -133,14 +135,22 @@ def sync_stock(*, pharmacy, user, rows: list[dict], integration_key=None, idempo
                     "low_stock_threshold": int(row.get("low_stock_threshold") or 5),
                 },
             )
+            new_batch.last_pos_observed_at = observed_at
+            new_batch.save(update_fields=["last_pos_observed_at"])
             applied += 1
             details.append({"external_code": code, "result": "created", "quantity": target_quantity})
             continue
 
-        delta = target_quantity - batch.current_quantity
+        # This sync confirms the quantity regardless of whether it changed, so freshness
+        # is always refreshed here - a POS reporting "still 12" is still a live observation.
+        update_fields = ["last_pos_observed_at", "updated_at"]
+        batch.last_pos_observed_at = observed_at
         if selling_price is not None and selling_price != batch.selling_price:
             batch.selling_price = selling_price
-            batch.save(update_fields=["selling_price", "updated_at"])
+            update_fields.append("selling_price")
+        batch.save(update_fields=update_fields)
+
+        delta = target_quantity - batch.current_quantity
         if delta != 0:
             adjust_stock(
                 batch_id=batch.id,
@@ -149,8 +159,15 @@ def sync_stock(*, pharmacy, user, rows: list[dict], integration_key=None, idempo
                 reason=f"POS sync to absolute level {target_quantity}",
                 movement_type=StockMovement.MovementType.CORRECTION,
             )
+
+        detail_row = {"external_code": code, "result": "updated", "delta": delta, "quantity": target_quantity}
+        shortfall = flag_reservation_shortfall(batch=batch, observed_on_hand=target_quantity)
+        if shortfall is not None:
+            shortfall_ids.append(shortfall.id)
+            detail_row["reservation_shortfall_units"] = shortfall.shortfall_units
+
         applied += 1
-        details.append({"external_code": code, "result": "updated", "delta": delta, "quantity": target_quantity})
+        details.append(detail_row)
 
     run = SyncRun.objects.create(
         pharmacy=pharmacy,
@@ -164,6 +181,8 @@ def sync_stock(*, pharmacy, user, rows: list[dict], integration_key=None, idempo
         rows_failed=failed,
         response_payload={"details": details[:500]},
     )
+    if shortfall_ids:
+        ReservationShortfall.objects.filter(id__in=shortfall_ids).update(sync_run=run)
     write_audit_log(
         actor_user=user,
         pharmacy=pharmacy,

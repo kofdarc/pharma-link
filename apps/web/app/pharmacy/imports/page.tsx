@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch, asList } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { InventoryImport } from "@/types/api";
 import { Badge, statusTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +13,7 @@ import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
 
 export default function ImportsPage() {
+  const t = useTranslations();
   const [items, setItems] = useState<InventoryImport[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -19,10 +21,10 @@ export default function ImportsPage() {
   function load() {
     apiFetch<InventoryImport[] | { results: InventoryImport[] }>("/pharmacy/imports/")
       .then((payload) => setItems(asList(payload)))
-      .catch(() => setError("Imports failed to load."));
+      .catch(() => setError(t("pharmacyImports.loadError")));
   }
 
-  useEffect(load, []);
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -31,11 +33,11 @@ export default function ImportsPage() {
     const form = new FormData(event.currentTarget);
     try {
       await apiFetch<InventoryImport>("/pharmacy/imports/upload/", { method: "POST", body: form });
-      setMessage("Import parsed. Review the preview before confirming.");
+      setMessage(t("pharmacyImports.parsedMessage"));
       event.currentTarget.reset();
       load();
     } catch {
-      setError("Upload failed. Use CSV or XLSX with Medicine name and Quantity columns.");
+      setError(t("pharmacyImports.uploadFailed"));
     }
   }
 
@@ -43,28 +45,28 @@ export default function ImportsPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Imports</h1>
-          <p>Upload CSV or XLSX stock files, then confirm matched rows before inventory is created.</p>
+          <h1>{t("pharmacyImports.title")}</h1>
+          <p>{t("pharmacyImports.subtitle")}</p>
         </div>
       </div>
       <form className="panel toolbar" onSubmit={upload}>
-        <Field label="Inventory file" hint="Required columns: Medicine name, Quantity. Selling price is required for MVP imports.">
+        <Field label={t("pharmacyImports.inventoryFile")} hint={t("pharmacyImports.inventoryFileHint")}>
           <input type="file" name="file" accept=".csv,.xlsx" required />
         </Field>
-        <Button type="submit">Upload preview</Button>
+        <Button type="submit">{t("pharmacyImports.uploadPreview")}</Button>
       </form>
       {message ? <Notice tone="success">{message}</Notice> : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      {items.length === 0 ? <EmptyState title="No imports yet." /> : null}
+      {items.length === 0 ? <EmptyState title={t("pharmacyImports.noImports")} /> : null}
       <Table>
         <table>
           <thead>
             <tr>
-              <th>File</th>
-              <th>Status</th>
-              <th>Rows</th>
-              <th>Matched</th>
-              <th>Created</th>
+              <th>{t("pharmacyImports.file")}</th>
+              <th>{t("pharmacyImports.status")}</th>
+              <th>{t("pharmacyImports.rows")}</th>
+              <th>{t("pharmacyImports.matched")}</th>
+              <th>{t("pharmacyImports.created")}</th>
             </tr>
           </thead>
           <tbody>

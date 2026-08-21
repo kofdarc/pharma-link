@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 type Result = { dispense_id: string; prescription_status: string; pharmacy_name: string; remaining: { id: string; medicine_text: string; quantity_remaining: number }[] };
 
@@ -115,7 +116,7 @@ function PrescriptionView() {
       <div className="public-shell">
         <header className="public-header">
           <Link href="/" className="brand">
-            <span className="brand-mark">M</span>
+            <BrandMark />
             <span>PharmaLink</span>
           </Link>
         </header>
@@ -150,7 +151,7 @@ function PrescriptionView() {
     <div className="public-shell">
       <header className="public-header">
         <Link href="/" className="brand">
-          <span className="brand-mark">M</span>
+          <BrandMark />
           <span>PharmaLink</span>
         </Link>
         <Link className="button button-secondary" href="/rx">

@@ -71,7 +71,7 @@ from apps.integrations.views import (
     WebhookEndpointViewSet,
 )
 from apps.inventory.services.availability import public_availability_search
-from apps.inventory.views import InventoryBatchViewSet, StockMovementViewSet
+from apps.inventory.views import InventoryBatchViewSet, ReservationShortfallViewSet, StockMovementViewSet
 from apps.medicines.views import AdminMedicineViewSet, MedicineViewSet, medicine_search
 from apps.orders.views import (
     AdminReviewViewSet,
@@ -145,6 +145,7 @@ router.register("admin/reviews", AdminReviewViewSet, basename="admin-reviews")
 # Pharmacy workspace
 router.register("pharmacy/inventory", InventoryBatchViewSet, basename="pharmacy-inventory")
 router.register("pharmacy/stock-movements", StockMovementViewSet, basename="pharmacy-stock-movements")
+router.register("pharmacy/reservation-shortfalls", ReservationShortfallViewSet, basename="pharmacy-reservation-shortfalls")
 router.register("pharmacy/imports", PharmacyImportViewSet, basename="pharmacy-imports")
 router.register("pharmacy/sales", SaleViewSet, basename="pharmacy-sales")
 router.register("pharmacy/invoices", SaleViewSet, basename="pharmacy-invoices")

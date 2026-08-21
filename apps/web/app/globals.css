@@ -71,13 +71,9 @@ textarea {
 }
 
 .brand-mark {
-  display: inline-grid;
-  place-items: center;
   width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  color: white;
-  background: var(--primary);
+  height: 38px;
+  object-fit: contain;
 }
 
 .public-main {
@@ -479,6 +475,22 @@ tbody tr:hover {
 .notice-success {
   color: var(--green);
   background: var(--green-bg);
+}
+
+.notice-muted {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.notice-muted svg {
+  flex: none;
+  margin-top: 2px;
 }
 
 .empty-state {

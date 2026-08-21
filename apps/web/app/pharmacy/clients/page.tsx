@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch, asList } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { Client, ClientHistory, ClientLedgerEntry, Paginated } from "@/types/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +12,7 @@ import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
 
 export default function ClientsPage() {
+  const t = useTranslations();
   const [clients, setClients] = useState<Client[]>([]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Client | null>(null);
@@ -35,7 +37,8 @@ export default function ClientsPage() {
   const load = useCallback(() => {
     apiFetch<Paginated<Client> | Client[]>(`/pharmacy/clients/${query ? `?q=${encodeURIComponent(query)}` : ""}`)
       .then((payload) => setClients(asList(payload)))
-      .catch(() => setError("Could not load clients."));
+      .catch(() => setError(t("pharmacyClients.loadError")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   useEffect(load, [load]);
@@ -57,25 +60,25 @@ export default function ClientsPage() {
     setError("");
     try {
       await apiFetch("/pharmacy/clients/", { method: "POST", body: JSON.stringify(form) });
-      setMessage(`${form.full_name} added.`);
+      setMessage(t("pharmacyClients.addedNotice", { name: form.full_name }));
       setShowForm(false);
       setForm({ ...form, full_name: "", phone: "", email: "", allergies: "", chronic_conditions: "", notes: "" });
       load();
     } catch (exception) {
-      setError((exception as ApiError).message || "Could not save the client.");
+      setError((exception as ApiError).message || t("pharmacyClients.saveFailed"));
     }
   }
 
   async function postPayment() {
     if (!selected) return;
-    const amount = window.prompt("Payment amount received?");
+    const amount = window.prompt(t("pharmacyClients.paymentPrompt"));
     if (!amount) return;
     try {
       await apiFetch(`/pharmacy/clients/${selected.id}/ledger/`, {
         method: "POST",
         body: JSON.stringify({ entry_type: "PAYMENT", amount, memo: "Counter payment" })
       });
-      setMessage("Payment recorded.");
+      setMessage(t("pharmacyClients.paymentRecorded"));
       open(selected);
       load();
     } catch (exception) {
@@ -87,14 +90,11 @@ export default function ClientsPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Clients</h1>
-          <p className="muted">
-            Your own client records, private to this pharmacy. Shoppers who order online are added here
-            automatically the first time they buy from you.
-          </p>
+          <h1>{t("pharmacyClients.title")}</h1>
+          <p className="muted">{t("pharmacyClients.subtitle")}</p>
         </div>
         <Button type="button" onClick={() => setShowForm((current) => !current)}>
-          {showForm ? "Close" : "Add a client"}
+          {showForm ? t("pharmacyClients.close") : t("pharmacyClients.addClient")}
         </Button>
       </div>
 
@@ -103,61 +103,65 @@ export default function ClientsPage() {
 
       {showForm ? (
         <section className="panel">
-          <h3>New client</h3>
+          <h3>{t("pharmacyClients.newClient")}</h3>
           <form onSubmit={createClient}>
             <div className="form-grid">
-              <Field label="Full name">
+              <Field label={t("pharmacyClients.fullName")}>
                 <input value={form.full_name} onChange={(event) => setForm({ ...form, full_name: event.target.value })} required />
               </Field>
-              <Field label="Phone" hint="Used to recognise returning customers.">
+              <Field label={t("pharmacyClients.phone")} hint={t("pharmacyClients.phoneHint")}>
                 <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} required />
               </Field>
-              <Field label="Email">
+              <Field label={t("pharmacyClients.email")}>
                 <input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
               </Field>
-              <Field label="Area">
+              <Field label={t("pharmacyClients.area")}>
                 <input value={form.area} onChange={(event) => setForm({ ...form, area: event.target.value })} />
               </Field>
-              <Field label="Insurance provider">
+              <Field label={t("pharmacyClients.insuranceProvider")}>
                 <input value={form.insurance_provider} onChange={(event) => setForm({ ...form, insurance_provider: event.target.value })} />
               </Field>
-              <Field label="Credit limit">
+              <Field label={t("pharmacyClients.creditLimit")}>
                 <input value={form.credit_limit} onChange={(event) => setForm({ ...form, credit_limit: event.target.value })} />
               </Field>
             </div>
-            <Field label="Allergies" hint="Shown prominently whenever this client is selected on a sale.">
-              <input value={form.allergies} onChange={(event) => setForm({ ...form, allergies: event.target.value })} placeholder="Penicillin" />
+            <Field label={t("pharmacyClients.allergies")} hint={t("pharmacyClients.allergiesHint")}>
+              <input
+                value={form.allergies}
+                onChange={(event) => setForm({ ...form, allergies: event.target.value })}
+                placeholder={t("pharmacyClients.allergiesPlaceholder")}
+              />
             </Field>
-            <Field label="Chronic conditions">
+            <Field label={t("pharmacyClients.chronicConditions")}>
               <input value={form.chronic_conditions} onChange={(event) => setForm({ ...form, chronic_conditions: event.target.value })} />
             </Field>
-            <Field label="Notes">
+            <Field label={t("pharmacyClients.notes")}>
               <input value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
             </Field>
-            <Button type="submit">Save client</Button>
+            <Button type="submit">{t("pharmacyClients.saveClient")}</Button>
           </form>
         </section>
       ) : null}
 
       <section className="panel">
         <div className="search-bar">
-          <Field label="Search">
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, phone or email" />
+          <Field label={t("pharmacyClients.search")}>
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("pharmacyClients.searchPlaceholder")} />
           </Field>
         </div>
 
         {clients.length === 0 ? (
-          <EmptyState title="No clients yet." detail="Add one above, or they appear as soon as someone orders from you online." />
+          <EmptyState title={t("pharmacyClients.noClientsTitle")} detail={t("pharmacyClients.noClientsDetail")} />
         ) : (
           <Table>
             <table className="table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Phone</th>
-                  <th>Area</th>
-                  <th>Flags</th>
-                  <th>Balance due</th>
+                  <th>{t("pharmacyClients.name")}</th>
+                  <th>{t("pharmacyClients.phone")}</th>
+                  <th>{t("pharmacyClients.area")}</th>
+                  <th>{t("pharmacyClients.flags")}</th>
+                  <th>{t("pharmacyClients.balanceDue")}</th>
                   <th />
                 </tr>
               </thead>
@@ -170,13 +174,13 @@ export default function ClientsPage() {
                     <td>{client.phone}</td>
                     <td className="muted">{client.area || "—"}</td>
                     <td>
-                      {client.allergies ? <Badge tone="danger">Allergy</Badge> : null}
-                      {client.chronic_conditions ? <Badge tone="info">Chronic</Badge> : null}
+                      {client.allergies ? <Badge tone="danger">{t("pharmacyClients.allergyBadge")}</Badge> : null}
+                      {client.chronic_conditions ? <Badge tone="info">{t("pharmacyClients.chronicBadge")}</Badge> : null}
                     </td>
                     <td>{Number(client.balance_due) > 0 ? <strong className="text-danger">${client.balance_due}</strong> : <span className="muted">$0.00</span>}</td>
                     <td>
                       <Button type="button" variant="secondary" onClick={() => open(client)}>
-                        Open
+                        {t("pharmacyClients.open")}
                       </Button>
                     </td>
                   </tr>
@@ -199,46 +203,48 @@ export default function ClientsPage() {
               </p>
             </div>
             <Button type="button" variant="secondary" onClick={() => setSelected(null)}>
-              Close
+              {t("pharmacyClients.close")}
             </Button>
           </div>
 
-          {selected.allergies ? <Notice tone="danger">Allergies: {selected.allergies}</Notice> : null}
-          {selected.chronic_conditions ? <Notice>Chronic conditions: {selected.chronic_conditions}</Notice> : null}
+          {selected.allergies ? <Notice tone="danger">{t("pharmacyClients.allergiesLabel", { allergies: selected.allergies })}</Notice> : null}
+          {selected.chronic_conditions ? <Notice>{t("pharmacyClients.chronicLabel", { conditions: selected.chronic_conditions })}</Notice> : null}
 
           {history ? (
             <>
               <div className="metric-grid">
                 <div className="metric-card">
-                  <span>Visits</span>
+                  <span>{t("pharmacyClients.visits")}</span>
                   <strong>{history.visits}</strong>
                 </div>
                 <div className="metric-card">
-                  <span>Total spent</span>
+                  <span>{t("pharmacyClients.totalSpent")}</span>
                   <strong>${history.total_spent}</strong>
                 </div>
                 <div className="metric-card">
-                  <span>Average basket</span>
+                  <span>{t("pharmacyClients.averageBasket")}</span>
                   <strong>${history.average_basket}</strong>
                 </div>
                 <div className="metric-card">
-                  <span>Balance due</span>
+                  <span>{t("pharmacyClients.balanceDue")}</span>
                   <strong>${history.balance_due}</strong>
                 </div>
                 <div className="metric-card">
-                  <span>Last visit</span>
+                  <span>{t("pharmacyClients.lastVisit")}</span>
                   <strong>{history.last_visit ? new Date(history.last_visit).toLocaleDateString() : "—"}</strong>
-                  {history.days_since_last_visit !== null ? <small className="muted">{history.days_since_last_visit} days ago</small> : null}
+                  {history.days_since_last_visit !== null ? (
+                    <small className="muted">{t("pharmacyClients.daysAgo", { days: history.days_since_last_visit })}</small>
+                  ) : null}
                 </div>
               </div>
 
               {history.top_products.length > 0 ? (
                 <>
-                  <h3>What they usually buy</h3>
+                  <h3>{t("pharmacyClients.whatTheyUsuallyBuy")}</h3>
                   <ul className="clean-list">
                     {history.top_products.map((product) => (
                       <li key={product.medicine_id}>
-                        {product.name} — {product.units} units, ${product.spend}
+                        {t("pharmacyClients.unitsSpend", { name: product.name, units: product.units, spend: product.spend })}
                       </li>
                     ))}
                   </ul>
@@ -246,22 +252,22 @@ export default function ClientsPage() {
               ) : null}
 
               <div className="section-header">
-                <h3>Account</h3>
+                <h3>{t("pharmacyClients.account")}</h3>
                 <Button type="button" variant="secondary" onClick={postPayment}>
-                  Record a payment
+                  {t("pharmacyClients.recordPayment")}
                 </Button>
               </div>
               {ledger.length === 0 ? (
-                <p className="muted small">No account activity. Charges appear here when a sale is put on account.</p>
+                <p className="muted small">{t("pharmacyClients.noAccountActivity")}</p>
               ) : (
                 <Table>
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Date</th>
-                        <th>Type</th>
-                        <th>Amount</th>
-                        <th>Memo</th>
+                        <th>{t("pharmacyClients.date")}</th>
+                        <th>{t("pharmacyClients.type")}</th>
+                        <th>{t("pharmacyClients.amount")}</th>
+                        <th>{t("pharmacyClients.memo")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -281,9 +287,7 @@ export default function ClientsPage() {
                   </table>
                 </Table>
               )}
-              <p className="muted small">
-                The ledger is append-only: a mistake is corrected with a balancing entry, never by editing history.
-              </p>
+              <p className="muted small">{t("pharmacyClients.ledgerNote")}</p>
             </>
           ) : (
             <div className="skeleton-card" />

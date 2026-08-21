@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch, asList } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { User } from "@/types/api";
 import { Badge, statusTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +12,7 @@ import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
 
 export default function StaffPage() {
+  const t = useTranslations();
   const [staff, setStaff] = useState<User[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -18,7 +20,7 @@ export default function StaffPage() {
   function load() {
     apiFetch<User[] | { results: User[] }>("/pharmacy/staff/")
       .then((payload) => setStaff(asList(payload)))
-      .catch(() => setError("Staff failed to load. Pharmacy owner access is required."));
+      .catch(() => setError(t("pharmacyStaff.loadError")));
   }
 
   useEffect(load, []);
@@ -40,11 +42,11 @@ export default function StaffPage() {
           is_active: true
         })
       });
-      setMessage("Staff user created.");
+      setMessage(t("pharmacyStaff.created"));
       event.currentTarget.reset();
       load();
     } catch {
-      setError("Create failed. Check email, role, and password.");
+      setError(t("pharmacyStaff.createFailed"));
     }
   }
 
@@ -52,42 +54,42 @@ export default function StaffPage() {
     <>
       <div className="section-header">
         <div>
-          <h1>Staff</h1>
-          <p>Owners can add or deactivate pharmacy staff.</p>
+          <h1>{t("pharmacyStaff.title")}</h1>
+          <p>{t("pharmacyStaff.subtitle")}</p>
         </div>
       </div>
       <form className="panel form-grid" onSubmit={create}>
-        <Field label="Email">
+        <Field label={t("pharmacyStaff.email")}>
           <input name="email" type="email" required />
         </Field>
-        <Field label="Password">
+        <Field label={t("pharmacyStaff.password")}>
           <input name="password" type="password" minLength={8} required />
         </Field>
-        <Field label="First name">
+        <Field label={t("pharmacyStaff.firstName")}>
           <input name="first_name" />
         </Field>
-        <Field label="Last name">
+        <Field label={t("pharmacyStaff.lastName")}>
           <input name="last_name" />
         </Field>
-        <Field label="Role">
+        <Field label={t("pharmacyStaff.role")}>
           <select name="role" defaultValue="PHARMACY_STAFF">
-            <option value="PHARMACY_STAFF">Pharmacy staff</option>
-            <option value="PHARMACY_OWNER">Pharmacy owner</option>
+            <option value="PHARMACY_STAFF">{t("pharmacyStaff.rolePharmacyStaff")}</option>
+            <option value="PHARMACY_OWNER">{t("pharmacyStaff.rolePharmacyOwner")}</option>
           </select>
         </Field>
-        <Button type="submit">Add staff</Button>
+        <Button type="submit">{t("pharmacyStaff.addStaff")}</Button>
       </form>
       {message ? <Notice tone="success">{message}</Notice> : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      {staff.length === 0 ? <EmptyState title="No staff users added yet." /> : null}
+      {staff.length === 0 ? <EmptyState title={t("pharmacyStaff.noStaff")} /> : null}
       <Table>
         <table>
           <thead>
             <tr>
-              <th>Email</th>
-              <th>Name</th>
-              <th>Role</th>
-              <th>Status</th>
+              <th>{t("pharmacyStaff.email")}</th>
+              <th>{t("pharmacyStaff.name")}</th>
+              <th>{t("pharmacyStaff.role")}</th>
+              <th>{t("pharmacyStaff.status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -99,7 +101,9 @@ export default function StaffPage() {
                 </td>
                 <td>{user.role}</td>
                 <td>
-                  <Badge tone={statusTone(user.is_active ? "Active" : "Inactive")}>{user.is_active ? "Active" : "Inactive"}</Badge>
+                  <Badge tone={statusTone(user.is_active ? "Active" : "Inactive")}>
+                    {user.is_active ? t("pharmacyStaff.active") : t("pharmacyStaff.inactive")}
+                  </Badge>
                 </td>
               </tr>
             ))}

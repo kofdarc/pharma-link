@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { useTranslations } from "@/lib/i18n/context";
 import type { Prescription } from "@/types/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +19,7 @@ function tone(status: string) {
 }
 
 export default function DoctorPrescriptionDetailPage() {
+  const t = useTranslations();
   const { id } = useParams<{ id: string }>();
   const [prescription, setPrescription] = useState<Prescription | null>(null);
   const [error, setError] = useState("");
@@ -26,14 +28,14 @@ export default function DoctorPrescriptionDetailPage() {
   function load() {
     apiFetch<Prescription>(`/doctor/prescriptions/${id}/`)
       .then(setPrescription)
-      .catch(() => setError("Prescription not found, or it does not belong to you."));
+      .catch(() => setError(t("doctorPrescriptionDetail.notFound")));
   }
 
-  useEffect(load, [id]);
+  useEffect(load, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function cancel() {
     if (!prescription) return;
-    const reason = window.prompt("Reason for cancelling this prescription?");
+    const reason = window.prompt(t("doctorPrescriptionDetail.cancelPrompt"));
     if (reason === null) return;
     setBusy(true);
     setError("");
@@ -44,7 +46,7 @@ export default function DoctorPrescriptionDetailPage() {
       });
       setPrescription(updated);
     } catch (exception) {
-      setError((exception as ApiError).message || "Could not cancel this prescription.");
+      setError((exception as ApiError).message || t("doctorPrescriptionDetail.cancelFailed"));
     } finally {
       setBusy(false);
     }
@@ -61,7 +63,7 @@ export default function DoctorPrescriptionDetailPage() {
       <div className="section-header">
         <div>
           <h1>
-            Prescription <code>{prescription.code}</code>
+            {t("doctorPrescriptionDetail.prescriptionLabel")} <code>{prescription.code}</code>
           </h1>
           <p className="muted">
             {prescription.patient_name}
@@ -72,7 +74,7 @@ export default function DoctorPrescriptionDetailPage() {
         <div className="toolbar">
           <Badge tone={tone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
           <Link className="button button-secondary" href="/doctor/prescriptions">
-            Back to list
+            {t("doctorPrescriptionDetail.backToList")}
           </Link>
         </div>
       </div>
@@ -81,51 +83,55 @@ export default function DoctorPrescriptionDetailPage() {
 
       {prescription.status === "CANCELLED" ? (
         <Notice tone="danger">
-          Cancelled {prescription.cancelled_at ? new Date(prescription.cancelled_at).toLocaleString() : ""}
+          {t("doctorPrescriptionDetail.cancelledAt", {
+            when: prescription.cancelled_at ? new Date(prescription.cancelled_at).toLocaleString() : ""
+          })}
           {prescription.cancellation_reason ? ` — ${prescription.cancellation_reason}` : ""}
         </Notice>
       ) : null}
 
       <section className="metrics-grid">
         <div className="metric-card">
-          <span>Units dispensed</span>
+          <span>{t("doctorPrescriptionDetail.unitsDispensed")}</span>
           <strong>
             {totalDispensed}/{totalPrescribed}
           </strong>
         </div>
         <div className="metric-card">
-          <span>Issued</span>
+          <span>{t("doctorPrescriptionDetail.issued")}</span>
           <strong style={{ fontSize: "1.1rem" }}>{new Date(prescription.issued_at).toLocaleDateString()}</strong>
         </div>
         <div className="metric-card">
-          <span>Valid until</span>
+          <span>{t("doctorPrescriptionDetail.validUntil")}</span>
           <strong style={{ fontSize: "1.1rem" }}>{new Date(prescription.valid_until).toLocaleDateString()}</strong>
         </div>
         <div className="metric-card">
-          <span>Emailed to patient</span>
-          <strong style={{ fontSize: "1.1rem" }}>{prescription.email_sent_at ? "Yes" : "No"}</strong>
+          <span>{t("doctorPrescriptionDetail.emailedToPatient")}</span>
+          <strong style={{ fontSize: "1.1rem" }}>
+            {prescription.email_sent_at ? t("doctorPrescriptionDetail.yes") : t("doctorPrescriptionDetail.no")}
+          </strong>
         </div>
       </section>
 
       {prescription.diagnosis_note ? (
         <section className="panel">
-          <h3>Note for the pharmacist</h3>
+          <h3>{t("doctorPrescriptionDetail.noteForPharmacist")}</h3>
           <p>{prescription.diagnosis_note}</p>
         </section>
       ) : null}
 
       <section className="panel">
-        <h3>Items</h3>
+        <h3>{t("doctorPrescriptionDetail.items")}</h3>
         <Table>
           <table className="table">
             <thead>
               <tr>
-                <th>Medicine</th>
-                <th>Dosage</th>
-                <th>Prescribed</th>
-                <th>Dispensed</th>
-                <th>Remaining</th>
-                <th>Substitution</th>
+                <th>{t("doctorPrescriptionDetail.medicine")}</th>
+                <th>{t("doctorPrescriptionDetail.dosage")}</th>
+                <th>{t("doctorPrescriptionDetail.prescribed")}</th>
+                <th>{t("doctorPrescriptionDetail.dispensed")}</th>
+                <th>{t("doctorPrescriptionDetail.remaining")}</th>
+                <th>{t("doctorPrescriptionDetail.substitution")}</th>
               </tr>
             </thead>
             <tbody>
@@ -138,7 +144,9 @@ export default function DoctorPrescriptionDetailPage() {
                   </td>
                   <td>{item.quantity_dispensed}</td>
                   <td>{item.quantity_remaining}</td>
-                  <td className="muted small">{item.allow_generic_substitution ? "Allowed" : "Not allowed"}</td>
+                  <td className="muted small">
+                    {item.allow_generic_substitution ? t("doctorPrescriptionDetail.allowed") : t("doctorPrescriptionDetail.notAllowed")}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -147,18 +155,18 @@ export default function DoctorPrescriptionDetailPage() {
       </section>
 
       <section className="panel">
-        <h3>Dispense history</h3>
+        <h3>{t("doctorPrescriptionDetail.dispenseHistory")}</h3>
         {prescription.dispenses.length === 0 ? (
-          <p className="muted small">Not dispensed at any pharmacy yet.</p>
+          <p className="muted small">{t("doctorPrescriptionDetail.notDispensedYet")}</p>
         ) : (
           <Table>
             <table className="table">
               <thead>
                 <tr>
-                  <th>Pharmacy</th>
-                  <th>Pharmacist</th>
-                  <th>Dispensed at</th>
-                  <th>Items</th>
+                  <th>{t("doctorPrescriptionDetail.pharmacy")}</th>
+                  <th>{t("doctorPrescriptionDetail.pharmacist")}</th>
+                  <th>{t("doctorPrescriptionDetail.dispensedAt")}</th>
+                  <th>{t("doctorPrescriptionDetail.items")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -180,12 +188,10 @@ export default function DoctorPrescriptionDetailPage() {
 
       {canCancel ? (
         <section className="panel">
-          <h3>Cancel this prescription</h3>
-          <p className="muted small">
-            Once cancelled, no pharmacy will be able to dispense it, even partially. This cannot be undone.
-          </p>
+          <h3>{t("doctorPrescriptionDetail.cancelSection")}</h3>
+          <p className="muted small">{t("doctorPrescriptionDetail.cancelHint")}</p>
           <Button type="button" variant="danger" onClick={cancel} disabled={busy}>
-            {busy ? "Cancelling..." : "Cancel prescription"}
+            {busy ? t("doctorPrescriptionDetail.cancelling") : t("doctorPrescriptionDetail.cancelPrescription")}
           </Button>
         </section>
       ) : null}

@@ -22,7 +22,7 @@ from apps.integrations.authentication import canonical_string, sign
 from apps.integrations.models import IntegrationKey, SkuMapping, SyncRun
 from apps.integrations.services.keys import create_integration_key, decrypt_secret
 from apps.integrations.services.sync import sync_stock
-from apps.inventory.models import InventoryBatch, StockMovement
+from apps.inventory.models import InventoryBatch, ReservationShortfall, StockMovement
 from apps.medicines.models import Medicine, PriceRegime, ProductCategory
 from apps.pharmacies.models import Pharmacy
 
@@ -248,3 +248,81 @@ class OnboardingChecklistTests(BridgeTestCase):
         stock_step = next(step for step in after["steps"] if step["key"] == "stock")
         self.assertTrue(stock_step["done"])
         self.assertGreater(after["completed_steps"], before["completed_steps"])
+
+
+class ReservationShortfallTests(BridgeTestCase):
+    """
+    A confirmed shopper order holds stock via `reserved_quantity`, but the POS is
+    authoritative for its own shelf. If a sync reports fewer units than are held, that
+    must never be silently absorbed - a shopper's paid order would quietly point at
+    nothing.
+    """
+
+    def sync(self, rows, key="run-1"):
+        return sync_stock(pharmacy=self.pharmacy, user=self.owner, rows=rows, integration_key=self.key, idempotency_key=key)
+
+    def test_sync_below_reserved_quantity_raises_a_shortfall(self):
+        self.sync([{"external_code": "POS-1", "name": "Panadol", "quantity": 12, "selling_price": "2.25"}])
+        batch = InventoryBatch.objects.get(medicine=self.panadol)
+        batch.reserved_quantity = 10
+        batch.save(update_fields=["reserved_quantity"])
+
+        run = self.sync([{"external_code": "POS-1", "name": "Panadol", "quantity": 5, "selling_price": "2.25"}], key="run-2")
+
+        batch.refresh_from_db()
+        self.assertEqual(batch.current_quantity, 5, "the POS correction must still apply - it is authoritative for its own shelf")
+        shortfall = ReservationShortfall.objects.get(inventory_batch=batch)
+        self.assertEqual(shortfall.observed_on_hand, 5)
+        self.assertEqual(shortfall.reserved_quantity, 10)
+        self.assertEqual(shortfall.shortfall_units, 5)
+        self.assertEqual(shortfall.sync_run_id, run.id)
+        self.assertTrue(shortfall.is_open)
+
+    def test_sync_at_or_above_reserved_quantity_raises_nothing(self):
+        self.sync([{"external_code": "POS-1", "name": "Panadol", "quantity": 12, "selling_price": "2.25"}])
+        batch = InventoryBatch.objects.get(medicine=self.panadol)
+        batch.reserved_quantity = 10
+        batch.save(update_fields=["reserved_quantity"])
+
+        self.sync([{"external_code": "POS-1", "name": "Panadol", "quantity": 10, "selling_price": "2.25"}], key="run-2")
+        self.sync([{"external_code": "POS-1", "name": "Panadol", "quantity": 20, "selling_price": "2.25"}], key="run-3")
+
+        self.assertFalse(ReservationShortfall.objects.exists())
+
+    def test_shortfall_is_visible_and_resolvable_through_the_pharmacy_api(self):
+        self.sync([{"external_code": "POS-1", "name": "Panadol", "quantity": 12, "selling_price": "2.25"}])
+        batch = InventoryBatch.objects.get(medicine=self.panadol)
+        batch.reserved_quantity = 10
+        batch.save(update_fields=["reserved_quantity"])
+        self.sync([{"external_code": "POS-1", "name": "Panadol", "quantity": 5, "selling_price": "2.25"}], key="run-2")
+        shortfall = ReservationShortfall.objects.get(inventory_batch=batch)
+
+        self.client.force_authenticate(user=self.owner)
+        listing = self.client.get("/api/pharmacy/reservation-shortfalls/?open=true")
+        self.assertEqual(len(listing.data["results"] if "results" in listing.data else listing.data), 1)
+
+        response = self.client.post(f"/api/pharmacy/reservation-shortfalls/{shortfall.id}/resolve/", {"resolution_note": "Recounted shelf, matches now."})
+        self.assertEqual(response.status_code, 200)
+        shortfall.refresh_from_db()
+        self.assertFalse(shortfall.is_open)
+        self.assertEqual(shortfall.resolved_by, self.owner)
+
+        again = self.client.post(f"/api/pharmacy/reservation-shortfalls/{shortfall.id}/resolve/", {})
+        self.assertEqual(again.status_code, 400)
+
+
+class ConnectorFreshnessTests(BridgeTestCase):
+    def test_sync_stamps_last_pos_observed_at_on_create_and_update(self):
+        self.sync = lambda rows, key="run-1": sync_stock(
+            pharmacy=self.pharmacy, user=self.owner, rows=rows, integration_key=self.key, idempotency_key=key
+        )
+        self.sync([{"external_code": "POS-1", "name": "Panadol", "quantity": 12, "selling_price": "2.25"}])
+        batch = InventoryBatch.objects.get(medicine=self.panadol)
+        self.assertIsNotNone(batch.last_pos_observed_at)
+
+        first_observed = batch.last_pos_observed_at
+        # Same quantity, no delta - freshness must still update, since a POS reporting
+        # "still 12" is itself a live observation, not a no-op.
+        self.sync([{"external_code": "POS-1", "name": "Panadol", "quantity": 12, "selling_price": "2.25"}], key="run-2")
+        batch.refresh_from_db()
+        self.assertGreaterEqual(batch.last_pos_observed_at, first_observed)

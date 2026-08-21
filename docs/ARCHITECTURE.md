@@ -176,6 +176,21 @@ The onboarding thesis: pharmacies keep their software and their product codes.
 - **The connector** (`tools/connector/`) is stdlib-only Python that runs on the counter PC,
   reads a CSV export or a read-only SQLite query, sends only rows whose quantity or price
   changed, retries with backoff, and drops incoming orders into a CSV the staff already watch.
+- **Reconciliation never silently absorbs a shortfall.** The platform reserves stock
+  independently of the POS, so a correction can legitimately land below what shoppers
+  already hold (staff sold a reserved pack over the counter before the connector caught
+  up). `InventoryBatch.available_quantity`'s `max(0, current − reserved)` would otherwise
+  hide this as an ordinary zero. Instead `flag_reservation_shortfall()`
+  (`inventory/services/stock.py`) raises a `ReservationShortfall` — the correction still
+  applies, since the POS remains authoritative for its own shelf, but the discrepancy is
+  logged, audited, and surfaced to pharmacy staff at
+  `pharmacy/reservation-shortfalls/` until resolved.
+- **Sync freshness feeds sourcing.** Every sync stamps `InventoryBatch.last_pos_observed_at`,
+  whether or not the quantity changed — confirmation is itself an observation. Basket
+  sourcing (`orders/services/sourcing.py`) reads it back: a candidate whose most recent POS
+  observation is stale pays a cost penalty (capped, with a 2-hour grace window), so a
+  pharmacy whose connector has gone quiet stops outranking one that is actually live.
+  Dashboard-managed stock with no observation on record is never penalised.
 
 ## 7. Analytics — `analytics/services/kpis.py`
 
@@ -189,7 +204,7 @@ which is data a till system structurally cannot produce.
 
 ## Testing
 
-129 tests, all passing. The ones that carry weight:
+191 tests, all passing. The ones that carry weight:
 
 - `delivery/tests/test_routing.py` — precedence, capacity, infeasible windows left
   unassigned rather than violated, pickup consolidation, marginal cost falling on an
@@ -199,9 +214,12 @@ which is data a till system structurally cannot produce.
   locks out, over-dispense refused, partial dispense across two pharmacies, patient contact
   details withheld from the dispensing pharmacy
 - `orders/tests/test_sourcing.py` — no needless splits, FEFO holds, cap enforcement,
-  unmet demand recorded
+  unmet demand recorded, a stale POS connector loses a basket it would otherwise win on
+  distance, dashboard-managed stock is never penalised for having no sync observation
 - `medicines/tests/test_pricing.py` — MoPH price enforced on every write path
-- `integrations/tests/test_bridge.py` — signature, tamper, replay, scope, idempotency
+- `integrations/tests/test_bridge.py` — signature, tamper, replay, scope, idempotency, a
+  sync reporting less stock than is reserved raises a `ReservationShortfall` instead of
+  silently clamping availability to zero, and is visible/resolvable through the pharmacy API
 - `payments/tests/test_payments.py` — every order gets exactly one payment, cash on
   delivery only settles at actual handover, the mock gateway charges synchronously, a
   shopper cannot see or pay another shopper's order
