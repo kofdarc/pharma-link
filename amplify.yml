@@ -11,8 +11,12 @@ applications:
         build:
           commands:
             - pnpm build
+        postBuild:
+          commands:
+            - cp -r .next/static .next/standalone/.next/static
+            - cp -r public .next/standalone/public
       artifacts:
-        baseDirectory: .next
+        baseDirectory: .next/standalone
         files:
           - '**/*'
       cache:
