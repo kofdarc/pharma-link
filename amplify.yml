@@ -11,14 +11,8 @@ applications:
         build:
           commands:
             - pnpm build
-        postBuild:
-          commands:
-            - mkdir -p .next/standalone/.next
-            - cp -r .next/static .next/standalone/.next/static
-            - cp -r public .next/standalone/public
-            - cp .next/required-server-files.json .next/standalone/required-server-files.json
       artifacts:
-        baseDirectory: .next/standalone
+        baseDirectory: .next
         files:
           - '**/*'
       cache:
