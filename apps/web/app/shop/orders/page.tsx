@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import { ChatPanel } from "@/components/messaging/ChatPanel";
 
 function orderTone(status: string) {
   if (status === "DELIVERED" || status === "COLLECTED") return "success" as const;
@@ -146,6 +147,7 @@ function OrdersView() {
                     {t("orders.rate", { pharmacy: fulfillment.pharmacy_name })}
                   </Button>
                 ) : null}
+                <ChatPanel basePath="/shop/order-fulfillments" orderFulfillmentId={fulfillment.id} />
               </div>
             ))}
 

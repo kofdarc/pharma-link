@@ -11,6 +11,7 @@ from apps.audit.services import write_audit_log
 from apps.eprescriptions.models import Doctor, Prescription, PrescriptionItem
 from apps.eprescriptions.services import mailer, tokens
 from apps.medicines.models import Medicine
+from apps.pharmacies.models import Pharmacy
 
 
 class IssueError(Exception):
@@ -18,10 +19,22 @@ class IssueError(Exception):
 
 
 @transaction.atomic
-def issue_prescription(*, doctor: Doctor, patient: dict, items: list[dict], diagnosis_note: str = "", validity_days: int | None = None) -> tuple[Prescription, str, str]:
+def issue_prescription(
+    *,
+    doctor: Doctor,
+    patient: dict,
+    items: list[dict],
+    diagnosis_note: str = "",
+    validity_days: int | None = None,
+    target_pharmacy: Pharmacy | None = None,
+    renewed_from: Prescription | None = None,
+) -> tuple[Prescription, str, str]:
     """
     Creates a prescription and returns (prescription, secret, pin).
     The secret and PIN are returned once and never recoverable afterwards - only their hashes are stored.
+    `target_pharmacy` sends it directly to that pharmacy's incoming queue (PrescribeIT's
+    "Create Rx" model); leaving it unset keeps the deferred-transmission behaviour where the
+    patient carries the QR/PIN to any pharmacy.
     """
     if not doctor.is_activated or not doctor.is_active:
         raise IssueError(_("This licence is not active for issuing prescriptions."))
@@ -38,6 +51,8 @@ def issue_prescription(*, doctor: Doctor, patient: dict, items: list[dict], diag
             with transaction.atomic():
                 prescription = Prescription.objects.create(
                     doctor=doctor,
+                    target_pharmacy=target_pharmacy,
+                    renewed_from=renewed_from,
                     code=code,
                     secret_hash=tokens.hash_value(secret),
                     pin_hash=tokens.hash_pin(pin),
@@ -74,8 +89,9 @@ def issue_prescription(*, doctor: Doctor, patient: dict, items: list[dict], diag
         action="eprescriptions.issued",
         entity_type="Prescription",
         entity_id=prescription.id,
-        summary=f"Dr. {doctor.full_name} issued {prescription.code} ({len(items)} items)",
-        after_data={"code": prescription.code, "items": len(items), "valid_until": prescription.valid_until.isoformat()},
+        summary=f"Dr. {doctor.full_name} issued {prescription.code} ({len(items)} items)"
+        + (f" to {target_pharmacy.name}" if target_pharmacy else ""),
+        after_data={"code": prescription.code, "items": len(items), "valid_until": prescription.valid_until.isoformat(), "target_pharmacy": str(target_pharmacy.id) if target_pharmacy else None},
     )
 
     if prescription.patient_email:
@@ -103,4 +119,14 @@ def cancel_prescription(*, prescription: Prescription, reason: str = "") -> Pres
         summary=f"Cancelled {prescription.code}",
         after_data={"reason": reason},
     )
+    if prescription.target_pharmacy_id:
+        # Deferred import: messaging depends on eprescriptions.models (Conversation.prescription),
+        # so importing at module load time here would be circular.
+        from apps.messaging.services import get_or_create_conversation, send_message
+
+        conversation = get_or_create_conversation(prescription=prescription)
+        body = f"Prescription {prescription.code} was cancelled by Dr. {prescription.doctor.full_name}."
+        if reason:
+            body += f" Reason: {reason}"
+        send_message(conversation=conversation, sender=None, body=body, recipient_phone=prescription.target_pharmacy.whatsapp)
     return prescription

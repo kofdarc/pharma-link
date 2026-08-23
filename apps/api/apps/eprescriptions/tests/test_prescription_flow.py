@@ -369,3 +369,51 @@ class PublicEndpointTests(TestCase):
         result = self.client.post("/api/public/rx/lookup/", {"code": self.prescription.code}, format="json")
 
         self.assertEqual(result.status_code, 400)
+
+
+class MyPrescriptionsViewTests(TestCase):
+    """
+    A Prescription has no owning user account (see its security-model docstring) - the
+    'mine' endpoint links a signed-in shopper to their prescriptions by matching the
+    account's own email against what the doctor recorded as the patient's email.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.client = APIClient()
+        self.doctor = make_doctor()
+        self.medicine = Medicine.objects.create(brand_name="Panadol", strength="500mg", form="Tablet", regulated_price="2.25")
+        self.shopper = get_user_model().objects.create_user(email="georges@example.test", password="Password123!", role=UserRole.CUSTOMER)
+        self.prescription, _secret, _pin = issue_prescription(
+            doctor=self.doctor,
+            patient={"patient_name": "Georges Haddad", "patient_email": "georges@example.test"},
+            items=[{"medicine": str(self.medicine.id), "quantity_prescribed": 20}],
+        )
+        issue_prescription(
+            doctor=self.doctor,
+            patient={"patient_name": "Someone Else", "patient_email": "someone-else@example.test"},
+            items=[{"medicine": str(self.medicine.id), "quantity_prescribed": 5}],
+        )
+
+    def test_returns_only_prescriptions_matching_the_signed_in_email(self):
+        self.client.force_authenticate(user=self.shopper)
+
+        result = self.client.get("/api/shop/prescriptions/mine/")
+
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual([entry["code"] for entry in result.data], [self.prescription.code])
+
+    def test_email_match_is_case_insensitive(self):
+        self.shopper.email = "Georges@Example.test"
+        self.shopper.save(update_fields=["email"])
+        self.client.force_authenticate(user=self.shopper)
+
+        result = self.client.get("/api/shop/prescriptions/mine/")
+
+        self.assertEqual([entry["code"] for entry in result.data], [self.prescription.code])
+
+    def test_requires_authentication(self):
+        result = self.client.get("/api/shop/prescriptions/mine/")
+
+        self.assertEqual(result.status_code, 401)

@@ -16,6 +16,7 @@
     "pharmacyLogin": "Pharmacy Login",
     "findMedicine": "Find medicine",
     "myOrders": "My orders",
+    "myPrescriptions": "My prescriptions",
     "repeatRefills": "Repeat refills",
     "addresses": "Addresses",
     "dashboard": "Dashboard",
@@ -41,7 +42,9 @@
     "writeAPrescription": "Write a prescription",
     "patients": "Patients",
     "profile": "Profile",
-    "myRoute": "My route"
+    "myRoute": "My route",
+    "insurance": "Insurance",
+    "insuranceClaims": "Insurance claims"
   },
   "adminDashboard": {
     "title": "Admin",
@@ -480,7 +483,15 @@
     "type": "Type",
     "amount": "Amount",
     "memo": "Memo",
-    "ledgerNote": "The ledger is append-only: a mistake is corrected with a balancing entry, never by editing history."
+    "ledgerNote": "The ledger is append-only: a mistake is corrected with a balancing entry, never by editing history.",
+    "insurancePolicies": "Insurance policies",
+    "noInsurancePolicies": "No insurance policies on file.",
+    "insurancePlan": "Plan",
+    "selectInsurancePlan": "Select a plan",
+    "insuranceMemberId": "Member ID",
+    "insuranceHolderName": "Cardholder name",
+    "addInsurancePolicy": "Add policy",
+    "insurancePolicySaveFailed": "Could not save that insurance policy."
   },
   "pharmacyImports": {
     "title": "Imports",
@@ -536,7 +547,12 @@
     "discount": "Discount",
     "addLine": "Add line",
     "confirmSale": "Confirm sale",
-    "saleFailed": "Sale failed. Check stock availability and line item details."
+    "saleFailed": "Sale failed. Check stock availability and line item details.",
+    "client": "Client (optional)",
+    "walkIn": "Walk-in (no account)",
+    "paymentMethod": "Payment method",
+    "insurancePolicy": "Insurance (optional)",
+    "noInsurance": "No insurance"
   },
   "pharmacyInvoiceDetail": {
     "notFound": "Invoice not found or unauthorized.",
@@ -608,6 +624,12 @@
     "logout": "Logout",
     "openMenu": "Open menu",
     "closeMenu": "Close menu"
+  },
+  "installPrompt": {
+    "title": "Install PharmaLink",
+    "body": "Add PharmaLink to your home screen for quick, full-screen access.",
+    "install": "Install",
+    "dismiss": "Not now"
   },
   "home": {
     "title": "Find connected pharmacies that may have your medicine.",
@@ -689,6 +711,7 @@
     "noResults": "No connected pharmacies currently show this medicine as available.",
     "call": "Call {phone}",
     "whatsapp": "WhatsApp",
+    "onCall": "On call now",
     "lastUpdated": "Last updated {when}"
   },
   "shop": {
@@ -769,7 +792,10 @@
     "checkoutDelivery": "Delivery",
     "checkoutFree": "Free",
     "checkoutTotal": "Total",
-    "rxTag": "Rx"
+    "rxTag": "Rx",
+    "insurance": "Insurance (optional)",
+    "noInsurance": "No insurance",
+    "checkoutEstimatedCopay": "Estimated copay after insurance"
   },
   "orders": {
     "title": "My orders",
@@ -820,6 +846,31 @@
     "footerNoticeBefore": "Scheduled orders only enter the delivery pool shortly before their window, so your stock is not held for days and your delivery can be batched with others going the same way. See",
     "myOrdersLink": "my orders"
   },
+  "myPrescriptions": {
+    "title": "My prescriptions",
+    "subtitle": "Prescriptions a doctor issued using the email on this account.",
+    "loadError": "Could not load your prescriptions.",
+    "noPrescriptions": "No prescriptions found.",
+    "noPrescriptionsHint": "This list only shows prescriptions where the doctor recorded this account's email as the patient's email. If you have the code, QR, or PIN a doctor gave you directly, you can still use it to order or redeem at any pharmacy.",
+    "prescriber": "Dr. {doctor} · licence {license}",
+    "issued": "Issued",
+    "validUntil": "Valid until",
+    "item": "Item",
+    "prescribed": "Prescribed",
+    "dispensed": "Dispensed",
+    "remaining": "Remaining",
+    "dispenseHistory": "Dispense history",
+    "noDispenses": "Not yet redeemed anywhere.",
+    "footerNoticeBefore": "To order online or redeem at a pharmacy, use the code, QR, or PIN your doctor gave you. Set up automatic refills from",
+    "refillsLink": "repeat refills",
+    "status": {
+      "ISSUED": "Issued",
+      "PARTIALLY_DISPENSED": "Partially dispensed",
+      "FULLY_DISPENSED": "Fully dispensed",
+      "EXPIRED": "Expired",
+      "CANCELLED": "Cancelled"
+    }
+  },
   "addresses": {
     "title": "Delivery addresses",
     "subtitle": "Coordinates matter: they are what let us rank pharmacies by real distance and plan an efficient route.",
@@ -859,7 +910,18 @@
     "latitude": "Latitude",
     "longitude": "Longitude",
     "publicVisibility": "Public visibility",
+    "onCall": "On call (\"de garde\")",
     "saveSettings": "Save settings"
+  },
+  "chat": {
+    "open": "Message",
+    "close": "Close",
+    "title": "Messages",
+    "empty": "No messages yet.",
+    "placeholder": "Type a message...",
+    "send": "Send",
+    "loadError": "Messages failed to load.",
+    "sendFailed": "Message failed to send."
   },
   "pharmacyStaff": {
     "title": "Staff",
@@ -1037,7 +1099,12 @@
     "allowSubstitutionHint": "Allow the pharmacy to substitute an equivalent generic.",
     "removeItem": "Remove item",
     "issuing": "Issuing...",
-    "issueAndEmail": "Issue and email the prescription"
+    "issueAndEmail": "Issue and email the prescription",
+    "sendToPharmacy": "Send to pharmacy",
+    "sendToPharmacyHint": "Optional - sends directly to that pharmacy's queue instead of the patient carrying a QR/PIN",
+    "sendToPharmacyPlaceholder": "Start typing a pharmacy name",
+    "sentDirectly": "Sent directly to {pharmacy}.",
+    "backupHint": "The QR/PIN below still work as a backup at any pharmacy."
   },
   "doctorPrescriptionDetail": {
     "notFound": "Prescription not found, or it does not belong to you.",
@@ -1069,7 +1136,9 @@
     "cancelHint": "Once cancelled, no pharmacy will be able to dispense it, even partially. This cannot be undone.",
     "cancelling": "Cancelling...",
     "cancelPrescription": "Cancel prescription",
-    "prescriptionLabel": "Prescription"
+    "prescriptionLabel": "Prescription",
+    "renewalOf": "Renewal of {code}",
+    "sentTo": "Sent to"
   },
   "doctorProfile": {
     "generalPractice": "General practice",
@@ -1172,5 +1241,96 @@
     "deliver": "Deliver",
     "ordersInOneVisit": "{count} orders in one visit · ",
     "failedReason": "Failed: {reason}"
+  },
+  "shopInsurance": {
+    "title": "Insurance",
+    "subtitle": "Save your insurance card so checkout can estimate what your insurer covers.",
+    "loadError": "Could not load your insurance policies.",
+    "saveError": "Could not save that policy.",
+    "noPolicies": "No insurance policies saved yet.",
+    "addPolicy": "Add a policy",
+    "plan": "Plan",
+    "selectPlan": "Select a plan",
+    "memberId": "Member ID",
+    "holderName": "Cardholder name",
+    "validUntil": "Valid until (optional)",
+    "saving": "Saving...",
+    "savePolicy": "Save policy",
+    "coverage": "{percentage}% covered, {minimum} minimum copay",
+    "remove": "Remove",
+    "removeError": "Could not remove that policy."
+  },
+  "pharmacyInsuranceClaims": {
+    "title": "Insurance claims",
+    "subtitle": "Track what each insurer owes for orders and counter sales billed to a patient's policy.",
+    "loadError": "Could not load insurance claims.",
+    "noClaims": "No insurance claims yet.",
+    "source": "Source",
+    "patient": "Patient",
+    "billed": "Billed",
+    "covered": "Covered",
+    "copay": "Copay",
+    "status": "Status",
+    "approve": "Approve",
+    "reject": "Reject",
+    "markPaid": "Mark paid",
+    "approvalCodePrompt": "TPA approval code (optional)",
+    "rejectionReasonPrompt": "Rejection reason (optional)",
+    "actionFailed": "Could not update that claim."
+  },
+  "doctorRenewalRequests": {
+    "title": "Renewal requests",
+    "subtitle": "Pharmacies asking you to renew a prescription.",
+    "loadError": "Renewal requests failed to load.",
+    "respondFailed": "Could not record your response.",
+    "denyReasonPrompt": "Reason for denying (optional)",
+    "empty": "No renewal requests yet.",
+    "prescription": "Prescription",
+    "patient": "Patient",
+    "pharmacy": "Pharmacy",
+    "note": "Note",
+    "status": "Status",
+    "approve": "Approve",
+    "deny": "Deny",
+    "issuedAs": "Issued as {code}"
+  },
+  "doctorFormulary": {
+    "title": "Formulary lookup",
+    "subtitle": "Check a patient's known insurance coverage before prescribing. There is no per-medicine formulary dataset - this shows the patient's plan-level coverage instead.",
+    "patientEmail": "Patient email",
+    "patientPhone": "Patient phone",
+    "provideOne": "Enter the patient's email or phone.",
+    "checking": "Checking...",
+    "checkCoverage": "Check coverage",
+    "lookupFailed": "Lookup failed.",
+    "noPolicy": "No insurance plan on file",
+    "noPolicyHint": "This patient has no known insurance policy on the platform.",
+    "provider": "Provider",
+    "plan": "Plan",
+    "coverage": "Coverage",
+    "copayMinimum": "Copay minimum"
+  },
+  "pharmacyIncoming": {
+    "title": "Incoming e-prescriptions",
+    "subtitle": "Prescriptions doctors sent directly to your pharmacy.",
+    "loadError": "Incoming prescriptions failed to load.",
+    "empty": "No incoming prescriptions",
+    "emptyHint": "Prescriptions doctors send directly to your pharmacy will appear here.",
+    "remaining": "remaining",
+    "dispense": "Dispense",
+    "close": "Close",
+    "item": "Item",
+    "dispensingNow": "Dispensing now",
+    "dispensingPharmacist": "Dispensing pharmacist",
+    "recording": "Recording...",
+    "confirmDispense": "Confirm dispense",
+    "enterQuantity": "Enter at least one quantity to dispense.",
+    "dispensed": "{code} dispensed.",
+    "dispenseFailed": "Dispense failed.",
+    "requestRenewal": "Request renewal",
+    "renewalNotePrompt": "Note for the doctor (optional)",
+    "renewalRequested": "Renewal requested for {code}.",
+    "renewalRequestFailed": "Renewal request failed.",
+    "renewalOf": "Renewal of {code}"
   }
 }

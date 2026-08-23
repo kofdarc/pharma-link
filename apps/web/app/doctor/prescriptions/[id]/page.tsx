@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
+import { ChatPanel } from "@/components/messaging/ChatPanel";
 
 function tone(status: string) {
   if (status === "FULLY_DISPENSED") return "success" as const;
@@ -70,6 +71,9 @@ export default function DoctorPrescriptionDetailPage() {
             {prescription.patient_email ? ` · ${prescription.patient_email}` : ""}
             {prescription.patient_phone ? ` · ${prescription.patient_phone}` : ""}
           </p>
+          {prescription.renewed_from_code ? (
+            <p className="muted small">{t("doctorPrescriptionDetail.renewalOf", { code: prescription.renewed_from_code })}</p>
+          ) : null}
         </div>
         <div className="toolbar">
           <Badge tone={tone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
@@ -80,6 +84,18 @@ export default function DoctorPrescriptionDetailPage() {
       </div>
 
       {error ? <Notice tone="danger">{error}</Notice> : null}
+
+      {prescription.target_pharmacy_name ? (
+        <section className="panel">
+          <div className="section-header">
+            <div>
+              <h3>{t("doctorPrescriptionDetail.sentTo")}</h3>
+              <p className="muted small">{prescription.target_pharmacy_name}</p>
+            </div>
+            <ChatPanel basePath="/doctor/prescriptions" orderFulfillmentId={prescription.id} />
+          </div>
+        </section>
+      ) : null}
 
       {prescription.status === "CANCELLED" ? (
         <Notice tone="danger">

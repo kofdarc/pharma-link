@@ -14,6 +14,9 @@ from django.utils.translation import gettext as _
 from apps.audit.services import write_audit_log
 from apps.common.mailer import send_email
 from apps.customers.services import link_or_create_client_for_shopper
+from apps.eprescriptions.models import PrescriptionItem
+from apps.eprescriptions.services.dispense import DispenseError, dispense_prescription
+from apps.insurance.services import submit_claim_for_fulfillment
 from apps.inventory.models import InventoryBatch
 from apps.medicines.models import Medicine
 from apps.orders.models import (
@@ -112,6 +115,55 @@ def _check_prescription_requirements(*, items: list[dict], medicines_by_id: dict
             )
 
 
+def _consume_prescription_lines(*, prescription, pharmacy: Pharmacy, lines: list[OrderLine], order: Order) -> None:
+    """
+    Decrements the prescription's remaining balance the moment an online order reserves
+    stock against it - the same bookkeeping a pharmacist dispense does. Without this, a
+    shopper could order online and still walk into a pharmacy (or place a second online
+    order) and redeem the same remaining units again, since _check_prescription_requirements
+    only validates the balance, it never claims it.
+    """
+    needed_by_medicine: dict[str, int] = {}
+    medicine_names: dict[str, str] = {}
+    for line in lines:
+        if line.medicine.requires_prescription:
+            medicine_id = str(line.medicine_id)
+            needed_by_medicine[medicine_id] = needed_by_medicine.get(medicine_id, 0) + line.quantity
+            medicine_names[medicine_id] = str(line.medicine)
+    if not needed_by_medicine:
+        return
+
+    items = list(PrescriptionItem.objects.select_for_update().filter(prescription=prescription, medicine_id__in=needed_by_medicine))
+    dispense_lines = []
+    for medicine_id, quantity_needed in needed_by_medicine.items():
+        remaining = quantity_needed
+        for item in items:
+            if remaining <= 0:
+                break
+            if str(item.medicine_id) != medicine_id:
+                continue
+            take = min(remaining, item.quantity_remaining)
+            if take <= 0:
+                continue
+            dispense_lines.append({"prescription_item": item.id, "quantity": take})
+            remaining -= take
+        if remaining > 0:
+            raise OrderError(
+                _("The prescription no longer covers enough %(medicine)s for this order.") % {"medicine": medicine_names[medicine_id]}
+            )
+
+    try:
+        dispense_prescription(
+            prescription=prescription,
+            lines=dispense_lines,
+            pharmacy_details={"pharmacist_name": _("Online order"), "notes": f"Auto-dispensed for order {order.reference}"},
+            pharmacy=pharmacy,
+            request=None,
+        )
+    except DispenseError as exc:
+        raise OrderError(str(exc)) from exc
+
+
 def _reserve_lines(*, pharmacy: Pharmacy, line: OrderLine, quantity: int, expires_at) -> None:
     """
     FEFO reservation across batches. Uses select_for_update so two shoppers cannot both
@@ -158,6 +210,7 @@ def place_order(
     recurring_order=None,
     payment_method: str = Payment.Provider.CASH_ON_DELIVERY,
     idempotency_key: str = "",
+    insurance_policy=None,
 ) -> Order:
     """
     Validates, sources, then persists.
@@ -219,6 +272,7 @@ def place_order(
         recurring_order=recurring_order,
         payment_method=payment_method,
         idempotency_key=idempotency_key,
+        insurance_policy=insurance_policy,
     )
 
     if plan["unfulfilled"]:
@@ -252,6 +306,7 @@ def _persist_order(
     recurring_order,
     payment_method: str,
     idempotency_key: str = "",
+    insurance_policy=None,
 ) -> Order:
     order = Order.objects.create(
         reference=next_reference(),
@@ -288,6 +343,7 @@ def _persist_order(
             subtotal=allocation["subtotal"],
             handover_code=f"{secrets.randbelow(1000000):06d}",
         )
+        created_lines = []
         for raw_line in allocation["lines"]:
             medicine = Medicine.objects.get(id=raw_line["medicine"])
             line = OrderLine.objects.create(
@@ -299,6 +355,9 @@ def _persist_order(
                 is_price_regulated=raw_line["is_price_regulated"],
             )
             _reserve_lines(pharmacy=pharmacy, line=line, quantity=line.quantity, expires_at=hold_until)
+            created_lines.append(line)
+        if prescription is not None:
+            _consume_prescription_lines(prescription=prescription, pharmacy=pharmacy, lines=created_lines, order=order)
         subtotal += allocation["subtotal"]
         link_or_create_client_for_shopper(
             pharmacy=pharmacy,
@@ -314,7 +373,18 @@ def _persist_order(
     order.delivery_fee = delivery_fee
     order.total = subtotal + delivery_fee
     order.save(update_fields=["items_subtotal", "delivery_fee", "total", "updated_at"])
-    payment = create_payment_for_order(order=order, provider_code=payment_method, user=customer)
+
+    payment_amount = order.total
+    if insurance_policy is not None:
+        # Delivery fee is never insurance-eligible - only what each pharmacy dispensed is
+        # billed to the TPA, one claim per fulfillment (see submit_claim_for_fulfillment).
+        total_copay = Decimal("0")
+        for fulfillment in order.fulfillments.all():
+            claim = submit_claim_for_fulfillment(fulfillment=fulfillment, policy=insurance_policy, user=customer)
+            total_copay += claim.patient_copay
+        payment_amount = total_copay + delivery_fee
+
+    payment = create_payment_for_order(order=order, provider_code=payment_method, user=customer, amount=payment_amount)
     if payment.status == Payment.Status.FAILED:
         raise OrderError(_("Payment failed: %(reason)s") % {"reason": payment.failure_reason or _("the charge was declined.")})
     return order

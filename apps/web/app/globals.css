@@ -231,6 +231,51 @@ textarea {
   color: var(--red);
 }
 
+.install-prompt {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.install-prompt div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.install-prompt div:first-child span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.install-prompt-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .install-prompt {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .install-prompt-actions {
+    justify-content: flex-end;
+  }
+}
+
 .app-shell {
   min-height: 100vh;
   display: grid;

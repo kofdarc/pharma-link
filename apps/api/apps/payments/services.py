@@ -38,10 +38,15 @@ def _notify_payment_failed(payment: Payment) -> None:
 
 
 @transaction.atomic
-def create_payment_for_order(*, order, provider_code: str, user=None) -> Payment:
+def create_payment_for_order(*, order, provider_code: str, user=None, amount=None) -> Payment:
+    """
+    `amount` defaults to the order's full total. Insured checkouts pass an explicit
+    lower amount - what the shopper actually owes after insurance covers its share - so
+    the payment charged matches the patient's copay rather than the order's list price.
+    """
     if hasattr(order, "payment"):
         raise PaymentError(_("This order already has a payment on file."))
-    payment = Payment.objects.create(order=order, provider=provider_code, amount=order.total, status=Payment.Status.PENDING)
+    payment = Payment.objects.create(order=order, provider=provider_code, amount=amount if amount is not None else order.total, status=Payment.Status.PENDING)
     if provider_code == Payment.Provider.CASH_ON_DELIVERY:
         return payment
     return charge_payment(payment=payment, user=user)

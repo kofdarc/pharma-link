@@ -36,7 +36,8 @@ export default function PharmacySettingsPage() {
           email: form.get("email"),
           latitude: form.get("latitude") || null,
           longitude: form.get("longitude") || null,
-          is_public: form.get("is_public") === "on"
+          is_public: form.get("is_public") === "on",
+          is_on_call: form.get("is_on_call") === "on"
         })
       });
       setProfile(updated);
@@ -84,6 +85,10 @@ export default function PharmacySettingsPage() {
         <label className="field">
           <span>{t("pharmacySettings.publicVisibility")}</span>
           <input name="is_public" type="checkbox" defaultChecked={profile.is_public} />
+        </label>
+        <label className="field">
+          <span>{t("pharmacySettings.onCall")}</span>
+          <input name="is_on_call" type="checkbox" defaultChecked={profile.is_on_call} />
         </label>
         <Button type="submit">{t("pharmacySettings.saveSettings")}</Button>
       </form>

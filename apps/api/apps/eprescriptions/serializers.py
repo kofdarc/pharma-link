@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.eprescriptions.models import Doctor, Prescription, PrescriptionDispense, PrescriptionItem
+from apps.eprescriptions.models import Doctor, Prescription, PrescriptionDispense, PrescriptionItem, PrescriptionRenewalRequest
 from apps.medicines.serializers import MedicineSerializer
 
 
@@ -105,6 +105,8 @@ class PrescriptionSerializer(serializers.ModelSerializer):
     dispenses = PrescriptionDispenseSerializer(many=True, read_only=True)
     doctor_name = serializers.CharField(source="doctor.full_name", read_only=True)
     doctor_license = serializers.CharField(source="doctor.license_number", read_only=True)
+    target_pharmacy_name = serializers.CharField(source="target_pharmacy.name", read_only=True, default=None)
+    renewed_from_code = serializers.CharField(source="renewed_from.code", read_only=True, default=None)
     is_expired = serializers.BooleanField(read_only=True)
     is_consumable = serializers.BooleanField(read_only=True)
 
@@ -116,6 +118,10 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             "doctor",
             "doctor_name",
             "doctor_license",
+            "target_pharmacy",
+            "target_pharmacy_name",
+            "renewed_from",
+            "renewed_from_code",
             "patient_name",
             "patient_email",
             "patient_phone",
@@ -142,12 +148,49 @@ class PrescriptionCreateSerializer(serializers.Serializer):
     patient_date_of_birth = serializers.DateField(required=False, allow_null=True)
     diagnosis_note = serializers.CharField(required=False, allow_blank=True)
     validity_days = serializers.IntegerField(required=False, min_value=1, max_value=365)
+    target_pharmacy = serializers.UUIDField(required=False, allow_null=True, help_text="Send directly to this pharmacy. Omit for deferred transmission (patient carries the QR/PIN).")
     items = PrescriptionItemCreateSerializer(many=True)
 
     def validate_items(self, items):
         if not items:
             raise serializers.ValidationError("A prescription needs at least one item.")
         return items
+
+
+class RenewalRequestCreateSerializer(serializers.Serializer):
+    prescription = serializers.UUIDField()
+    note = serializers.CharField(required=False, allow_blank=True)
+
+
+class RenewalRequestRespondSerializer(serializers.Serializer):
+    approve = serializers.BooleanField()
+    response_note = serializers.CharField(required=False, allow_blank=True)
+
+
+class PrescriptionRenewalRequestSerializer(serializers.ModelSerializer):
+    prescription_code = serializers.CharField(source="prescription.code", read_only=True)
+    patient_name = serializers.CharField(source="prescription.patient_name", read_only=True)
+    pharmacy_name = serializers.CharField(source="requested_by_pharmacy.name", read_only=True)
+    new_prescription_code = serializers.CharField(source="new_prescription.code", read_only=True, default=None)
+
+    class Meta:
+        model = PrescriptionRenewalRequest
+        fields = [
+            "id",
+            "prescription",
+            "prescription_code",
+            "patient_name",
+            "requested_by_pharmacy",
+            "pharmacy_name",
+            "note",
+            "status",
+            "response_note",
+            "responded_at",
+            "new_prescription",
+            "new_prescription_code",
+            "created_at",
+        ]
+        read_only_fields = fields
 
 
 class PublicPrescriptionLookupSerializer(serializers.Serializer):
@@ -170,6 +213,17 @@ class PublicDispenseLineSerializer(serializers.Serializer):
 class PublicDispenseSerializer(serializers.Serializer):
     ticket = serializers.CharField()
     pharmacy_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    pharmacist_name = serializers.CharField(max_length=255)
+    pharmacist_license = serializers.CharField(max_length=80, required=False, allow_blank=True)
+    contact_phone = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    items = PublicDispenseLineSerializer(many=True)
+
+
+class PharmacyDirectDispenseSerializer(serializers.Serializer):
+    """Same shape as PublicDispenseSerializer minus the ticket/pharmacy_name - the pharmacy is
+    already known from the authenticated request, and there is no QR/PIN ticket to redeem."""
+
     pharmacist_name = serializers.CharField(max_length=255)
     pharmacist_license = serializers.CharField(max_length=80, required=False, allow_blank=True)
     contact_phone = serializers.CharField(max_length=40, required=False, allow_blank=True)

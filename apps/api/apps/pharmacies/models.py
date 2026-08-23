@@ -19,6 +19,9 @@ class Pharmacy(UUIDTimeStampedModel):
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, validators=[MinValueValidator(-180), MaxValueValidator(180)])
     is_active = models.BooleanField(default=True)
     is_public = models.BooleanField(default=True)
+    is_on_call = models.BooleanField(
+        default=False, db_index=True, help_text="Currently on Lebanon's pharmacy duty roster ('de garde') - reachable outside normal hours."
+    )
 
     # Consumer-facing controls. Pharmacies never expose their true stock depth publicly:
     # shoppers see and can order at most this many units of an item at a time.

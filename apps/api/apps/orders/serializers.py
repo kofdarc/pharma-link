@@ -162,6 +162,7 @@ class OrderCreateSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
     prescription_code = serializers.CharField(required=False, allow_blank=True, max_length=24)
     payment_method = serializers.ChoiceField(choices=Payment.Provider.choices, default=Payment.Provider.CASH_ON_DELIVERY)
+    insurance_policy = serializers.UUIDField(required=False, allow_null=True)
 
     def validate_items(self, items):
         if not items:

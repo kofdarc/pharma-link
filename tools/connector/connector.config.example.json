@@ -25,5 +25,16 @@
     "type": "sqlite",
     "path": "C:/PharmacyPOS/data/pos.db",
     "query": "SELECT item_code AS external_code, item_name AS name, stock_qty AS quantity, price AS selling_price, cost AS purchase_cost FROM items WHERE active = 1"
+  },
+  "_mssql_source_example": {
+    "type": "mssql",
+    "server": "localhost\\SOFTPHARM",
+    "database": "SoftPharmDB",
+    "driver": "ODBC Driver 17 for SQL Server",
+    "username": "pharmalink_reader",
+    "password": "REPLACE_ME_OR_SET_PHARMALINK_SQL_PASSWORD_ENV",
+    "trust_server_certificate": true,
+    "query": "SELECT ItemCode AS external_code, ItemName AS name, QtyOnHand AS quantity, RetailPrice AS selling_price, CostPrice AS purchase_cost, ExpiryDate AS expiry_date, SupplierName AS supplier_name FROM dbo.StockItems WHERE IsActive = 1",
+    "_comment": "Use a dedicated read-only SQL login (pharmalink_reader), never the pharmacy's own POS credentials. Exact table/column names must be confirmed against the pharmacy's actual SoftPharm install - this is a placeholder, not a documented SoftPharm schema."
   }
 }

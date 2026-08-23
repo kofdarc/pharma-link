@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from django.utils.translation import gettext as _
 from rest_framework import status
 from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
@@ -11,15 +11,19 @@ from rest_framework.viewsets import ModelViewSet
 
 from apps.accounts.permissions import IsActivatedDoctor, IsPharmacyUserWithActivePharmacy, IsPlatformAdmin
 from apps.audit.services import write_audit_log
-from apps.eprescriptions.models import Doctor, Prescription
+from apps.eprescriptions.models import Doctor, Prescription, PrescriptionRenewalRequest
 from apps.eprescriptions.serializers import (
     AdminDoctorSerializer,
     DoctorActivationSerializer,
     DoctorSerializer,
+    PharmacyDirectDispenseSerializer,
     PrescriptionCreateSerializer,
+    PrescriptionRenewalRequestSerializer,
     PrescriptionSerializer,
     PublicDispenseSerializer,
     PublicPrescriptionLookupSerializer,
+    RenewalRequestCreateSerializer,
+    RenewalRequestRespondSerializer,
 )
 from apps.eprescriptions.services import tokens
 from apps.eprescriptions.services.access import PrescriptionAuthError, authenticate
@@ -27,6 +31,7 @@ from apps.eprescriptions.services.activation import ActivationError, activate_do
 from apps.eprescriptions.services.dispense import DispenseError, dispense_prescription
 from apps.eprescriptions.services.issue import IssueError, cancel_prescription, issue_prescription
 from apps.eprescriptions.services.qr import prescription_qr_svg, prescription_url
+from apps.eprescriptions.services.renewal import RenewalError, request_renewal, respond_to_renewal
 from apps.pharmacies.models import Pharmacy
 
 
@@ -104,6 +109,12 @@ class DoctorPrescriptionViewSet(ModelViewSet):
         items = payload.pop("items")
         validity_days = payload.pop("validity_days", None)
         diagnosis_note = payload.pop("diagnosis_note", "")
+        target_pharmacy_id = payload.pop("target_pharmacy", None)
+        target_pharmacy = None
+        if target_pharmacy_id:
+            target_pharmacy = Pharmacy.objects.filter(id=target_pharmacy_id, is_active=True).first()
+            if target_pharmacy is None:
+                return Response({"detail": "Pharmacy not found."}, status=status.HTTP_400_BAD_REQUEST)
         try:
             prescription, secret, pin = issue_prescription(
                 doctor=request.user.doctor_profile,
@@ -111,6 +122,7 @@ class DoctorPrescriptionViewSet(ModelViewSet):
                 items=items,
                 diagnosis_note=diagnosis_note,
                 validity_days=validity_days,
+                target_pharmacy=target_pharmacy,
             )
         except IssueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -133,9 +145,118 @@ class DoctorPrescriptionViewSet(ModelViewSet):
         return Response(self.get_serializer(prescription).data)
 
 
+class DoctorRenewalRequestViewSet(ModelViewSet):
+    """Renewal requests pharmacies have raised against this doctor's prescriptions."""
+
+    serializer_class = PrescriptionRenewalRequestSerializer
+    permission_classes = [IsActivatedDoctor]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        return PrescriptionRenewalRequest.objects.filter(prescription__doctor=self.request.user.doctor_profile).select_related(
+            "prescription", "requested_by_pharmacy", "new_prescription"
+        )
+
+    @action(detail=True, methods=["post"])
+    def respond(self, request, pk=None):
+        serializer = RenewalRequestRespondSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            renewal_request = respond_to_renewal(renewal_request=self.get_object(), **serializer.validated_data)
+        except RenewalError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(self.get_serializer(renewal_request).data)
+
+
+class PharmacyRenewalRequestViewSet(ModelViewSet):
+    """Renewal requests this pharmacy has raised against prescriptions it has legitimate contact with."""
+
+    serializer_class = PrescriptionRenewalRequestSerializer
+    permission_classes = [IsPharmacyUserWithActivePharmacy]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        return PrescriptionRenewalRequest.objects.filter(requested_by_pharmacy=self.request.user.pharmacy).select_related(
+            "prescription", "requested_by_pharmacy", "new_prescription"
+        )
+
+    def create(self, request, *args, **kwargs):
+        serializer = RenewalRequestCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        prescription = Prescription.objects.filter(id=serializer.validated_data["prescription"]).first()
+        if prescription is None:
+            return Response({"detail": "Prescription not found."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            renewal_request = request_renewal(
+                prescription=prescription,
+                pharmacy=request.user.pharmacy,
+                requested_by_user=request.user,
+                note=serializer.validated_data.get("note", ""),
+            )
+        except RenewalError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(self.get_serializer(renewal_request).data, status=status.HTTP_201_CREATED)
+
+
+class PharmacyIncomingPrescriptionViewSet(ModelViewSet):
+    """Prescriptions a doctor sent directly to this pharmacy (PrescribeIT's "Create Rx" model) -
+    the pharmacy's inbox, distinct from the QR/PIN scan flow used for deferred transmission.
+    Ownership via target_pharmacy already proves this pharmacy is the intended recipient, so
+    dispensing here needs no QR key/PIN, unlike the public scan flow."""
+
+    serializer_class = PrescriptionSerializer
+    permission_classes = [IsPharmacyUserWithActivePharmacy]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        return (
+            Prescription.objects.filter(target_pharmacy=self.request.user.pharmacy)
+            .select_related("doctor")
+            .prefetch_related("items__medicine", "dispenses__items__prescription_item")
+        )
+
+    @action(detail=True, methods=["post"])
+    def dispense(self, request, pk=None):
+        serializer = PharmacyDirectDispenseSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = dict(serializer.validated_data)
+        lines = payload.pop("items")
+        prescription = self.get_object()
+        try:
+            dispense_prescription(prescription=prescription, lines=lines, pharmacy_details=payload, pharmacy=request.user.pharmacy, request=request)
+        except DispenseError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+        prescription.refresh_from_db()
+        return Response(self.get_serializer(prescription).data)
+
+
+class MyPrescriptionsView(APIView):
+    """
+    A prescription has no owning user account - only the free-text patient_email/phone the
+    doctor captured at issue time (see Prescription's security-model docstring). Matching on
+    the signed-in shopper's own email is the least-surprising link available without changing
+    that model, and it only ever surfaces the requester's own address back to them.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        email = (request.user.email or "").strip()
+        if not email:
+            return Response([])
+        qs = (
+            Prescription.objects.filter(patient_email__iexact=email)
+            .select_related("doctor")
+            .prefetch_related("items__medicine", "dispenses__items__prescription_item")
+            .order_by("-issued_at")
+        )
+        return Response(PrescriptionSerializer(qs, many=True).data)
+
+
 def public_prescription_payload(prescription: Prescription, ticket: str) -> dict:
     """What a dispensing pharmacy is allowed to see. Patient contact details are withheld."""
     return {
+        "id": str(prescription.id),
         "code": prescription.code,
         "status": prescription.status,
         "issued_at": prescription.issued_at,

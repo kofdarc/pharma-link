@@ -16,6 +16,7 @@
     "pharmacyLogin": "Connexion pharmacie",
     "findMedicine": "Trouver un médicament",
     "myOrders": "Mes commandes",
+    "myPrescriptions": "Mes ordonnances",
     "repeatRefills": "Renouvellements",
     "addresses": "Adresses",
     "dashboard": "Tableau de bord",
@@ -41,7 +42,9 @@
     "writeAPrescription": "Rédiger une ordonnance",
     "patients": "Patients",
     "profile": "Profil",
-    "myRoute": "Mon itinéraire"
+    "myRoute": "Mon itinéraire",
+    "insurance": "Assurance",
+    "insuranceClaims": "Sinistres d'assurance"
   },
   "adminDashboard": {
     "title": "Admin",
@@ -480,7 +483,15 @@
     "type": "Type",
     "amount": "Montant",
     "memo": "Mémo",
-    "ledgerNote": "Le registre est en ajout seul : une erreur est corrigée par une écriture d'équilibrage, jamais en modifiant l'historique."
+    "ledgerNote": "Le registre est en ajout seul : une erreur est corrigée par une écriture d'équilibrage, jamais en modifiant l'historique.",
+    "insurancePolicies": "Polices d'assurance",
+    "noInsurancePolicies": "Aucune police d'assurance enregistrée.",
+    "insurancePlan": "Plan",
+    "selectInsurancePlan": "Sélectionner un plan",
+    "insuranceMemberId": "Numéro d'adhérent",
+    "insuranceHolderName": "Nom du titulaire",
+    "addInsurancePolicy": "Ajouter une police",
+    "insurancePolicySaveFailed": "Impossible d'enregistrer cette police d'assurance."
   },
   "pharmacyImports": {
     "title": "Imports",
@@ -536,7 +547,12 @@
     "discount": "Remise",
     "addLine": "Ajouter une ligne",
     "confirmSale": "Confirmer la vente",
-    "saleFailed": "Échec de la vente. Vérifiez la disponibilité du stock et les détails des lignes."
+    "saleFailed": "Échec de la vente. Vérifiez la disponibilité du stock et les détails des lignes.",
+    "client": "Client (optionnel)",
+    "walkIn": "Client de passage (sans compte)",
+    "paymentMethod": "Moyen de paiement",
+    "insurancePolicy": "Assurance (optionnelle)",
+    "noInsurance": "Aucune assurance"
   },
   "pharmacyInvoiceDetail": {
     "notFound": "Facture introuvable ou non autorisée.",
@@ -608,6 +624,12 @@
     "logout": "Déconnexion",
     "openMenu": "Ouvrir le menu",
     "closeMenu": "Fermer le menu"
+  },
+  "installPrompt": {
+    "title": "Installer PharmaLink",
+    "body": "Ajoutez PharmaLink à votre écran d'accueil pour un accès rapide en plein écran.",
+    "install": "Installer",
+    "dismiss": "Plus tard"
   },
   "home": {
     "title": "Trouvez les pharmacies connectées qui pourraient avoir votre médicament.",
@@ -769,7 +791,10 @@
     "checkoutDelivery": "Livraison",
     "checkoutFree": "Gratuit",
     "checkoutTotal": "Total",
-    "rxTag": "Ord."
+    "rxTag": "Ord.",
+    "insurance": "Assurance (optionnelle)",
+    "noInsurance": "Aucune assurance",
+    "checkoutEstimatedCopay": "Franchise estimée après assurance"
   },
   "orders": {
     "title": "Mes commandes",
@@ -819,6 +844,31 @@
     "resume": "Reprendre",
     "footerNoticeBefore": "Les commandes programmées n'entrent dans le circuit de livraison que peu avant leur créneau, afin que votre stock ne soit pas immobilisé pendant des jours et que votre livraison puisse être regroupée avec d'autres allant dans la même direction. Voir",
     "myOrdersLink": "mes commandes"
+  },
+  "myPrescriptions": {
+    "title": "Mes ordonnances",
+    "subtitle": "Ordonnances émises par un médecin avec l'adresse e-mail de ce compte.",
+    "loadError": "Impossible de charger vos ordonnances.",
+    "noPrescriptions": "Aucune ordonnance trouvée.",
+    "noPrescriptionsHint": "Cette liste n'affiche que les ordonnances où le médecin a renseigné l'adresse e-mail de ce compte comme celle du patient. Si vous avez le code, le QR ou le PIN qu'un médecin vous a remis directement, vous pouvez toujours l'utiliser pour commander ou faire délivrer dans n'importe quelle pharmacie.",
+    "prescriber": "Dr {doctor} · licence {license}",
+    "issued": "Émise le",
+    "validUntil": "Valable jusqu'au",
+    "item": "Article",
+    "prescribed": "Prescrit",
+    "dispensed": "Délivré",
+    "remaining": "Restant",
+    "dispenseHistory": "Historique des délivrances",
+    "noDispenses": "Pas encore délivrée nulle part.",
+    "footerNoticeBefore": "Pour commander en ligne ou retirer en pharmacie, utilisez le code, le QR ou le PIN remis par votre médecin. Configurez des renouvellements automatiques depuis",
+    "refillsLink": "les renouvellements",
+    "status": {
+      "ISSUED": "Émise",
+      "PARTIALLY_DISPENSED": "Partiellement délivrée",
+      "FULLY_DISPENSED": "Entièrement délivrée",
+      "EXPIRED": "Expirée",
+      "CANCELLED": "Annulée"
+    }
   },
   "addresses": {
     "title": "Adresses de livraison",
@@ -1172,5 +1222,41 @@
     "deliver": "Livrer",
     "ordersInOneVisit": "{count} commandes en une visite · ",
     "failedReason": "Échoué : {reason}"
+  },
+  "shopInsurance": {
+    "title": "Assurance",
+    "subtitle": "Enregistrez votre carte d'assurance pour estimer la prise en charge lors du paiement.",
+    "loadError": "Impossible de charger vos polices d'assurance.",
+    "saveError": "Impossible d'enregistrer cette police.",
+    "noPolicies": "Aucune police d'assurance enregistrée.",
+    "addPolicy": "Ajouter une police",
+    "plan": "Plan",
+    "selectPlan": "Sélectionner un plan",
+    "memberId": "Numéro d'adhérent",
+    "holderName": "Nom du titulaire",
+    "validUntil": "Valide jusqu'au (optionnel)",
+    "saving": "Enregistrement...",
+    "savePolicy": "Enregistrer la police",
+    "coverage": "{percentage}% couvert, {minimum} de franchise minimum",
+    "remove": "Supprimer",
+    "removeError": "Impossible de supprimer cette police."
+  },
+  "pharmacyInsuranceClaims": {
+    "title": "Sinistres d'assurance",
+    "subtitle": "Suivez ce que chaque assureur doit pour les commandes et ventes au comptoir facturées à la police d'un patient.",
+    "loadError": "Impossible de charger les sinistres d'assurance.",
+    "noClaims": "Aucun sinistre d'assurance pour le moment.",
+    "source": "Source",
+    "patient": "Patient",
+    "billed": "Facturé",
+    "covered": "Couvert",
+    "copay": "Franchise",
+    "status": "Statut",
+    "approve": "Approuver",
+    "reject": "Rejeter",
+    "markPaid": "Marquer payé",
+    "approvalCodePrompt": "Code d'approbation du tiers payant (optionnel)",
+    "rejectionReasonPrompt": "Motif du rejet (optionnel)",
+    "actionFailed": "Impossible de mettre à jour ce sinistre."
   }
 }

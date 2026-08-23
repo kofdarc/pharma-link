@@ -6,7 +6,7 @@ from apps.pharmacies.models import Pharmacy, PharmacyApplication
 class PublicPharmacySerializer(serializers.ModelSerializer):
     class Meta:
         model = Pharmacy
-        fields = ["id", "name", "address", "city", "area", "phone", "whatsapp", "email", "latitude", "longitude"]
+        fields = ["id", "name", "address", "city", "area", "phone", "whatsapp", "email", "latitude", "longitude", "is_on_call"]
 
 
 class PharmacySerializer(serializers.ModelSerializer):
@@ -26,6 +26,7 @@ class PharmacySerializer(serializers.ModelSerializer):
             "longitude",
             "is_active",
             "is_public",
+            "is_on_call",
             "created_at",
             "updated_at",
         ]

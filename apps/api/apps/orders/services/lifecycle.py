@@ -12,6 +12,7 @@ from apps.audit.services import write_audit_log
 from apps.billing.services import charge_platform_service_fee, waive_service_fee
 from apps.common.mailer import send_email
 from apps.customers.models import Client
+from apps.insurance.services import cancel_claim_for_fulfillment
 from apps.orders.models import Order, OrderFulfillment, PharmacyReview, StockReservation
 from apps.orders.services.placement import release_reservations
 from apps.payments.models import Payment
@@ -136,6 +137,7 @@ def reject_fulfillment(*, fulfillment: OrderFulfillment, user, reason: str = "")
         raise FulfillmentError(_("This order slice is already closed."))
     release_reservations(fulfillment=fulfillment)
     waive_service_fee(fulfillment=fulfillment, reason=reason, user=user)
+    cancel_claim_for_fulfillment(fulfillment=fulfillment, user=user, reason=reason)
     fulfillment.status = OrderFulfillment.Status.REJECTED
     fulfillment.rejection_reason = reason
     fulfillment.completed_at = timezone.now()
@@ -237,6 +239,7 @@ def cancel_order(*, order: Order, user, reason: str = "") -> Order:
         if fulfillment.status in {OrderFulfillment.Status.PICKED_UP, OrderFulfillment.Status.DELIVERED, OrderFulfillment.Status.COLLECTED}:
             raise FulfillmentError(_("Part of this order already left the pharmacy. Contact support instead."))
         release_reservations(fulfillment=fulfillment)
+        cancel_claim_for_fulfillment(fulfillment=fulfillment, user=user, reason=reason)
         fulfillment.status = OrderFulfillment.Status.CANCELLED
         fulfillment.completed_at = timezone.now()
         fulfillment.save(update_fields=["status", "completed_at", "updated_at"])

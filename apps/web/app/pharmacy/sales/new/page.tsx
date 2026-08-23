@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, asList } from "@/lib/api-client";
 import { useTranslations } from "@/lib/i18n/context";
-import type { Medicine } from "@/types/api";
+import type { Client, Medicine, Paginated, PatientInsurancePolicy } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
@@ -15,10 +15,33 @@ export default function NewSalePage() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [lines, setLines] = useState([{ medicine: "", quantity: 1, unit_price: "", discount: "0" }]);
   const [error, setError] = useState("");
+  const [clients, setClients] = useState<Client[]>([]);
+  const [clientId, setClientId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [policies, setPolicies] = useState<PatientInsurancePolicy[]>([]);
+  const [insurancePolicyId, setInsurancePolicyId] = useState("");
 
   useEffect(() => {
     apiFetch<Medicine[] | { results: Medicine[] }>("/medicines/search/?q=").then((payload) => setMedicines(asList(payload)));
   }, []);
+
+  useEffect(() => {
+    apiFetch<Paginated<Client> | Client[]>("/pharmacy/clients/")
+      .then((payload) => setClients(asList(payload)))
+      .catch(() => setClients([]));
+  }, []);
+
+  useEffect(() => {
+    setInsurancePolicyId("");
+    if (!clientId) {
+      setPolicies([]);
+      setPaymentMethod((current) => (current === "ON_ACCOUNT" ? "CASH" : current));
+      return;
+    }
+    apiFetch<Paginated<PatientInsurancePolicy> | PatientInsurancePolicy[]>(`/pharmacy/insurance-policies/?client=${clientId}`)
+      .then((payload) => setPolicies(asList(payload)))
+      .catch(() => setPolicies([]));
+  }, [clientId]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -33,7 +56,9 @@ export default function NewSalePage() {
             unit_price: line.unit_price || undefined,
             discount: line.discount || "0"
           })),
-          payment_method: "CASH"
+          client: clientId || undefined,
+          payment_method: paymentMethod,
+          insurance_policy: insurancePolicyId || undefined
         })
       });
       router.push(`/pharmacy/invoices/${sale.id}`);
@@ -51,6 +76,38 @@ export default function NewSalePage() {
         </div>
       </div>
       <form onSubmit={submit}>
+        <div className="form-grid" style={{ marginBottom: 12 }}>
+          <Field label={t("pharmacySalesNew.client")}>
+            <select value={clientId} onChange={(event) => setClientId(event.target.value)}>
+              <option value="">{t("pharmacySalesNew.walkIn")}</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.full_name} — {client.phone}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t("pharmacySalesNew.paymentMethod")}>
+            <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
+              <option value="CASH">Cash</option>
+              <option value="CARD">Card</option>
+              {clientId ? <option value="ON_ACCOUNT">On account</option> : null}
+              <option value="OTHER">Other</option>
+            </select>
+          </Field>
+          {policies.length > 0 ? (
+            <Field label={t("pharmacySalesNew.insurancePolicy")}>
+              <select value={insurancePolicyId} onChange={(event) => setInsurancePolicyId(event.target.value)}>
+                <option value="">{t("pharmacySalesNew.noInsurance")}</option>
+                {policies.map((policy) => (
+                  <option key={policy.id} value={policy.id}>
+                    {policy.plan_detail.provider_name} — {policy.plan_detail.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+        </div>
         {lines.map((line, index) => (
           <div className="form-grid" key={index} style={{ marginBottom: 12 }}>
             <Field label={t("pharmacySalesNew.medicine")}>

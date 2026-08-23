@@ -5,6 +5,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from apps.accounts.permissions import IsPharmacyUserWithActivePharmacy
 from apps.customers.models import Client
+from apps.insurance.models import PatientInsurancePolicy
 from apps.sales.models import Sale
 from apps.sales.serializers import SaleCreateSerializer, SaleSerializer
 from apps.sales.services.create_sale import create_sale
@@ -35,8 +36,16 @@ class SaleViewSet(ModelViewSet):
             client = Client.objects.filter(id=client_id, pharmacy=request.user.pharmacy).first()
             if client is None:
                 return Response({"detail": "Client not found for this pharmacy."}, status=status.HTTP_400_BAD_REQUEST)
+        policy_id = payload.pop("insurance_policy", None)
+        insurance_policy = None
+        if policy_id:
+            insurance_policy = PatientInsurancePolicy.objects.filter(id=policy_id, client=client, is_active=True).first() if client else None
+            if insurance_policy is None:
+                return Response({"detail": "Insurance policy not found for this client."}, status=status.HTTP_400_BAD_REQUEST)
+            if insurance_policy.is_expired:
+                return Response({"detail": "This insurance policy has expired."}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            sale = create_sale(user=request.user, pharmacy=request.user.pharmacy, client=client, **payload)
+            sale = create_sale(user=request.user, pharmacy=request.user.pharmacy, client=client, insurance_policy=insurance_policy, **payload)
         except (ValueError, DjangoValidationError) as exc:
             return Response({"detail": exc.messages[0] if isinstance(exc, DjangoValidationError) else str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(self.get_serializer(sale).data, status=status.HTTP_201_CREATED)

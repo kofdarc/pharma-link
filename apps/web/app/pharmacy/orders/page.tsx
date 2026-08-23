@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Notice } from "@/components/ui/Notice";
+import { ChatPanel } from "@/components/messaging/ChatPanel";
 
 function tone(status: string) {
   if (status === "DELIVERED" || status === "COLLECTED" || status === "PICKED_UP") return "success" as const;
@@ -172,6 +173,8 @@ export default function PharmacyOrdersPage() {
           {order.rejection_reason ? (
             <Notice tone="danger">{t("pharmacyOrders.rejectedLabel", { reason: order.rejection_reason })}</Notice>
           ) : null}
+
+          <ChatPanel basePath="/pharmacy/order-fulfillments" orderFulfillmentId={order.id} />
         </section>
       ))}
     </>

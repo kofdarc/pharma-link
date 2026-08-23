@@ -92,7 +92,7 @@ class PharmacyProfileView(APIView):
         return Response(PharmacySerializer(request.user.pharmacy).data)
 
     def patch(self, request):
-        allowed = {"address", "city", "area", "phone", "whatsapp", "email", "latitude", "longitude", "is_public"}
+        allowed = {"address", "city", "area", "phone", "whatsapp", "email", "latitude", "longitude", "is_public", "is_on_call"}
         data = {key: value for key, value in request.data.items() if key in allowed}
         serializer = PharmacySerializer(request.user.pharmacy, data=data, partial=True)
         serializer.is_valid(raise_exception=True)

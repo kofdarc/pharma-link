@@ -57,6 +57,17 @@ class Prescription(UUIDTimeStampedModel):
         CANCELLED = "CANCELLED", "Cancelled"
 
     doctor = models.ForeignKey(Doctor, on_delete=models.PROTECT, related_name="prescriptions", db_index=True)
+    target_pharmacy = models.ForeignKey(
+        "pharmacies.Pharmacy",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="targeted_prescriptions",
+        help_text="Set when the doctor sends directly to the patient's chosen pharmacy. Left blank for deferred transmission (patient carries the QR/PIN to any pharmacy).",
+    )
+    renewed_from = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="renewals", help_text="Set on the fresh prescription created when a renewal request is approved."
+    )
     code = models.CharField(max_length=24, unique=True, db_index=True)
     secret_hash = models.CharField(max_length=64)
     pin_hash = models.CharField(max_length=128)
@@ -179,3 +190,33 @@ class PrescriptionAccessLog(UUIDTimeStampedModel):
         if not self._state.adding:
             raise ValueError("Access logs are append-only")
         super().save(*args, **kwargs)
+
+
+class PrescriptionRenewalRequest(UUIDTimeStampedModel):
+    """
+    A pharmacy asking the prescriber to renew a prescription it has legitimate contact with
+    (see services.renewal for the access check). Approval issues a brand-new Prescription
+    (same items, fresh code/secret/PIN) linked back via Prescription.renewed_from, rather than
+    mutating the original - the original keeps its own immutable dispense history.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        APPROVED = "APPROVED", "Approved"
+        DENIED = "DENIED", "Denied"
+
+    prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name="renewal_requests")
+    requested_by_pharmacy = models.ForeignKey("pharmacies.Pharmacy", on_delete=models.CASCADE, related_name="renewal_requests")
+    requested_by_user = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    note = models.TextField(blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True)
+    response_note = models.TextField(blank=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    new_prescription = models.OneToOneField(Prescription, null=True, blank=True, on_delete=models.SET_NULL, related_name="renewal_request_source")
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["prescription", "status"])]
+
+    def __str__(self) -> str:
+        return f"Renewal request for {self.prescription.code} ({self.status})"

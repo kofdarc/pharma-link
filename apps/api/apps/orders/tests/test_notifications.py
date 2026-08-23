@@ -123,6 +123,45 @@ class PaymentFailedNotificationTests(NotificationTestCase):
         self.assertIn("failed", mail.outbox[0].subject.lower())
 
 
+class RecurringOrderSuccessNotificationTests(NotificationTestCase):
+    def test_a_successful_recurring_cycle_sends_a_whatsapp_reminder(self):
+        from apps.orders.models import RecurringOrder
+
+        recurring = RecurringOrder.objects.create(
+            customer=self.shopper,
+            address=self.address,
+            label="Monthly refill",
+            items=[{"medicine": str(self.medicine.id), "quantity": 1}],
+            interval_days=30,
+            next_run_at=timezone.now(),
+        )
+
+        with patch("apps.orders.services.schedule.send_whatsapp_text") as mock_send:
+            result = run_due_recurring_orders()
+
+        self.assertEqual(len(result["created"]), 1)
+        mock_send.assert_called_once()
+        self.assertEqual(mock_send.call_args.kwargs["to"], self.address.phone)
+        self.assertIn(recurring.label, mock_send.call_args.kwargs["body"])
+
+    def test_a_whatsapp_failure_does_not_break_the_recurring_cycle(self):
+        from apps.orders.models import RecurringOrder
+
+        RecurringOrder.objects.create(
+            customer=self.shopper,
+            address=self.address,
+            label="Monthly refill",
+            items=[{"medicine": str(self.medicine.id), "quantity": 1}],
+            interval_days=30,
+            next_run_at=timezone.now(),
+        )
+
+        with patch("apps.orders.services.schedule.send_whatsapp_text", side_effect=RuntimeError("WhatsApp API is down")):
+            result = run_due_recurring_orders()
+
+        self.assertEqual(len(result["created"]), 1, "the order must still be created even if the WhatsApp send fails")
+
+
 class RecurringOrderFailedNotificationTests(NotificationTestCase):
     def test_a_recurring_cycle_that_cannot_be_sourced_emails_the_shopper(self):
         from apps.orders.models import RecurringOrder

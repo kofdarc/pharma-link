@@ -4,8 +4,9 @@ PharmaLink Connector - the middleman that sits inside the pharmacy.
 
 Most Lebanese pharmacies run a local Windows POS with no API. Asking them to migrate is how
 onboarding dies. Instead this agent runs on their counter PC, watches whatever their software
-can already produce (a CSV/Excel export, or a direct SQLite/ODBC read), and pushes deltas to
-PharmaLink. Nothing about their workflow changes.
+can already produce (a CSV/Excel export, a SQLite read, or a read-only SQL Server query -
+e.g. against SoftPharm, the dominant Lebanese pharmacy POS), and pushes deltas to PharmaLink.
+Nothing about their workflow changes.
 
   - stdlib only, so it runs on a bare Python install with no pip access
   - stores a local snapshot and only sends what changed
@@ -171,13 +172,72 @@ def read_sqlite_source(source: dict) -> list[dict]:
         connection.close()
 
 
+def read_mssql_source(source: dict) -> list[dict]:
+    """
+    For POS products backed by SQL Server (e.g. SoftPharm), read via a read-only account.
+    Not stdlib: needs `pyodbc` + the "ODBC Driver 17/18 for SQL Server" installed on the
+    counter PC. The connector otherwise avoids third-party deps on purpose, but there is
+    no stdlib path into SQL Server, so this import is deferred and only required if a
+    pharmacy actually configures an mssql source.
+    """
+    try:
+        import pyodbc  # type: ignore
+    except ImportError as exc:
+        raise SystemExit(
+            "This pharmacy's source is type 'mssql', which needs the 'pyodbc' package "
+            "and a SQL Server ODBC driver installed. Run: pip install pyodbc"
+        ) from exc
+
+    driver = source.get("driver", "ODBC Driver 17 for SQL Server")
+    parts = [f"DRIVER={{{driver}}}", f"SERVER={source['server']}", f"DATABASE={source['database']}"]
+    if source.get("trusted_connection", True) and "username" not in source:
+        parts.append("Trusted_Connection=yes")
+    else:
+        # A dedicated read-only SQL login, never the pharmacy's own POS credentials.
+        password = os.environ.get("PHARMALINK_SQL_PASSWORD", source.get("password", ""))
+        parts.append(f"UID={source['username']};PWD={password}")
+    parts.append("Encrypt=yes")
+    if source.get("trust_server_certificate", True):
+        parts.append("TrustServerCertificate=yes")
+    connection_string = ";".join(parts)
+
+    connection = pyodbc.connect(connection_string, timeout=source.get("connect_timeout_seconds", 15))
+    try:
+        connection.autocommit = False  # belt-and-braces: this connector never issues writes
+        cursor = connection.cursor()
+        cursor.execute(source["query"])
+        columns = [column[0].lower() for column in cursor.description]
+        rows = []
+        for record in cursor.fetchall():
+            data = dict(zip(columns, record))
+            if not data.get("external_code"):
+                continue
+            expiry = data.get("expiry_date")
+            rows.append(
+                {
+                    "external_code": str(data["external_code"]).strip(),
+                    "name": str(data.get("name") or "").strip(),
+                    "quantity": _as_int(data.get("quantity")),
+                    "selling_price": _as_float(data.get("selling_price")),
+                    "purchase_cost": _as_float(data.get("purchase_cost")),
+                    "expiry_date": expiry.isoformat() if hasattr(expiry, "isoformat") else (expiry or None),
+                    "supplier_name": str(data.get("supplier_name") or ""),
+                }
+            )
+        return rows
+    finally:
+        connection.close()
+
+
 def read_source(source: dict) -> list[dict]:
     kind = source.get("type", "csv")
     if kind == "csv":
         return read_csv_source(source)
     if kind == "sqlite":
         return read_sqlite_source(source)
-    raise SystemExit(f"Unsupported source type '{kind}'. Use 'csv' or 'sqlite'.")
+    if kind == "mssql":
+        return read_mssql_source(source)
+    raise SystemExit(f"Unsupported source type '{kind}'. Use 'csv', 'sqlite', or 'mssql'.")
 
 
 def _as_int(value) -> int:

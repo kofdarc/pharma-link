@@ -14,6 +14,7 @@ export interface Pharmacy {
   longitude?: string | null;
   is_active: boolean;
   is_public: boolean;
+  is_on_call: boolean;
 }
 
 export interface User {
@@ -74,7 +75,7 @@ export interface PublicAvailability {
     category?: ProductCategory;
     requires_prescription?: boolean;
   };
-  pharmacy: Pick<Pharmacy, "id" | "name" | "address" | "city" | "area" | "phone" | "whatsapp" | "email"> & {
+  pharmacy: Pick<Pharmacy, "id" | "name" | "address" | "city" | "area" | "phone" | "whatsapp" | "email" | "is_on_call"> & {
     rating: number;
     rating_count: number;
     fulfillment_success_rate: number;
@@ -255,6 +256,10 @@ export interface Prescription {
   code: string;
   doctor_name: string;
   doctor_license: string;
+  target_pharmacy?: string | null;
+  target_pharmacy_name?: string | null;
+  renewed_from?: string | null;
+  renewed_from_code?: string | null;
   patient_name: string;
   patient_email?: string;
   patient_phone?: string;
@@ -279,7 +284,26 @@ export interface Prescription {
   one_time_secrets?: { pin: string; qr_url: string; qr_svg: string };
 }
 
+export type RenewalRequestStatus = "PENDING" | "APPROVED" | "DENIED";
+
+export interface PrescriptionRenewalRequest {
+  id: string;
+  prescription: string;
+  prescription_code: string;
+  patient_name: string;
+  requested_by_pharmacy: string;
+  pharmacy_name: string;
+  note: string;
+  status: RenewalRequestStatus;
+  response_note: string;
+  responded_at?: string | null;
+  new_prescription?: string | null;
+  new_prescription_code?: string | null;
+  created_at: string;
+}
+
 export interface PublicPrescription {
+  id: string;
   code: string;
   status: PrescriptionStatus;
   issued_at: string;
@@ -457,6 +481,21 @@ export interface RecurringOrder {
   occurrences_created: number;
   is_active: boolean;
   last_error?: string;
+}
+
+/* --- Messaging (WhatsApp chat) ------------------------------------------------------ */
+
+export type MessageDirection = "OUTBOUND" | "INBOUND";
+export type MessageStatus = "QUEUED" | "SENT" | "DELIVERED" | "FAILED" | "RECEIVED";
+
+export interface ChatMessage {
+  id: string;
+  direction: MessageDirection;
+  body: string;
+  status: MessageStatus;
+  sender_email: string | null;
+  failure_reason: string;
+  created_at: string;
 }
 
 /* --- Delivery / dispatch ---------------------------------------------------------- */
@@ -752,6 +791,72 @@ export interface PlatformRevenueOverview {
   service_fees_collected: string;
   service_fees_pending: string;
   service_fee_requests: number;
+}
+
+/* --- Insurance / copayment --------------------------------------------------------- */
+
+export interface InsuranceProvider {
+  id: string;
+  name: string;
+  phone?: string;
+  notes?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface InsurancePlan {
+  id: string;
+  provider: string;
+  provider_name: string;
+  name: string;
+  coverage_percentage: string;
+  copay_minimum: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface PublicInsurancePlan {
+  id: string;
+  provider_name: string;
+  name: string;
+  coverage_percentage: string;
+  copay_minimum: string;
+}
+
+export interface PatientInsurancePolicy {
+  id: string;
+  plan: string;
+  plan_detail: InsurancePlan;
+  customer_user?: string | null;
+  client?: string | null;
+  member_id: string;
+  holder_name: string;
+  valid_until?: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type InsuranceClaimStatus = "SUBMITTED" | "APPROVED" | "REJECTED" | "PAID" | "CANCELLED";
+
+export interface InsuranceClaim {
+  id: string;
+  order_fulfillment?: string | null;
+  sale?: string | null;
+  order_reference?: string;
+  invoice_number?: string;
+  policy: string;
+  policy_detail: PatientInsurancePolicy;
+  pharmacy: string;
+  pharmacy_name: string;
+  billed_amount: string;
+  covered_amount: string;
+  patient_copay: string;
+  status: InsuranceClaimStatus;
+  approval_code?: string;
+  rejection_reason?: string;
+  approved_at?: string | null;
+  paid_at?: string | null;
+  created_at: string;
 }
 
 export interface PharmacyApplication {

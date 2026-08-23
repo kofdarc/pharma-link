@@ -119,6 +119,7 @@ function SearchClient() {
               </div>
               <div>
                 <strong>{result.pharmacy.name}</strong>
+                {result.pharmacy.is_on_call ? <Badge tone="warning">{t("search.onCall")}</Badge> : null}
                 <p className="muted">
                   {result.pharmacy.area}, {result.pharmacy.city}
                 </p>

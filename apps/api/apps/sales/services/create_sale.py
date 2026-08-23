@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from apps.audit.services import write_audit_log
 from apps.customers.models import ClientLedgerEntry
+from apps.insurance.services import submit_claim_for_sale
 from apps.inventory.models import InventoryBatch, StockMovement
 from apps.inventory.services.stock import adjust_stock
 from apps.medicines.models import Medicine
@@ -31,6 +32,7 @@ def create_sale(
     prescription_record_id=None,
     client=None,
     channel: str = Sale.Channel.COUNTER,
+    insurance_policy=None,
 ) -> Sale:
     if not items:
         raise ValueError("A sale must contain at least one item.")
@@ -45,6 +47,8 @@ def create_sale(
         raise ValueError("Client belongs to another pharmacy.")
     if payment_method == Sale.PaymentMethod.ON_ACCOUNT and client is None:
         raise ValueError("Select a client before charging a sale to an account.")
+    if insurance_policy is not None and insurance_policy.client_id != (client.id if client else None):
+        raise ValueError("Selected insurance policy does not belong to this client.")
 
     medicines_by_id = {str(raw_item["medicine"]): Medicine.objects.get(id=raw_item["medicine"]) for raw_item in items}
     needs_prescription = [medicine for medicine in medicines_by_id.values() if medicine.requires_prescription]
@@ -124,11 +128,16 @@ def create_sale(
         prescription.sale = sale
         prescription.save(update_fields=["sale", "updated_at"])
 
+    patient_owed = sale.total
+    if insurance_policy is not None:
+        claim = submit_claim_for_sale(sale=sale, policy=insurance_policy, user=user)
+        patient_owed = claim.patient_copay
+
     if client is not None and sale.payment_method == Sale.PaymentMethod.ON_ACCOUNT:
         ClientLedgerEntry.objects.create(
             client=client,
             entry_type=ClientLedgerEntry.EntryType.CHARGE,
-            amount=sale.total,
+            amount=patient_owed,
             sale=sale,
             memo=f"Invoice {sale.invoice_number}",
             created_by=user,

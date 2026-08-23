@@ -56,6 +56,24 @@ for the routing algorithm and the seeded-demo numbers.
 
 Non-goals preserved:
 
-- No diagnosis, treatment advice, automatic substitution recommendations, insurance claims, native mobile
-  app, microservices, Kafka, Kubernetes, or blockchain. Public prescription access stays QR/code+PIN only,
-  never a public listing.
+- No diagnosis, treatment advice, automatic substitution recommendations, native mobile app, microservices,
+  Kafka, Kubernetes, or blockchain. Public prescription access stays QR/code+PIN only, never a public listing.
+
+## Insurance / copayment
+
+Reverses the "no insurance claims" non-goal above, added 2026-08-22 at the team's request after reviewing a
+competitor's copayment feature. Built as `apps/insurance`:
+
+- `InsuranceProvider` / `InsurancePlan` (admin-managed: coverage % + a flat minimum copay floor, no
+  per-medicine formulary) and `PatientInsurancePolicy` (held by either a platform shopper or a pharmacy's
+  own walk-in `customers.Client`, never both).
+- `InsuranceClaim`: one per dispensing event (an `orders.OrderFulfillment` or a `sales.Sale`, never per
+  multi-pharmacy order), carrying `billed_amount` / `covered_amount` / `patient_copay`. Adjudication is a
+  **manual tracker**, not a live TPA integration — Lebanon has multiple TPAs (GlobeMed, LibanCard, NexCare,
+  MedNet, ...) with no shared API, so staff record the outcome by hand, `SUBMITTED → APPROVED/REJECTED →
+  PAID`, the same way cash-on-delivery payments are manually settled.
+- Insured shop checkout charges the shopper's `Payment` only the summed copay across fulfillments (delivery
+  fee is never insurance-eligible); an insured `ON_ACCOUNT` counter sale charges the client ledger only the
+  copay. Both are opt-in — an order or sale placed without a policy behaves exactly as before.
+- Known limitation, kept deliberately out of scope: if a claim is later rejected after the patient already
+  paid the estimated copay, the platform does not auto-re-charge them — that reconciliation is manual.

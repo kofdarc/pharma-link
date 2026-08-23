@@ -124,6 +124,16 @@
 .checkout-summary { display: flex; gap: 24px; align-items: flex-end; flex-wrap: wrap; }
 .checkout-summary > div { display: flex; flex-direction: column; gap: 2px; }
 
+/* --- messaging (WhatsApp chat) ------------------------------------------ */
+.chat-panel { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.chat-messages { max-height: 260px; overflow-y: auto; }
+.chat-message { border-radius: var(--radius); padding: 8px 10px; max-width: 80%; }
+.chat-message p { margin: 0 0 2px; white-space: pre-wrap; }
+.chat-message-outbound { align-self: flex-end; background: var(--blue-bg); }
+.chat-message-inbound { align-self: flex-start; background: var(--bg); }
+.chat-composer { display: flex; gap: 8px; }
+.chat-composer input { flex: 1; }
+
 /* --- driver / dispatch ------------------------------------------------- */
 .route-summary { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; }
 .route-summary > div { display: flex; flex-direction: column; gap: 2px; }

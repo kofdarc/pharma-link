@@ -51,13 +51,27 @@ from apps.eprescriptions.views import (
     DoctorActivationView,
     DoctorPrescriptionViewSet,
     DoctorProfileView,
+    DoctorRenewalRequestViewSet,
+    MyPrescriptionsView,
+    PharmacyIncomingPrescriptionViewSet,
     PharmacyPrescriptionScanView,
+    PharmacyRenewalRequestViewSet,
     prescription_qr,
     public_pharmacy_directory,
     public_prescription_dispense,
     public_prescription_lookup,
 )
 from apps.imports.views import AdminImportViewSet, PharmacyImportViewSet
+from apps.insurance.views import (
+    AdminInsuranceClaimViewSet,
+    AdminInsurancePlanViewSet,
+    AdminInsuranceProviderViewSet,
+    PharmacyInsuranceClaimViewSet,
+    PharmacyInsurancePolicyViewSet,
+    ShopInsurancePolicyViewSet,
+    doctor_formulary_lookup,
+    public_insurance_plans,
+)
 from apps.integrations.views import (
     IntegrationKeyViewSet,
     IntegrationOrderActionView,
@@ -73,6 +87,13 @@ from apps.integrations.views import (
 from apps.inventory.services.availability import public_availability_search
 from apps.inventory.views import InventoryBatchViewSet, ReservationShortfallViewSet, StockMovementViewSet
 from apps.medicines.views import AdminMedicineViewSet, MedicineViewSet, medicine_search
+from apps.messaging.views import (
+    DoctorPrescriptionMessagesView,
+    PharmacyFulfillmentMessagesView,
+    PharmacyPrescriptionMessagesView,
+    ShopperFulfillmentMessagesView,
+    WhatsAppWebhookView,
+)
 from apps.orders.views import (
     AdminReviewViewSet,
     BasketQuoteView,
@@ -127,6 +148,7 @@ router.register("public/pharmacies", PublicPharmacyViewSet, basename="public-pha
 router.register("shop/addresses", DeliveryAddressViewSet, basename="shop-addresses")
 router.register("shop/orders", ShopperOrderViewSet, basename="shop-orders")
 router.register("shop/recurring-orders", RecurringOrderViewSet, basename="shop-recurring-orders")
+router.register("shop/insurance-policies", ShopInsurancePolicyViewSet, basename="shop-insurance-policies")
 
 # Platform admin
 router.register("admin/pharmacies", AdminPharmacyViewSet, basename="admin-pharmacies")
@@ -141,6 +163,9 @@ router.register("admin/subscription-plans", AdminSubscriptionPlanViewSet, basena
 router.register("admin/pharmacy-subscriptions", AdminPharmacySubscriptionViewSet, basename="admin-pharmacy-subscriptions")
 router.register("admin/service-fees", AdminServiceFeeViewSet, basename="admin-service-fees")
 router.register("admin/reviews", AdminReviewViewSet, basename="admin-reviews")
+router.register("admin/insurance-providers", AdminInsuranceProviderViewSet, basename="admin-insurance-providers")
+router.register("admin/insurance-plans", AdminInsurancePlanViewSet, basename="admin-insurance-plans")
+router.register("admin/insurance-claims", AdminInsuranceClaimViewSet, basename="admin-insurance-claims")
 
 # Pharmacy workspace
 router.register("pharmacy/inventory", InventoryBatchViewSet, basename="pharmacy-inventory")
@@ -159,9 +184,14 @@ router.register("pharmacy/sku-mappings", SkuMappingViewSet, basename="pharmacy-s
 router.register("pharmacy/sync-runs", SyncRunViewSet, basename="pharmacy-sync-runs")
 router.register("pharmacy/webhooks", WebhookEndpointViewSet, basename="pharmacy-webhooks")
 router.register("pharmacy/service-fees", PharmacyServiceFeeViewSet, basename="pharmacy-service-fees")
+router.register("pharmacy/insurance-policies", PharmacyInsurancePolicyViewSet, basename="pharmacy-insurance-policies")
+router.register("pharmacy/insurance-claims", PharmacyInsuranceClaimViewSet, basename="pharmacy-insurance-claims")
+router.register("pharmacy/incoming-prescriptions", PharmacyIncomingPrescriptionViewSet, basename="pharmacy-incoming-prescriptions")
+router.register("pharmacy/renewal-requests", PharmacyRenewalRequestViewSet, basename="pharmacy-renewal-requests")
 
 # Doctors and drivers
 router.register("doctor/prescriptions", DoctorPrescriptionViewSet, basename="doctor-prescriptions")
+router.register("doctor/renewal-requests", DoctorRenewalRequestViewSet, basename="doctor-renewal-requests")
 router.register("driver/routes", DriverRouteViewSet, basename="driver-routes")
 
 router.register("medicines", MedicineViewSet, basename="medicines")
@@ -182,15 +212,23 @@ urlpatterns = [
     path("public/pharmacy-applications/", PharmacyApplicationSubmitView.as_view()),
     path("public/rx/lookup/", public_prescription_lookup),
     path("public/rx/dispense/", public_prescription_dispense),
+    path("public/insurance-plans/", public_insurance_plans),
+    path("public/whatsapp/webhook/", WhatsAppWebhookView.as_view()),
     # Shopper
     path("shop/quote/", BasketQuoteView.as_view()),
+    path("shop/prescriptions/mine/", MyPrescriptionsView.as_view()),
     path("shop/payment-methods/", PaymentMethodsView.as_view()),
     path("shop/orders/<uuid:pk>/pay/", OrderPaymentView.as_view()),
+    path("shop/order-fulfillments/<uuid:pk>/messages/", ShopperFulfillmentMessagesView.as_view()),
+    path("pharmacy/order-fulfillments/<uuid:pk>/messages/", PharmacyFulfillmentMessagesView.as_view()),
+    path("pharmacy/prescriptions/<uuid:pk>/messages/", PharmacyPrescriptionMessagesView.as_view()),
     path("admin/orders/<uuid:pk>/refund/", AdminOrderRefundView.as_view()),
     # Doctors
     path("doctors/activate/", DoctorActivationView.as_view()),
     path("doctor/profile/", DoctorProfileView.as_view()),
     path("doctor/prescriptions/<uuid:pk>/qr.svg", prescription_qr),
+    path("doctor/prescriptions/<uuid:pk>/messages/", DoctorPrescriptionMessagesView.as_view()),
+    path("doctor/formulary/lookup/", doctor_formulary_lookup),
     # Pharmacy
     path("pharmacy/dashboard/", PharmacyDashboardView.as_view()),
     path("pharmacy/profile/", PharmacyProfileView.as_view()),

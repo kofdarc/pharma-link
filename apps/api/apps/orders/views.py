@@ -34,6 +34,7 @@ from apps.orders.services.lifecycle import (
     set_review_visibility,
     submit_review,
 )
+from apps.insurance.models import PatientInsurancePolicy
 from apps.orders.services.placement import OrderError, place_order
 from apps.orders.services.sourcing import plan_basket
 from apps.pharmacies.models import Pharmacy
@@ -108,6 +109,16 @@ class ShopperOrderViewSet(ModelViewSet):
         if data.get("prescription_code"):
             prescription = Prescription.objects.filter(code=data["prescription_code"].strip().upper()).first()
 
+        insurance_policy = None
+        if data.get("insurance_policy"):
+            insurance_policy = PatientInsurancePolicy.objects.filter(
+                id=data["insurance_policy"], customer_user=request.user, is_active=True
+            ).first()
+            if insurance_policy is None:
+                return Response({"detail": _("Insurance policy not found.")}, status=status.HTTP_400_BAD_REQUEST)
+            if insurance_policy.is_expired:
+                return Response({"detail": _("This insurance policy has expired.")}, status=status.HTTP_400_BAD_REQUEST)
+
         idempotency_key = request.headers.get("Idempotency-Key", "")[:120]
 
         try:
@@ -122,6 +133,7 @@ class ShopperOrderViewSet(ModelViewSet):
                 prescription=prescription,
                 payment_method=data["payment_method"],
                 idempotency_key=idempotency_key,
+                insurance_policy=insurance_policy,
             )
         except OrderError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)

@@ -459,6 +459,35 @@ class PrescriptionRequirementTests(SourcingTestCase):
                 customer=self.shopper, items=[{"medicine": str(self.nexium.id), "quantity": 2}], address=self.address, prescription=prescription
             )
 
+    def test_placing_an_order_consumes_the_prescription_so_it_cannot_be_redeemed_twice(self):
+        """
+        Before this, place_order only validated quantity_remaining, it never claimed it - a
+        shopper could order online and still walk into a pharmacy and redeem the same units.
+        """
+        from apps.eprescriptions.models import Prescription
+
+        prescription, _secret, _pin = self.issue_prescription(
+            doctor=self.doctor, patient={"patient_name": "Shopper"}, items=[{"medicine": str(self.nexium.id), "quantity_prescribed": 3}]
+        )
+
+        place_order(
+            customer=self.shopper, items=[{"medicine": str(self.nexium.id), "quantity": 2}], address=self.address, prescription=prescription
+        )
+
+        prescription.refresh_from_db()
+        item = prescription.items.get()
+        self.assertEqual(item.quantity_dispensed, 2)
+        self.assertEqual(item.quantity_remaining, 1)
+        self.assertEqual(prescription.status, Prescription.Status.PARTIALLY_DISPENSED)
+        self.assertEqual(prescription.dispenses.count(), 1)
+        self.assertEqual(prescription.dispenses.get().pharmacy_id, self.hamra.id)
+
+        # Only 1 unit left - a second order for 2 must be refused, not silently over-redeemed.
+        with self.assertRaises(OrderError):
+            place_order(
+                customer=self.shopper, items=[{"medicine": str(self.nexium.id), "quantity": 2}], address=self.address, prescription=prescription
+            )
+
 
 class ConnectorFreshnessSourcingTests(SourcingTestCase):
     """

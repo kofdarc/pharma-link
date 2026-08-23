@@ -7,6 +7,13 @@ import { useTranslations } from "@/lib/i18n/context";
 import { groupPatients, type Patient } from "@/lib/patients";
 import { takeDraft } from "@/lib/rxDraft";
 import type { Medicine, Paginated, Prescription } from "@/types/api";
+
+interface PharmacyDirectoryEntry {
+  id: string;
+  name: string;
+  area: string;
+  city: string;
+}
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
@@ -48,6 +55,9 @@ export default function NewPrescriptionPage() {
   const [patientPhone, setPatientPhone] = useState("");
   const [validityDays, setValidityDays] = useState(30);
   const [note, setNote] = useState("");
+  const [pharmacyQuery, setPharmacyQuery] = useState("");
+  const [pharmacyOptions, setPharmacyOptions] = useState<PharmacyDirectoryEntry[]>([]);
+  const [targetPharmacy, setTargetPharmacy] = useState("");
   const [items, setItems] = useState<DraftItem[]>([emptyItem()]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -64,6 +74,21 @@ export default function NewPrescriptionPage() {
       .then((payload) => setKnownPatients(groupPatients(asList(payload))))
       .catch(() => setKnownPatients([]));
   }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      apiFetch<PharmacyDirectoryEntry[]>(`/public/pharmacy-directory/?q=${encodeURIComponent(pharmacyQuery.trim())}`)
+        .then(setPharmacyOptions)
+        .catch(() => setPharmacyOptions([]));
+    }, 250);
+    return () => clearTimeout(timeout);
+  }, [pharmacyQuery]);
+
+  function selectPharmacy(value: string) {
+    setPharmacyQuery(value);
+    const match = pharmacyOptions.find((entry) => `${entry.name} (${entry.area})` === value);
+    setTargetPharmacy(match ? match.id : "");
+  }
 
   useEffect(() => {
     const draft = takeDraft();
@@ -170,6 +195,7 @@ export default function NewPrescriptionPage() {
           patient_phone: patientPhone,
           diagnosis_note: note,
           validity_days: validityDays,
+          target_pharmacy: targetPharmacy || null,
           items: payloadItems
         })
       });
@@ -208,6 +234,10 @@ export default function NewPrescriptionPage() {
           <span className="no-print">{t("doctorPrescriptionsNew.secretShownOnceNotice")}</span>
         </Notice>
 
+        {issued.target_pharmacy_name ? (
+          <Notice tone="success">{t("doctorPrescriptionsNew.sentDirectly", { pharmacy: issued.target_pharmacy_name })}</Notice>
+        ) : null}
+
         <div className="panel rx-issued">
           {secrets ? (
             <>
@@ -220,7 +250,9 @@ export default function NewPrescriptionPage() {
                 <p>
                   {t("doctorPrescriptionsNew.pin")}: <code className="big-code">{secrets.pin}</code>
                 </p>
-                <p className="muted small">{t("doctorPrescriptionsNew.anyPharmacyHint")}</p>
+                <p className="muted small">
+                  {issued.target_pharmacy_name ? t("doctorPrescriptionsNew.backupHint") : t("doctorPrescriptionsNew.anyPharmacyHint")}
+                </p>
                 <p className="muted small">
                   {t("doctorPrescriptionsNew.validUntil", { when: new Date(issued.valid_until).toLocaleString() })}
                 </p>
@@ -265,6 +297,11 @@ export default function NewPrescriptionPage() {
           <option key={medicine.id} value={catalogLabel(medicine)} />
         ))}
       </datalist>
+      <datalist id="pharmacy-directory">
+        {pharmacyOptions.map((pharmacy) => (
+          <option key={pharmacy.id} value={`${pharmacy.name} (${pharmacy.area})`} />
+        ))}
+      </datalist>
 
       <form onSubmit={submit}>
         <section className="panel">
@@ -294,6 +331,14 @@ export default function NewPrescriptionPage() {
           </div>
           <Field label={t("doctorPrescriptionsNew.noteForPharmacist")}>
             <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Complete the full course" />
+          </Field>
+          <Field label={t("doctorPrescriptionsNew.sendToPharmacy")} hint={t("doctorPrescriptionsNew.sendToPharmacyHint")}>
+            <input
+              list="pharmacy-directory"
+              value={pharmacyQuery}
+              onChange={(event) => selectPharmacy(event.target.value)}
+              placeholder={t("doctorPrescriptionsNew.sendToPharmacyPlaceholder")}
+            />
           </Field>
         </section>
 

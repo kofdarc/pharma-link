@@ -68,14 +68,13 @@ def dispense_prescription(*, prescription: Prescription, lines: list[dict], phar
         ip_address=client_ip(request),
     )
 
+    substitutions = []
     for item_id, quantity in requested.items():
         item = items[item_id]
-        PrescriptionDispenseItem.objects.create(
-            dispense=dispense,
-            prescription_item=item,
-            quantity=quantity,
-            substituted_with=next((line.get("substituted_with", "") for line in lines if str(line["prescription_item"]) == item_id), ""),
-        )
+        substituted_with = next((line.get("substituted_with", "") for line in lines if str(line["prescription_item"]) == item_id), "")
+        PrescriptionDispenseItem.objects.create(dispense=dispense, prescription_item=item, quantity=quantity, substituted_with=substituted_with)
+        if substituted_with:
+            substitutions.append((item.medicine_text, substituted_with))
         item.quantity_dispensed += quantity
         item.save(update_fields=["quantity_dispensed", "updated_at"])
 
@@ -101,4 +100,12 @@ def dispense_prescription(*, prescription: Prescription, lines: list[dict], phar
         after_data={"status": prescription.status, "units": sum(requested.values())},
         ip_address=client_ip(request),
     )
+    if substitutions and prescription.target_pharmacy_id:
+        # Pharmacist-initiated adaptation - PrescribeIT's "adapted prescription" notification
+        # back to the prescriber. Only possible when there's a channel to notify over.
+        from apps.messaging.services import get_or_create_conversation, send_message
+
+        conversation = get_or_create_conversation(prescription=prescription)
+        body = f"{dispense.pharmacy_name} substituted: " + "; ".join(f"{original} -> {swap}" for original, swap in substitutions)
+        send_message(conversation=conversation, sender=None, body=body, recipient_phone=prescription.doctor.phone)
     return dispense

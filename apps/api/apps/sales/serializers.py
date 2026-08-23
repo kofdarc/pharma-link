@@ -60,6 +60,7 @@ class SaleCreateSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
     prescription_record_id = serializers.UUIDField(required=False)
     client = serializers.UUIDField(required=False, allow_null=True)
+    insurance_policy = serializers.UUIDField(required=False, allow_null=True)
 
     def validate_items(self, items):
         if not items:

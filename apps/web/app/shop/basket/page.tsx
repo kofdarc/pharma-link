@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ApiError, apiFetch, asList } from "@/lib/api-client";
 import { useBasket } from "@/lib/basket";
 import { useTranslations } from "@/lib/i18n/context";
-import type { BasketQuote, DeliveryAddress, Order, Paginated, PaymentMethod, PaymentProvider } from "@/types/api";
+import type { BasketQuote, DeliveryAddress, Order, Paginated, PatientInsurancePolicy, PaymentMethod, PaymentProvider } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
@@ -33,12 +33,20 @@ export default function BasketPage() {
   const [intervalDays, setIntervalDays] = useState(30);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentProvider>("COD");
+  const [policies, setPolicies] = useState<PatientInsurancePolicy[]>([]);
+  const [insurancePolicyId, setInsurancePolicyId] = useState("");
 
   useEffect(() => {
     apiFetch<PaymentMethod[]>("/shop/payment-methods/")
       .then(setPaymentMethods)
       .catch((exception) => setError((exception as ApiError).message || t("shop.paymentMethodsError")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    apiFetch<Paginated<PatientInsurancePolicy> | PatientInsurancePolicy[]>("/shop/insurance-policies/")
+      .then((payload) => setPolicies(asList(payload)))
+      .catch(() => setPolicies([]));
   }, []);
 
   useEffect(() => {
@@ -119,7 +127,8 @@ export default function BasketPage() {
           window_minutes: windowMinutes,
           notes,
           prescription_code: prescriptionCode.trim(),
-          payment_method: paymentMethod
+          payment_method: paymentMethod,
+          insurance_policy: insurancePolicyId || null
         })
       });
 
@@ -340,6 +349,18 @@ export default function BasketPage() {
               ))}
             </select>
           </Field>
+          {policies.length > 0 ? (
+            <Field label={t("shop.insurance")}>
+              <select value={insurancePolicyId} onChange={(event) => setInsurancePolicyId(event.target.value)}>
+                <option value="">{t("shop.noInsurance")}</option>
+                {policies.map((policy) => (
+                  <option key={policy.id} value={policy.id}>
+                    {policy.plan_detail.provider_name} — {policy.plan_detail.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
         </div>
 
         <label className="field checkbox-field">
@@ -367,6 +388,23 @@ export default function BasketPage() {
           <span className="muted">{t("shop.checkoutTotal")}</span>
           <strong className="price">${total.toFixed(2)}</strong>
         </div>
+        {insurancePolicyId && quote ? (
+          (() => {
+            const policy = policies.find((entry) => entry.id === insurancePolicyId);
+            if (!policy) return null;
+            const subtotal = Number(quote.items_subtotal);
+            const coveredByPercentage = subtotal * (Number(policy.plan_detail.coverage_percentage) / 100);
+            const estimatedCopay = Math.max(subtotal - coveredByPercentage, Number(policy.plan_detail.copay_minimum));
+            const clampedCopay = Math.min(estimatedCopay, subtotal);
+            const deliveryPortion = fulfillmentType === "DELIVERY" ? 3 : 0;
+            return (
+              <div>
+                <span className="muted">{t("shop.checkoutEstimatedCopay")}</span>
+                <strong className="price">${(clampedCopay + deliveryPortion).toFixed(2)}</strong>
+              </div>
+            );
+          })()
+        ) : null}
         <Button
           type="button"
           onClick={placeOrder}

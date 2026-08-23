@@ -16,6 +16,7 @@
     "pharmacyLogin": "دخول الصيدلية",
     "findMedicine": "ابحث عن دواء",
     "myOrders": "طلباتي",
+    "myPrescriptions": "وصفاتي الطبية",
     "repeatRefills": "التجديد التلقائي",
     "addresses": "العناوين",
     "dashboard": "لوحة التحكم",
@@ -41,7 +42,9 @@
     "writeAPrescription": "كتابة وصفة طبية",
     "patients": "المرضى",
     "profile": "الملف الشخصي",
-    "myRoute": "مساري"
+    "myRoute": "مساري",
+    "insurance": "التأمين",
+    "insuranceClaims": "مطالبات التأمين"
   },
   "adminDashboard": {
     "title": "الإدارة",
@@ -480,7 +483,15 @@
     "type": "النوع",
     "amount": "المبلغ",
     "memo": "المذكرة",
-    "ledgerNote": "السجل يُضاف إليه فقط: يُصحَّح الخطأ بقيد موازن، ولا يُعدَّل السجل التاريخي أبدًا."
+    "ledgerNote": "السجل يُضاف إليه فقط: يُصحَّح الخطأ بقيد موازن، ولا يُعدَّل السجل التاريخي أبدًا.",
+    "insurancePolicies": "بوليصات التأمين",
+    "noInsurancePolicies": "لا توجد بوليصات تأمين مسجّلة.",
+    "insurancePlan": "الخطة",
+    "selectInsurancePlan": "اختر خطة",
+    "insuranceMemberId": "رقم العضوية",
+    "insuranceHolderName": "اسم حامل البطاقة",
+    "addInsurancePolicy": "إضافة بوليصة",
+    "insurancePolicySaveFailed": "تعذر حفظ بوليصة التأمين هذه."
   },
   "pharmacyImports": {
     "title": "الاستيراد",
@@ -536,7 +547,12 @@
     "discount": "الخصم",
     "addLine": "إضافة سطر",
     "confirmSale": "تأكيد البيع",
-    "saleFailed": "فشل البيع. تحقق من توفر المخزون وتفاصيل بنود السطر."
+    "saleFailed": "فشل البيع. تحقق من توفر المخزون وتفاصيل بنود السطر.",
+    "client": "العميل (اختياري)",
+    "walkIn": "زبون عابر (بدون حساب)",
+    "paymentMethod": "طريقة الدفع",
+    "insurancePolicy": "التأمين (اختياري)",
+    "noInsurance": "بدون تأمين"
   },
   "pharmacyInvoiceDetail": {
     "notFound": "الفاتورة غير موجودة أو غير مصرح بها.",
@@ -608,6 +624,12 @@
     "logout": "تسجيل الخروج",
     "openMenu": "فتح القائمة",
     "closeMenu": "إغلاق القائمة"
+  },
+  "installPrompt": {
+    "title": "تثبيت PharmaLink",
+    "body": "أضف PharmaLink إلى شاشتك الرئيسية للوصول السريع بملء الشاشة.",
+    "install": "تثبيت",
+    "dismiss": "ليس الآن"
   },
   "home": {
     "title": "اعثر على الصيدليات المتصلة التي قد تملك دواءك.",
@@ -769,7 +791,10 @@
     "checkoutDelivery": "التوصيل",
     "checkoutFree": "مجانًا",
     "checkoutTotal": "الإجمالي",
-    "rxTag": "وصفة"
+    "rxTag": "وصفة",
+    "insurance": "التأمين (اختياري)",
+    "noInsurance": "بدون تأمين",
+    "checkoutEstimatedCopay": "المشاركة المقدّرة بعد التأمين"
   },
   "orders": {
     "title": "طلباتي",
@@ -819,6 +844,31 @@
     "resume": "استئناف",
     "footerNoticeBefore": "تدخل الطلبات المجدولة إلى قائمة التوصيل قبل موعدها بوقت قصير فقط، حتى لا يُحجز مخزونك لأيام ويمكن تجميع توصيلتك مع طلبات أخرى في نفس الاتجاه. راجع",
     "myOrdersLink": "طلباتي"
+  },
+  "myPrescriptions": {
+    "title": "وصفاتي الطبية",
+    "subtitle": "الوصفات الطبية التي أصدرها طبيب باستخدام البريد الإلكتروني لهذا الحساب.",
+    "loadError": "تعذّر تحميل وصفاتك الطبية.",
+    "noPrescriptions": "لم يتم العثور على وصفات طبية.",
+    "noPrescriptionsHint": "تعرض هذه القائمة فقط الوصفات التي سجّل فيها الطبيب البريد الإلكتروني لهذا الحساب كبريد المريض. إذا كان لديك الرمز أو رمز QR أو رقم PIN الذي أعطاك إياه الطبيب مباشرة، يمكنك استخدامه للطلب أو الصرف في أي صيدلية.",
+    "prescriber": "د. {doctor} · رخصة {license}",
+    "issued": "تاريخ الإصدار",
+    "validUntil": "صالحة حتى",
+    "item": "الصنف",
+    "prescribed": "الموصوف",
+    "dispensed": "المصروف",
+    "remaining": "المتبقي",
+    "dispenseHistory": "سجل الصرف",
+    "noDispenses": "لم تُصرف بعد في أي مكان.",
+    "footerNoticeBefore": "للطلب عبر الإنترنت أو الصرف في صيدلية، استخدم الرمز أو رمز QR أو رقم PIN الذي أعطاك إياه طبيبك. يمكنك إعداد تجديد تلقائي من",
+    "refillsLink": "التجديد التلقائي",
+    "status": {
+      "ISSUED": "صادرة",
+      "PARTIALLY_DISPENSED": "مصروفة جزئيًا",
+      "FULLY_DISPENSED": "مصروفة بالكامل",
+      "EXPIRED": "منتهية",
+      "CANCELLED": "ملغاة"
+    }
   },
   "addresses": {
     "title": "عناوين التوصيل",
@@ -1172,5 +1222,41 @@
     "deliver": "توصيل",
     "ordersInOneVisit": "{count} طلبات في زيارة واحدة · ",
     "failedReason": "فشل: {reason}"
+  },
+  "shopInsurance": {
+    "title": "التأمين",
+    "subtitle": "احفظ بطاقة التأمين الخاصة بك ليتم تقدير تغطية شركة التأمين عند الدفع.",
+    "loadError": "تعذر تحميل بوليصات التأمين الخاصة بك.",
+    "saveError": "تعذر حفظ هذه البوليصة.",
+    "noPolicies": "لا توجد بوليصات تأمين محفوظة بعد.",
+    "addPolicy": "إضافة بوليصة",
+    "plan": "الخطة",
+    "selectPlan": "اختر خطة",
+    "memberId": "رقم العضوية",
+    "holderName": "اسم حامل البطاقة",
+    "validUntil": "صالحة حتى (اختياري)",
+    "saving": "جارٍ الحفظ...",
+    "savePolicy": "حفظ البوليصة",
+    "coverage": "تغطية {percentage}%، حد أدنى للمشاركة {minimum}",
+    "remove": "إزالة",
+    "removeError": "تعذر إزالة هذه البوليصة."
+  },
+  "pharmacyInsuranceClaims": {
+    "title": "مطالبات التأمين",
+    "subtitle": "تتبّع ما تدين به كل شركة تأمين مقابل الطلبات ومبيعات الصالة المفوترة على بوليصة المريض.",
+    "loadError": "تعذر تحميل مطالبات التأمين.",
+    "noClaims": "لا توجد مطالبات تأمين بعد.",
+    "source": "المصدر",
+    "patient": "المريض",
+    "billed": "المبلغ المفوتر",
+    "covered": "المبلغ المغطى",
+    "copay": "المشاركة",
+    "status": "الحالة",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "markPaid": "تحديد كمدفوع",
+    "approvalCodePrompt": "رمز موافقة شركة التأمين (اختياري)",
+    "rejectionReasonPrompt": "سبب الرفض (اختياري)",
+    "actionFailed": "تعذر تحديث هذه المطالبة."
   }
 }

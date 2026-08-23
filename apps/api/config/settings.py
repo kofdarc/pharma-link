@@ -36,10 +36,12 @@ INSTALLED_APPS = [
     "apps.orders",
     "apps.payments",
     "apps.billing",
+    "apps.insurance",
     "apps.delivery",
     "apps.analytics",
     "apps.integrations",
     "apps.audit",
+    "apps.messaging",
 ]
 
 MIDDLEWARE = [
@@ -240,3 +242,13 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "PharmaLink <no-reply@pharmalink.test>")
+
+# --- WhatsApp ----------------------------------------------------------------------------
+# The console provider logs messages instead of calling Meta's API, so dev/test needs no
+# WhatsApp Business account. Point WHATSAPP_PROVIDER at "meta_cloud" and supply the token/
+# phone-number-id to send real messages (see apps.messaging.providers.meta_cloud).
+WHATSAPP_PROVIDER = os.getenv("WHATSAPP_PROVIDER", "console")
+WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN", "")
+WHATSAPP_APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")  # signs inbound webhook payloads (X-Hub-Signature-256)

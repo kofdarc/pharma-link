@@ -9,9 +9,11 @@ export const PHARMACY_NAV = [
   ["Imports", "/pharmacy/imports"],
   ["Sales", "/pharmacy/sales"],
   ["Prescriptions", "/pharmacy/prescriptions"],
+  ["Incoming e-prescriptions", "/pharmacy/incoming-prescriptions"],
   ["Scan a QR script", "/pharmacy/scan"],
   ["Connect software", "/pharmacy/connect"],
   ["Billing", "/pharmacy/billing"],
+  ["Insurance claims", "/pharmacy/insurance-claims"],
   ["Settings", "/pharmacy/settings"],
   ["Staff", "/pharmacy/staff"]
 ] as const;
@@ -22,6 +24,7 @@ export const ADMIN_NAV = [
   ["Pharmacies", "/admin/pharmacies"],
   ["Pharmacy applications", "/admin/pharmacy-applications"],
   ["Billing", "/admin/billing"],
+  ["Insurance", "/admin/insurance"],
   ["Medicines", "/admin/medicines"],
   ["Users", "/admin/users"],
   ["Imports", "/admin/imports"],
@@ -31,6 +34,8 @@ export const ADMIN_NAV = [
 export const DOCTOR_NAV = [
   ["Prescriptions", "/doctor/prescriptions"],
   ["Write a prescription", "/doctor/prescriptions/new"],
+  ["Renewal requests", "/doctor/renewal-requests"],
+  ["Formulary lookup", "/doctor/formulary"],
   ["Patients", "/doctor/patients"],
   ["Profile", "/doctor/profile"]
 ] as const;
@@ -38,8 +43,10 @@ export const DOCTOR_NAV = [
 export const SHOP_NAV = [
   ["Find medicine", "/shop"],
   ["My orders", "/shop/orders"],
+  ["My prescriptions", "/shop/prescriptions"],
   ["Repeat refills", "/shop/refills"],
-  ["Addresses", "/shop/addresses"]
+  ["Addresses", "/shop/addresses"],
+  ["Insurance", "/shop/insurance"]
 ] as const;
 
 /** Where each role lands after signing in. */

@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch, asList } from "@/lib/api-client";
 import { useTranslations } from "@/lib/i18n/context";
-import type { Client, ClientHistory, ClientLedgerEntry, Paginated } from "@/types/api";
+import type { Client, ClientHistory, ClientLedgerEntry, Paginated, PatientInsurancePolicy, PublicInsurancePlan } from "@/types/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -18,6 +18,9 @@ export default function ClientsPage() {
   const [selected, setSelected] = useState<Client | null>(null);
   const [history, setHistory] = useState<ClientHistory | null>(null);
   const [ledger, setLedger] = useState<ClientLedgerEntry[]>([]);
+  const [policies, setPolicies] = useState<PatientInsurancePolicy[]>([]);
+  const [plans, setPlans] = useState<PublicInsurancePlan[]>([]);
+  const [policyForm, setPolicyForm] = useState({ plan: "", member_id: "", holder_name: "" });
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -43,16 +46,54 @@ export default function ClientsPage() {
 
   useEffect(load, [load]);
 
+  useEffect(() => {
+    apiFetch<PublicInsurancePlan[]>("/public/insurance-plans/")
+      .then(setPlans)
+      .catch(() => setPlans([]));
+  }, []);
+
   async function open(client: Client) {
     setSelected(client);
     setHistory(null);
     setLedger([]);
-    const [historyData, ledgerData] = await Promise.all([
+    setPolicies([]);
+    const [historyData, ledgerData, policyData] = await Promise.all([
       apiFetch<ClientHistory>(`/pharmacy/clients/${client.id}/history/`).catch(() => null),
-      apiFetch<ClientLedgerEntry[]>(`/pharmacy/clients/${client.id}/ledger/`).catch(() => [])
+      apiFetch<ClientLedgerEntry[]>(`/pharmacy/clients/${client.id}/ledger/`).catch(() => []),
+      apiFetch<Paginated<PatientInsurancePolicy> | PatientInsurancePolicy[]>(`/pharmacy/insurance-policies/?client=${client.id}`)
+        .then(asList)
+        .catch(() => [])
     ]);
     setHistory(historyData);
     setLedger(ledgerData);
+    setPolicies(policyData);
+  }
+
+  async function addPolicy(event: FormEvent) {
+    event.preventDefault();
+    if (!selected) return;
+    setError("");
+    try {
+      await apiFetch("/pharmacy/insurance-policies/", {
+        method: "POST",
+        body: JSON.stringify({ ...policyForm, client: selected.id })
+      });
+      setPolicyForm({ plan: "", member_id: "", holder_name: "" });
+      open(selected);
+    } catch (exception) {
+      setError((exception as ApiError).message || t("pharmacyClients.insurancePolicySaveFailed"));
+    }
+  }
+
+  async function removePolicy(policy: PatientInsurancePolicy) {
+    if (!selected) return;
+    setError("");
+    try {
+      await apiFetch(`/pharmacy/insurance-policies/${policy.id}/`, { method: "DELETE" });
+      open(selected);
+    } catch (exception) {
+      setError((exception as ApiError).message);
+    }
   }
 
   async function createClient(event: FormEvent) {
@@ -288,6 +329,41 @@ export default function ClientsPage() {
                 </Table>
               )}
               <p className="muted small">{t("pharmacyClients.ledgerNote")}</p>
+
+              <h3>{t("pharmacyClients.insurancePolicies")}</h3>
+              {policies.length === 0 ? (
+                <p className="muted small">{t("pharmacyClients.noInsurancePolicies")}</p>
+              ) : (
+                <ul className="clean-list">
+                  {policies.map((policy) => (
+                    <li key={policy.id}>
+                      {policy.plan_detail.provider_name} — {policy.plan_detail.name} ({policy.member_id}){" "}
+                      <Button type="button" variant="secondary" onClick={() => removePolicy(policy)}>
+                        {t("common.remove")}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <form className="form-grid" onSubmit={addPolicy}>
+                <Field label={t("pharmacyClients.insurancePlan")}>
+                  <select value={policyForm.plan} onChange={(event) => setPolicyForm({ ...policyForm, plan: event.target.value })} required>
+                    <option value="">{t("pharmacyClients.selectInsurancePlan")}</option>
+                    {plans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.provider_name} — {plan.name} ({plan.coverage_percentage}%)
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label={t("pharmacyClients.insuranceMemberId")}>
+                  <input value={policyForm.member_id} onChange={(event) => setPolicyForm({ ...policyForm, member_id: event.target.value })} required />
+                </Field>
+                <Field label={t("pharmacyClients.insuranceHolderName")}>
+                  <input value={policyForm.holder_name} onChange={(event) => setPolicyForm({ ...policyForm, holder_name: event.target.value })} required />
+                </Field>
+                <Button type="submit">{t("pharmacyClients.addInsurancePolicy")}</Button>
+              </form>
             </>
           ) : (
             <div className="skeleton-card" />
