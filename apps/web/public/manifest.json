@@ -1,6 +1,6 @@
 {
-  "name": "PharmaLink",
-  "short_name": "PharmaLink",
+  "name": "HealthConnect",
+  "short_name": "HealthConnect",
   "description": "Pharmacy medication availability and inventory management",
   "start_url": "/",
   "scope": "/",

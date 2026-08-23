@@ -47,7 +47,7 @@ export default function PharmacySignupPage() {
         <div className="auth-card">
           <Link href="/" className="brand">
             <BrandMark />
-            <span>PharmaLink</span>
+            <span>HealthConnect</span>
           </Link>
           <h1>Application received</h1>
           <Notice tone="success">
@@ -63,9 +63,9 @@ export default function PharmacySignupPage() {
       <div className="auth-card">
         <Link href="/" className="brand">
           <BrandMark />
-          <span>PharmaLink</span>
+          <span>HealthConnect</span>
         </Link>
-        <h1>Bring your pharmacy onto PharmaLink</h1>
+        <h1>Bring your pharmacy onto HealthConnect</h1>
         <p className="muted">Tell us about your pharmacy and we&apos;ll set up your account. You keep your own software.</p>
 
         {error ? <Notice tone="danger">{error}</Notice> : null}

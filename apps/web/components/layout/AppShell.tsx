@@ -63,7 +63,7 @@ function contextLabel(mode: ShellMode, user: User, t: (key: string) => string): 
   if (mode === "pharmacy") return user.pharmacy_detail?.name || t("shell.pharmacy");
   if (mode === "doctor") return `${t("shell.doctorPrefix")} ${user.first_name} ${user.last_name}`.trim();
   if (mode === "driver") return t("shell.driverConsole");
-  return "PharmaLink";
+  return "HealthConnect";
 }
 
 export function AppShell({
@@ -98,7 +98,7 @@ export function AppShell({
       <aside className="sidebar" data-open={navOpen}>
         <Link href="/" className="brand">
           <BrandMark />
-          <span>PharmaLink</span>
+          <span>HealthConnect</span>
         </Link>
         <nav>
           {nav.map(([label, href]) => (

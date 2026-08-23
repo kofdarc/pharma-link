@@ -41,7 +41,7 @@ Console is easiest for the networking setup (VPC/subnet group), but roughly:
 ```bash
 aws rds create-db-subnet-group \
   --db-subnet-group-name pharmalink-db-subnets \
-  --db-subnet-group-description "PharmaLink RDS" \
+  --db-subnet-group-description "HealthConnect RDS" \
   --subnet-ids <subnet-1> <subnet-2>   # at least 2 subnets, different AZs, in your default VPC
 
 aws rds create-db-instance \

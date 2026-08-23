@@ -1,4 +1,4 @@
-# PharmaLink POC — demo script
+# HealthConnect POC — demo script
 
 About 15 minutes end to end. Every step below works against seeded data.
 

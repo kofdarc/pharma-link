@@ -47,7 +47,7 @@ export default function RegisterPage() {
         <div className="section-header">
           <Link href="/" className="brand">
             <BrandMark />
-            <span>PharmaLink</span>
+            <span>HealthConnect</span>
           </Link>
           <LanguageSwitcher />
         </div>

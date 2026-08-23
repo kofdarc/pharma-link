@@ -92,7 +92,7 @@ class Command(BaseCommand):
                 },
             )
 
-        self.stdout.write(self.style.SUCCESS("Seeded PharmaLink demo data."))
+        self.stdout.write(self.style.SUCCESS("Seeded HealthConnect demo data."))
         self.stdout.write("Admin: admin@pharmalink.test / Password123!")
         self.stdout.write("Owner: owner@cedarcare.test / Password123!")
         self.stdout.write("Staff: staff@cedarcare.test / Password123!")

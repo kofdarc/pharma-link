@@ -46,7 +46,7 @@ export default function PrescriptionEntryPage() {
         setCode(bare);
         setError("Code read from the QR. Enter the PIN to continue.");
       } else {
-        setError("That QR code is not a PharmaLink prescription.");
+        setError("That QR code is not a HealthConnect prescription.");
       }
     }
   }
@@ -56,7 +56,7 @@ export default function PrescriptionEntryPage() {
       <header className="public-header">
         <Link href="/" className="brand">
           <BrandMark />
-          <span>PharmaLink</span>
+          <span>HealthConnect</span>
         </Link>
         <Link className="button button-secondary" href="/login">
           Pharmacy login
@@ -69,7 +69,7 @@ export default function PrescriptionEntryPage() {
             <div>
               <h1>Dispense a prescription</h1>
               <p>
-                Any pharmacy can use this page. You do not need a PharmaLink account, and you do not need to
+                Any pharmacy can use this page. You do not need a HealthConnect account, and you do not need to
                 register to consume a prescription.
               </p>
             </div>

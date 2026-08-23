@@ -87,7 +87,7 @@ DRIVERS = [
 
 
 class Command(BaseCommand):
-    help = "Seed the full PharmaLink POC scenario (pharmacies, catalog, doctors, shoppers, orders, drivers)."
+    help = "Seed the full HealthConnect POC scenario (pharmacies, catalog, doctors, shoppers, orders, drivers)."
 
     def add_arguments(self, parser):
         parser.add_argument("--reset-orders", action="store_true", help="Delete existing demo orders and routes first.")
@@ -117,7 +117,7 @@ class Command(BaseCommand):
         self._prescriptions(doctors, medicines)
         self._drivers(User)
 
-        self.stdout.write(self.style.SUCCESS("\nPharmaLink POC scenario seeded."))
+        self.stdout.write(self.style.SUCCESS("\nHealthConnect POC scenario seeded."))
         self.stdout.write("\nSign-in accounts (all password: Password123!)")
         self.stdout.write(f"  Platform admin   {admin.email}")
         self.stdout.write("  Pharmacy owner   owner@cedarcare.test          (Cedar Care, Hamra)")
