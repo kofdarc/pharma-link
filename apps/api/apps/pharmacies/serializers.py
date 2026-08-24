@@ -27,6 +27,7 @@ class PharmacySerializer(serializers.ModelSerializer):
             "is_active",
             "is_public",
             "is_on_call",
+            "pos_system",
             "created_at",
             "updated_at",
         ]

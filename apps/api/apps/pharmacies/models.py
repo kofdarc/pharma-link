@@ -6,6 +6,12 @@ from django.db import models
 from apps.common.models import UUIDTimeStampedModel
 
 
+class PosSystem(models.TextChoices):
+    NONE = "NONE", "No POS system (dashboard/manual only)"
+    SOFTPHARM = "SOFTPHARM", "SoftPharm (NIT)"
+    OTHER = "OTHER", "Other"
+
+
 class Pharmacy(UUIDTimeStampedModel):
     name = models.CharField(max_length=255)
     license_number = models.CharField(max_length=80, blank=True)
@@ -21,6 +27,14 @@ class Pharmacy(UUIDTimeStampedModel):
     is_public = models.BooleanField(default=True)
     is_on_call = models.BooleanField(
         default=False, db_index=True, help_text="Currently on Lebanon's pharmacy duty roster ('de garde') - reachable outside normal hours."
+    )
+    pos_system = models.CharField(
+        max_length=20,
+        choices=PosSystem.choices,
+        default=PosSystem.NONE,
+        blank=True,
+        db_index=True,
+        help_text="Which POS/pharmacy-management software this pharmacy runs, if any - drives which connector template applies.",
     )
 
     # Consumer-facing controls. Pharmacies never expose their true stock depth publicly:
