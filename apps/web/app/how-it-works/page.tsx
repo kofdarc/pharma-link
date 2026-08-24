@@ -60,7 +60,6 @@ export default function HowItWorksPage() {
         <section className="hc-hero">
           <div className="hc-wrap">
             <div style={{ maxWidth: "46rem" }}>
-              <p className="hc-eyebrow">How it works</p>
               <h1 className="hc-display">Getting your medication shouldn&apos;t require five phone calls.</h1>
               <p className="hc-lead" style={{ marginTop: 22 }}>
                 HealthConnect sits between you and every pharmacy that has joined the network. You search once; the platform does
@@ -73,13 +72,9 @@ export default function HowItWorksPage() {
         <section className="hc-section hc-band">
           <div className="hc-wrap">
             <div className="hc-explain">
-              {STEPS.map((step, index) => (
+              {STEPS.map((step) => (
                 <article className="hc-explain-row" key={step.title}>
                   <div className="hc-explain-copy">
-                    <p className="hc-explain-step">
-                      <b>{index + 1}</b>
-                      Step {index + 1}
-                    </p>
                     <h2 className="hc-h2">{step.title}</h2>
                     {step.body.map((paragraph) => (
                       <p className="hc-body" key={paragraph.slice(0, 32)}>

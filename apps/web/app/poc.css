@@ -11,9 +11,9 @@
 :root {
   --chart-ink: var(--primary);
   /* Verified monotonic in relative luminance: 0.60 -> 0.28 -> 0.17 */
-  --chart-ramp-light: #9fd6d7;
-  --chart-ramp-base: #3d9fa2;
-  --chart-ramp-dark: #087f83;
+  --chart-ramp-light: #a0d7bd;
+  --chart-ramp-base: #3da271;
+  --chart-ramp-dark: #088448;
   --chart-grid: var(--border);
 }
 

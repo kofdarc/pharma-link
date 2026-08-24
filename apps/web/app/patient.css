@@ -23,10 +23,10 @@
   /* --- brand -------------------------------------------------------------
      One accent hue only. The deep variant carries inverted sections, the wash
      carries quiet fills; nothing else introduces a second brand colour. */
-  --hc-brand: #087f83;
-  --hc-brand-hover: #066c70;
-  --hc-brand-deep: #06373a;
-  --hc-brand-wash: #e4f1f0;
+  --hc-brand: #00bf63;
+  --hc-brand-hover: #008c49;
+  --hc-brand-deep: #004524;
+  --hc-brand-wash: #f0f8f4;
 
   /* --- status ------------------------------------------------------------
      Never the sole carrier of meaning: every status pairs with a word. */
@@ -40,8 +40,8 @@
   --hc-alert-wash: #fceceb;
 
   /* --- type -------------------------------------------------------------- */
-  --hc-display: var(--font-display), Georgia, "Times New Roman", serif;
-  --hc-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hc-display: var(--font-display, Georgia), "Times New Roman", serif;
+  --hc-sans: var(--font-sans, Inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
   /* --- shape & depth ------------------------------------------------------ */
   --hc-r-sm: 10px;
@@ -201,6 +201,78 @@
   background: currentColor;
   opacity: 0.55;
   flex: none;
+}
+
+.hc-section-marker {
+  width: fit-content;
+  margin: 0 0 18px;
+  padding-bottom: 7px;
+  border-bottom: 2px solid var(--hc-brand);
+  color: var(--hc-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.hc-connected-headline {
+  min-height: 3.15em;
+  transition: color 500ms ease;
+}
+
+.hc-rotating-word-frame {
+  display: inline-grid;
+  color: var(--hc-brand-hover);
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.hc-rotating-word {
+  grid-area: 1 / 1;
+  display: inline-block;
+  animation: hc-word-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hc-headline-finale {
+  display: inline-block;
+  animation: hc-finale-in 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hc-headline-finale em {
+  font-weight: 400;
+}
+
+@keyframes hc-word-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.28em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hc-finale-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.18em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hc-rotating-word {
+    animation: none;
+  }
+
+  .hc-headline-finale {
+    animation: none;
+  }
 }
 
 .hc-num {

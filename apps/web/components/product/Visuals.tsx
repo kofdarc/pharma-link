@@ -22,7 +22,7 @@ export function SearchVisual() {
           <PackThumb brand="Augmentin" />
           <span className="hc-pv-row-main">
             <strong>Augmentin 1g</strong>
-            <span>Amoxicillin / Clavulanic Acid · Tablet</span>
+            <span>Amoxicillin · Tablet</span>
           </span>
           <span className="hc-chip hc-chip-ok">
             <span className="hc-dot" />
@@ -34,7 +34,7 @@ export function SearchVisual() {
           <PackThumb brand="Amoclav" />
           <span className="hc-pv-row-main">
             <strong>Amoclav 1g</strong>
-            <span>Amoxicillin / Clavulanic Acid · Tablet</span>
+            <span>Amoxicillin · Tablet</span>
           </span>
           <span className="hc-chip hc-chip-limited">
             <span className="hc-dot" />

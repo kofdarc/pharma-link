@@ -51,7 +51,6 @@ export default function AboutPage() {
         <section className="hc-hero">
           <div className="hc-wrap">
             <div style={{ maxWidth: "44rem" }}>
-              <p className="hc-eyebrow">About</p>
               <h1 className="hc-display">Making medication access simpler and more connected.</h1>
               <p className="hc-lead" style={{ marginTop: 22 }}>
                 HealthConnect is a platform for the whole medication journey in Lebanon — from the moment a prescription is
@@ -64,7 +63,6 @@ export default function AboutPage() {
         <section className="hc-section hc-band">
           <div className="hc-wrap hc-explain-row">
             <div className="hc-explain-copy">
-              <p className="hc-eyebrow">The problem</p>
               <h2 className="hc-h2">Medication access is fragmented.</h2>
               <p className="hc-body">
                 Every part of the journey works — and none of them are joined up. The cost of that lands on patients, and hardest
@@ -91,7 +89,6 @@ export default function AboutPage() {
         <section className="hc-section">
           <div className="hc-wrap">
             <SectionHeading
-              eyebrow="The ecosystem"
               title="One journey, five participants."
               lead="HealthConnect connects the roles that already exist in the medication journey. This site is the patient's part of it."
             />
@@ -109,7 +106,7 @@ export default function AboutPage() {
 
         <section className="hc-section hc-band">
           <div className="hc-wrap">
-            <SectionHeading eyebrow="Principles" title="What we hold to." />
+            <SectionHeading title="What we hold to." />
             <div className="hc-principles">
               {PRINCIPLES.map((principle) => (
                 <div className="hc-principle" key={principle.title}>

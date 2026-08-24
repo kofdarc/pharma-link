@@ -2,11 +2,12 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { ArrowLink, CtaSection, SectionHeading } from "@/components/site/Section";
+import { ConnectedHeadline } from "@/components/site/ConnectedHeadline";
 import { RxCard, SearchVisual } from "@/components/product/Visuals";
 import { Icon, type IconName } from "@/components/ui/Icon";
 
 export const metadata = {
-  title: "HealthConnect — your medications, connected",
+  title: "HealthConnect — healthcare, finally connected",
   description:
     "Find medication across connected pharmacies, handle prescription requirements, and get what you need without calling pharmacy after pharmacy."
 };
@@ -69,8 +70,7 @@ export default function LandingPage() {
         <section className="hc-hero">
           <div className="hc-wrap hc-hero-grid">
             <div className="hc-hero-copy">
-              <p className="hc-eyebrow">Medication access in Lebanon</p>
-              <h1 className="hc-display">Your medications, connected.</h1>
+              <ConnectedHeadline />
               <p className="hc-lead">
                 Find medication across connected pharmacies, handle prescription requirements, and get what you need — without
                 calling pharmacy after pharmacy.
@@ -100,7 +100,6 @@ export default function LandingPage() {
         <section className="hc-section hc-band">
           <div className="hc-wrap">
             <SectionHeading
-              eyebrow="The problem"
               title="Finding one medicine shouldn't take five phone calls."
               lead="Pharmacy stock lives in disconnected systems, so the only way to find out who has something is to ask each one. That falls hardest on people who need medication regularly."
             />
@@ -148,7 +147,7 @@ export default function LandingPage() {
         {/* --- capabilities ----------------------------------------------- */}
         <section className="hc-section">
           <div className="hc-wrap">
-            <SectionHeading eyebrow="What you can do" title="Built around the medicine, not the pharmacy." />
+            <SectionHeading title="Built around the medicine, not the pharmacy." />
             <div className="hc-feature-grid">
               {CAPABILITIES.map((capability) => (
                 <article className="hc-feature" key={capability.title}>
@@ -167,7 +166,6 @@ export default function LandingPage() {
         <section className="hc-section hc-band">
           <div className="hc-wrap hc-explain-row">
             <div className="hc-explain-copy">
-              <p className="hc-eyebrow">Digital prescriptions</p>
               <h2 className="hc-h2">A prescription that can't be lost, copied or reused.</h2>
               <p className="hc-body">
                 When your physician prescribes through HealthConnect you receive a prescription you can keep on your phone. The
@@ -193,7 +191,7 @@ export default function LandingPage() {
         {/* --- how it works ------------------------------------------------ */}
         <section className="hc-section">
           <div className="hc-wrap">
-            <SectionHeading eyebrow="How it works" title="Four steps, and most of them are ours." />
+            <SectionHeading title="Four steps, and most of them are ours." />
             <ol className="hc-steps">
               {STEPS.map((step, index) => (
                 <li className="hc-step" key={step.title}>
@@ -215,7 +213,6 @@ export default function LandingPage() {
         <section className="hc-section hc-band">
           <div className="hc-wrap">
             <SectionHeading
-              eyebrow="Handled carefully"
               title="Health information deserves more than a login screen."
               lead="HealthConnect carries prescriptions and medication history, so access is narrow by default and everything consequential leaves a record."
             />

@@ -77,7 +77,9 @@
 .hc-hero {
   position: relative;
   overflow: hidden;
+  background-color: var(--hc-canvas);
   padding-block: clamp(48px, 7vw, 92px) clamp(56px, 8vw, 104px);
+  transition: background-color 700ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* One soft wash, off to the side - the only decorative flourish on the page. */
@@ -90,6 +92,48 @@
   height: 780px;
   background: radial-gradient(circle, rgba(8, 127, 131, 0.11) 0%, rgba(8, 127, 131, 0) 62%);
   pointer-events: none;
+  transition: opacity 500ms ease;
+}
+
+.hc-hero:has(.hc-connected-headline[data-finale="true"]) {
+  background: var(--hc-brand);
+}
+
+.hc-hero:has(.hc-connected-headline[data-finale="true"])::before {
+  opacity: 0;
+}
+
+.hc-hero:has(.hc-connected-headline[data-finale="true"]) .hc-display {
+  color: #fff;
+}
+
+.hc-hero:has(.hc-connected-headline[data-finale="true"]) .hc-lead,
+.hc-hero:has(.hc-connected-headline[data-finale="true"]) .hc-hero-note {
+  color: var(--hc-brand-deep);
+}
+
+.hc-hero:has(.hc-connected-headline[data-finale="true"]) .hc-hero-note svg {
+  color: var(--hc-brand-deep);
+}
+
+.hc-hero:has(.hc-connected-headline[data-finale="true"]) .hc-btn-primary {
+  background: #fff;
+  color: var(--hc-brand-deep);
+}
+
+.hc-hero:has(.hc-connected-headline[data-finale="true"]) .hc-btn-primary:hover {
+  background: var(--hc-tint);
+}
+
+.hc-hero:has(.hc-connected-headline[data-finale="true"]) .hc-btn-secondary {
+  background: transparent;
+  border-color: rgba(0, 69, 36, 0.34);
+  color: var(--hc-brand-deep);
+}
+
+.hc-hero:has(.hc-connected-headline[data-finale="true"]) .hc-hero-visual {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.42);
 }
 
 .hc-hero-grid {
