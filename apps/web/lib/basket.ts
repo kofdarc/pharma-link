@@ -7,6 +7,17 @@ export interface BasketItem {
   name: string;
   quantity: number;
   requires_prescription?: boolean;
+  /** Active ingredient, so the cart can name the medicine the way search does. */
+  generic?: string;
+  /** Lowest listed price at the time it was added. Always shown as an estimate. */
+  unit_price?: number | null;
+  /**
+   * The patient's prescription this line will be dispensed against.
+   *
+   * Attached in the cart, not at add-to-basket time: the patient may hold more
+   * than one prescription covering the same medicine, and picking is their call.
+   */
+  prescription_id?: string | null;
 }
 
 const STORAGE_KEY = "pharmalink_basket";
@@ -37,9 +48,13 @@ function write(items: BasketItem[]) {
  */
 export function useBasket() {
   const [items, setItems] = useState<BasketItem[]>([]);
+  // The server has no basket, so every first paint is empty. `ready` lets the
+  // cart show its skeleton instead of flashing the empty state and correcting.
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     setItems(read());
+    setReady(true);
     const sync = () => setItems(read());
     window.addEventListener(CHANGED_EVENT, sync);
     window.addEventListener("storage", sync);
@@ -71,6 +86,11 @@ export function useBasket() {
 
   const clear = useCallback(() => write([]), []);
 
+  /** Attach (or detach, with `null`) the prescription a line is dispensed against. */
+  const setPrescription = useCallback((medicine: string, prescriptionId: string | null) => {
+    write(read().map((entry) => (entry.medicine === medicine ? { ...entry, prescription_id: prescriptionId } : entry)));
+  }, []);
+
   const count = items.reduce((sum, entry) => sum + entry.quantity, 0);
-  return { items, add, setQuantity, remove, clear, count };
+  return { items, add, setQuantity, remove, clear, setPrescription, count, ready };
 }

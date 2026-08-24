@@ -1,0 +1,2238 @@
+/* ==========================================================================
+   HealthConnect - the signed-in patient area.
+
+   Third and last layer of the patient surface. `patient.css` holds the
+   foundations (tokens, type, buttons, chips), `patient-ui.css` holds the public
+   pages and the shared component patterns, and this file holds everything that
+   only exists once someone is signed in: prescriptions, basket, fulfilment,
+   checkout, orders, refills and account.
+
+   It introduces no new tokens, no second radius scale and no second accent. If
+   something here needs a value that is not already in `patient.css`, that is a
+   sign the foundation is missing it, not that this file should invent one.
+   ========================================================================== */
+
+/* ==========================================================================
+   Page frame
+   ========================================================================== */
+
+.hc-page {
+  padding-block: clamp(26px, 4vw, 44px) clamp(56px, 8vw, 88px);
+  display: grid;
+  gap: 22px;
+  align-content: start;
+}
+
+.hc-page-body {
+  display: grid;
+  gap: 22px;
+}
+
+.hc-page-foot {
+  max-width: 62ch;
+}
+
+.hc-pagehead {
+  display: grid;
+  gap: 12px;
+}
+
+.hc-pagehead-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+/* Sits between the display serif and the sans h3: big enough to open a page,
+   quiet enough that it is not competing with the marketing pages. */
+.hc-pagetitle {
+  font-family: var(--hc-display);
+  font-weight: 500;
+  letter-spacing: -0.021em;
+  line-height: 1.1;
+  font-size: clamp(1.875rem, 3.2vw, 2.375rem);
+  margin: 0;
+  color: var(--hc-ink);
+}
+
+.hc-pagelead {
+  margin-top: 10px;
+  max-width: 54ch;
+}
+
+.hc-backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.875rem;
+  font-weight: 550;
+  color: var(--hc-muted);
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.hc-backlink:hover {
+  color: var(--hc-brand);
+}
+
+.hc-backlink svg {
+  transition: transform 160ms ease;
+}
+
+.hc-backlink:hover svg {
+  transform: translateX(-3px);
+}
+
+.hc-section-label {
+  font-family: var(--hc-sans);
+  font-size: 0.6875rem;
+  font-weight: 660;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--hc-muted);
+  margin: 0 0 14px;
+}
+
+.hc-stack {
+  display: grid;
+  gap: 16px;
+}
+
+/* Cards sit in a single column until there is genuinely room for two. A
+   prescription or an order card at half a 1440px viewport is still readable;
+   below that they crowd. */
+.hc-cardgrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  /* Cards size to their own content. Stretching a short card to match a taller
+     neighbour just puts a hole above its buttons. */
+  align-items: start;
+}
+
+/* `hc-kv` is tuned for full page width; inside a card column its 140px minimum
+   drops it to a single column and doubles the card's height. */
+.hc-cardgrid .hc-kv {
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 12px 18px;
+}
+
+/* A card that opens with an eyebrow needs the gap the heading would have given. */
+.hc-card > .hc-card-label:first-child {
+  margin-bottom: 12px;
+}
+
+/* ==========================================================================
+   App chrome additions: basket button, avatar link
+   ========================================================================== */
+
+.hc-cartbtn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  color: var(--hc-ink);
+  transition: background-color 140ms ease;
+}
+
+.hc-cartbtn:hover {
+  background: var(--hc-tint);
+}
+
+.hc-cartbtn[aria-current="page"] {
+  background: var(--hc-brand-wash);
+  color: var(--hc-brand-deep);
+}
+
+.hc-cartbtn-count {
+  position: absolute;
+  top: 1px;
+  inset-inline-end: 0;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 4px;
+  border-radius: 999px;
+  background: var(--hc-brand);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 660;
+  line-height: 18px;
+  text-align: center;
+  border: 2px solid #fff;
+  box-sizing: content-box;
+}
+
+/* ==========================================================================
+   Segmented filter
+   ========================================================================== */
+
+.hc-segmented {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--hc-pill);
+  background: var(--hc-tint-2);
+  border: 1px solid var(--hc-line);
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.hc-segmented::-webkit-scrollbar {
+  display: none;
+}
+
+.hc-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--hc-pill);
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 560;
+  color: var(--hc-ink-2);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.hc-segment:hover {
+  color: var(--hc-ink);
+}
+
+.hc-segment[aria-selected="true"] {
+  background: var(--hc-canvas);
+  color: var(--hc-ink);
+  font-weight: 620;
+  box-shadow: var(--hc-shadow-sm);
+}
+
+.hc-segment-count {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  font-weight: 620;
+  color: var(--hc-muted);
+}
+
+.hc-segment[aria-selected="true"] .hc-segment-count {
+  color: var(--hc-brand);
+}
+
+/* ==========================================================================
+   Notes, buttons and small shared pieces
+   ========================================================================== */
+
+/* One inline note style, tinted three ways. Every variant pairs an icon with
+   the sentence, so none of them depend on the colour to be understood. */
+.hc-inline-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0;
+  padding: 11px 14px;
+  border-radius: var(--hc-r-md);
+  background: var(--hc-tint);
+  color: var(--hc-ink-2);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.hc-inline-note svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--hc-brand);
+}
+
+.hc-inline-note-warn {
+  background: var(--hc-warn-wash);
+  color: #6f4a04;
+}
+
+.hc-inline-note-warn svg {
+  color: var(--hc-warn);
+}
+
+.hc-inline-note-alert {
+  background: var(--hc-alert-wash);
+  color: #8a2718;
+}
+
+.hc-inline-note-alert svg {
+  color: var(--hc-alert);
+}
+
+.hc-app .hc-card-quiet {
+  background: var(--hc-tint-2);
+  border-color: var(--hc-line);
+}
+
+.hc-btn-danger {
+  background: var(--hc-alert);
+  color: #fff;
+}
+
+.hc-btn-danger:hover:not(:disabled) {
+  background: #8f2a1a;
+}
+
+.hc-linkbtn-quiet {
+  color: var(--hc-muted);
+}
+
+.hc-linkbtn-quiet:hover {
+  color: var(--hc-ink);
+}
+
+.hc-linkbtn-danger {
+  color: var(--hc-alert);
+}
+
+.hc-linkbtn-danger:hover {
+  color: #8f2a1a;
+}
+
+.hc-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--hc-muted);
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.hc-icon-btn:hover {
+  background: var(--hc-tint);
+  color: var(--hc-ink);
+}
+
+.hc-spinner {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: hc-spin 700ms linear infinite;
+}
+
+@keyframes hc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hc-plainlist {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  font-size: 0.9063rem;
+  line-height: 1.55;
+  color: var(--hc-ink-2);
+}
+
+.hc-plainlist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.hc-plainlist svg {
+  flex: none;
+  margin-top: 4px;
+  color: var(--hc-brand);
+}
+
+/* ==========================================================================
+   Dialog and sheet
+
+   One component, two shapes. Above 640px it is a centred panel; below it, the
+   same markup becomes the bottom sheet already used by the search filters.
+   ========================================================================== */
+
+.hc-modal-panel {
+  position: fixed;
+  z-index: 61;
+  background: var(--hc-canvas);
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+
+.hc-modal-panel > .hc-sheet-grip {
+  display: none;
+}
+
+.hc-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--hc-line);
+}
+
+.hc-modal-body {
+  padding: 20px 22px;
+  overflow-y: auto;
+}
+
+.hc-modal-foot {
+  display: flex;
+  gap: 10px;
+  padding: 16px 22px calc(18px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--hc-line);
+  background: var(--hc-canvas);
+}
+
+.hc-modal-foot .hc-btn {
+  flex: 1;
+}
+
+@media (min-width: 641px) {
+  .hc-modal-panel {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(92vw, 560px);
+    max-height: min(84vh, 720px);
+    border-radius: var(--hc-r-xl);
+    box-shadow: var(--hc-shadow-lg);
+    animation: hc-modal-in 190ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .hc-modal-sm {
+    width: min(92vw, 440px);
+  }
+
+  .hc-modal-lg {
+    width: min(94vw, 760px);
+  }
+
+  @keyframes hc-modal-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, calc(-50% + 10px));
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  .hc-modal-panel {
+    inset-inline: 0;
+    bottom: 0;
+    border-radius: var(--hc-r-xl) var(--hc-r-xl) 0 0;
+    max-height: 88vh;
+    animation: hc-slide 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .hc-modal-panel > .hc-sheet-grip {
+    display: block;
+    margin-bottom: 0;
+  }
+
+  .hc-modal-head {
+    padding-top: 6px;
+  }
+}
+
+/* ==========================================================================
+   Toasts
+   ========================================================================== */
+
+.hc-toasts {
+  position: fixed;
+  z-index: 70;
+  inset-inline: 0;
+  bottom: calc(74px + env(safe-area-inset-bottom));
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding-inline: 16px;
+  pointer-events: none;
+}
+
+.hc-toast {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 420px;
+  padding: 12px 18px;
+  border-radius: var(--hc-pill);
+  background: var(--hc-brand-deep);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 540;
+  box-shadow: var(--hc-shadow-md);
+  animation: hc-toast-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hc-toast svg {
+  flex: none;
+  opacity: 0.9;
+}
+
+.hc-toast-alert {
+  background: var(--hc-alert);
+}
+
+@keyframes hc-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (min-width: 821px) {
+  .hc-toasts {
+    bottom: 26px;
+  }
+}
+
+/* ==========================================================================
+   Prescriptions
+   ========================================================================== */
+
+.hc-rxcard-name {
+  margin-top: 6px;
+  font-size: 1.125rem;
+}
+
+.hc-rxcard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hc-line);
+}
+
+.hc-rxdetail {
+  max-width: 860px;
+}
+
+/* The document surface. Slightly heavier border and more padding than a normal
+   card, which is the whole difference between "a card about a prescription" and
+   "the prescription". */
+.hc-rxdoc {
+  border: 1px solid var(--hc-line-2);
+  border-radius: var(--hc-r-xl);
+  background: var(--hc-canvas);
+  box-shadow: var(--hc-shadow-md);
+  padding: clamp(22px, 3.4vw, 34px);
+  display: grid;
+  gap: 22px;
+}
+
+.hc-rxdoc-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.hc-rxdoc-ident {
+  display: grid;
+  gap: 8px;
+}
+
+.hc-rxdoc-ident .hc-card-label {
+  font-size: 0.9375rem;
+  letter-spacing: 0.04em;
+  color: var(--hc-ink);
+}
+
+/* Deliberately understated. A line of text and a small shield, not a badge. */
+.hc-rxdoc-verified {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--hc-muted);
+}
+
+.hc-rxdoc-verified svg {
+  color: var(--hc-brand);
+  flex: none;
+}
+
+.hc-rxdoc-dates {
+  padding: 18px 0 0;
+  border-top: 1px solid var(--hc-line);
+}
+
+.hc-rxmeds {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.hc-rxmed {
+  border: 1px solid var(--hc-line);
+  border-radius: var(--hc-r-md);
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.hc-rxmed-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hc-rxmed-name {
+  margin: 0 0 3px;
+  font-size: 1rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  color: var(--hc-ink);
+}
+
+.hc-rxmed-dosage {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--hc-ink-2);
+}
+
+.hc-rxmed-dosage svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--hc-muted);
+}
+
+.hc-rxmed-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--hc-line);
+}
+
+.hc-rxmed-figures dt {
+  font-size: 0.6875rem;
+  font-weight: 640;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--hc-muted);
+  margin-bottom: 4px;
+}
+
+.hc-rxmed-figures dd {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 580;
+  color: var(--hc-ink);
+}
+
+/* A hairline, not a progress bar. The number above already carries the fact;
+   this only gives it a shape to read at a glance. */
+.hc-rxmed-progress {
+  display: grid;
+  grid-template-rows: 3px auto;
+  gap: 8px;
+}
+
+/* Track and fill share the first row; the caption gets the second, so the line
+   reads as one measure rather than sitting under whichever figure it lands on. */
+.hc-rxmed-progress::before {
+  content: "";
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--hc-line);
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.hc-rxmed-progress-fill {
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--hc-brand);
+  grid-row: 1;
+  grid-column: 1;
+  max-inline-size: 100%;
+}
+
+.hc-rxmed-progress p {
+  grid-row: 2;
+  grid-column: 1;
+}
+
+.hc-rxdoc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hc-rxdoc-foot {
+  max-width: 62ch;
+}
+
+/* On a phone the reference and the verification line need the full width, so
+   the status moves above them rather than squeezing them into half a column. */
+@media (max-width: 520px) {
+  .hc-rxdoc-head {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .hc-rxmed-figures {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .hc-rxdoc-actions .hc-btn {
+    width: 100%;
+  }
+}
+
+/* --- prescription access -------------------------------------------------- */
+
+.hc-access {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.hc-access-code {
+  width: min(232px, 62vw);
+  padding: 14px;
+  border: 1px solid var(--hc-line-2);
+  border-radius: var(--hc-r-lg);
+  background: #fff;
+}
+
+.hc-access-code svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  shape-rendering: crispEdges;
+}
+
+.hc-access-ref {
+  margin: 4px 0 0;
+  font-size: 1.0625rem;
+  font-weight: 620;
+  letter-spacing: 0.02em;
+  color: var(--hc-ink);
+}
+
+.hc-access-pin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 14px 16px;
+  border-radius: var(--hc-r-md);
+  background: var(--hc-tint);
+  text-align: start;
+}
+
+.hc-access .hc-inline-note {
+  text-align: start;
+  width: 100%;
+}
+
+.hc-access-pin-value {
+  margin: 5px 0 0;
+  font-size: 1.25rem;
+  font-weight: 620;
+  letter-spacing: 0.1em;
+  color: var(--hc-ink);
+}
+
+/* ==========================================================================
+   Basket
+   ========================================================================== */
+
+.hc-cart-layout,
+.hc-fulfil-layout,
+.hc-checkout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: clamp(22px, 3vw, 36px);
+  align-items: start;
+}
+
+.hc-cartlines {
+  display: grid;
+  gap: 14px;
+}
+
+.hc-cartline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid var(--hc-line);
+  border-radius: var(--hc-r-lg);
+  background: var(--hc-canvas);
+}
+
+.hc-cartline-main {
+  display: grid;
+  gap: 5px;
+  align-content: start;
+  min-width: 0;
+}
+
+.hc-cartline-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 620;
+  letter-spacing: -0.012em;
+  color: var(--hc-ink);
+}
+
+.hc-cartline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.hc-cartline-side {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 10px;
+  text-align: end;
+}
+
+.hc-cartline-price {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 620;
+  color: var(--hc-ink);
+}
+
+/* Prescription cover, given its own block rather than a badge. It is a
+   condition of the order, not a label on the product. */
+.hc-cover {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: var(--hc-r-md);
+  background: var(--hc-tint);
+  display: grid;
+  gap: 5px;
+}
+
+.hc-cover-met {
+  background: var(--hc-ok-wash);
+}
+
+.hc-cover-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 620;
+  color: var(--hc-ink);
+}
+
+.hc-cover-head svg {
+  flex: none;
+  color: var(--hc-brand);
+}
+
+.hc-cover-met .hc-cover-head svg {
+  color: var(--hc-ok);
+}
+
+.hc-cover-body {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.8438rem;
+  line-height: 1.5;
+  color: var(--hc-ink-2);
+}
+
+.hc-cover-body svg {
+  flex: none;
+  color: var(--hc-ok);
+}
+
+.hc-cover-body strong {
+  font-weight: 620;
+  color: var(--hc-ink);
+}
+
+@media (max-width: 620px) {
+  .hc-cartline {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .hc-cartline-side {
+    grid-column: 1 / -1;
+    grid-auto-flow: column;
+    justify-items: stretch;
+    align-items: center;
+    justify-content: space-between;
+    text-align: start;
+    padding-top: 14px;
+    border-top: 1px solid var(--hc-line);
+  }
+}
+
+/* --- summary rail --------------------------------------------------------- */
+
+/* The signed-in shell is already tinted, so anything that would have been a
+   quiet tint panel on a white page has to earn its edges differently here.
+   The rail is the action surface of the basket, fulfilment and checkout, so it
+   takes the canvas and lets the page recede behind it. */
+.hc-summary {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid var(--hc-line);
+  border-radius: var(--hc-r-lg);
+  background: var(--hc-canvas);
+  align-content: start;
+}
+
+.hc-summary-sticky {
+  position: sticky;
+  top: 84px;
+}
+
+.hc-summary-rows {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.hc-summary-rows > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.hc-summary-rows dt {
+  font-size: 0.9063rem;
+  color: var(--hc-ink-2);
+}
+
+.hc-summary-rows dd {
+  margin: 0;
+  font-size: 0.9063rem;
+  font-weight: 560;
+  color: var(--hc-ink);
+  text-align: end;
+}
+
+.hc-summary-pending {
+  color: var(--hc-muted) !important;
+  font-weight: 500 !important;
+}
+
+.hc-summary-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hc-line-2);
+  font-size: 0.9375rem;
+  font-weight: 580;
+  color: var(--hc-ink);
+}
+
+.hc-summary-total strong {
+  font-size: 1.375rem;
+  font-weight: 620;
+  letter-spacing: -0.015em;
+}
+
+.hc-summary-link {
+  justify-self: start;
+}
+
+/* --- prescription picker -------------------------------------------------- */
+
+.hc-picker {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.hc-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--hc-line-2);
+  border-radius: var(--hc-r-md);
+  background: var(--hc-canvas);
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.hc-picker-option:hover {
+  border-color: var(--hc-ink-2);
+}
+
+.hc-picker-option[aria-pressed="true"] {
+  border-color: var(--hc-brand);
+  background: var(--hc-brand-wash);
+}
+
+.hc-picker-option > svg {
+  flex: none;
+  color: var(--hc-brand);
+}
+
+.hc-picker-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.hc-picker-body strong {
+  font-size: 0.9375rem;
+  font-weight: 620;
+  color: var(--hc-ink);
+}
+
+/* ==========================================================================
+   Fulfilment
+   ========================================================================== */
+
+.hc-fulfil-hero {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 4px;
+}
+
+.hc-fulfil-facts {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+}
+
+.hc-fulfil-facts li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9063rem;
+  font-weight: 540;
+  color: var(--hc-ink);
+}
+
+.hc-fulfil-facts svg {
+  flex: none;
+  color: var(--hc-brand);
+}
+
+.hc-searching {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 540;
+  color: var(--hc-ink-2);
+}
+
+.hc-searching svg {
+  flex: none;
+  color: var(--hc-brand);
+  animation: hc-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hc-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.hc-plans {
+  display: grid;
+  gap: 14px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.hc-plan {
+  border: 1px solid var(--hc-line);
+  border-radius: var(--hc-r-lg);
+  background: var(--hc-canvas);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.hc-plan-selected {
+  border-color: var(--hc-brand);
+  box-shadow: 0 0 0 1px var(--hc-brand);
+}
+
+.hc-plan-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 20px 20px 14px;
+  cursor: pointer;
+}
+
+.hc-plan-radio,
+.hc-choice input,
+.hc-window input,
+.hc-pill input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.hc-plan-mark,
+.hc-choice-mark {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  flex: none;
+  border: 1.5px solid var(--hc-line-2);
+  border-radius: 50%;
+  background: var(--hc-canvas);
+  transition: border-color 140ms ease, border-width 140ms ease;
+}
+
+.hc-plan-radio:checked + .hc-plan-mark,
+.hc-choice input:checked + .hc-choice-mark {
+  border-color: var(--hc-brand);
+  border-width: 6px;
+}
+
+.hc-plan-radio:focus-visible + .hc-plan-mark,
+.hc-choice input:focus-visible + .hc-choice-mark {
+  box-shadow: var(--hc-focus);
+}
+
+.hc-plan-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.hc-plan-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.hc-plan-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hc-plan-title strong {
+  font-size: 1.0625rem;
+  font-weight: 620;
+  letter-spacing: -0.012em;
+  color: var(--hc-ink);
+}
+
+.hc-plan-flag {
+  order: -1;
+}
+
+.hc-plan-total {
+  font-size: 1.25rem;
+  font-weight: 620;
+  letter-spacing: -0.015em;
+  color: var(--hc-ink);
+}
+
+.hc-plan-tagline {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--hc-ink-2);
+  max-width: 52ch;
+}
+
+.hc-plan-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-top: 4px;
+}
+
+.hc-plan-facts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8438rem;
+  color: var(--hc-ink-2);
+}
+
+.hc-plan-facts svg {
+  flex: none;
+  color: var(--hc-muted);
+}
+
+.hc-plan-costs {
+  display: flex;
+  gap: 26px;
+  margin: 0;
+  padding: 0 20px 14px 54px;
+}
+
+.hc-plan-costs > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.hc-plan-costs dt {
+  font-size: 0.8125rem;
+  color: var(--hc-muted);
+}
+
+.hc-plan-costs dd {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 580;
+  color: var(--hc-ink);
+}
+
+.hc-plan-breakdown {
+  padding: 0 20px 16px 54px;
+}
+
+.hc-disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.8438rem;
+  font-weight: 560;
+  color: var(--hc-brand);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.hc-disclosure:hover {
+  color: var(--hc-brand-hover);
+}
+
+.hc-disclosure svg {
+  flex: none;
+  transition: transform 160ms ease;
+}
+
+.hc-disclosure-open {
+  transform: rotate(180deg);
+}
+
+.hc-split {
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.hc-split-group {
+  padding: 14px 16px;
+  border-radius: var(--hc-r-md);
+  background: var(--hc-tint);
+}
+
+.hc-split-name {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  font-weight: 620;
+  color: var(--hc-ink);
+}
+
+.hc-split-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.hc-split-group li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8438rem;
+  color: var(--hc-ink-2);
+}
+
+.hc-split-group svg {
+  flex: none;
+  color: var(--hc-muted);
+}
+
+.hc-why {
+  margin-top: 18px;
+}
+
+.hc-why-body {
+  margin-top: 8px;
+  max-width: 60ch;
+}
+
+.hc-unavailable {
+  display: grid;
+  gap: 12px;
+  border-color: var(--hc-line-2);
+}
+
+.hc-unavailable-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.hc-unavailable-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.9375rem;
+  color: var(--hc-ink);
+}
+
+/* ==========================================================================
+   Checkout
+   ========================================================================== */
+
+.hc-checkout-main {
+  display: grid;
+  gap: 14px;
+}
+
+.hc-step-block {
+  border: 1px solid var(--hc-line);
+  border-radius: var(--hc-r-lg);
+  background: var(--hc-canvas);
+  padding: 22px;
+}
+
+.hc-step-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.hc-step-index {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--hc-brand-wash);
+  color: var(--hc-brand-deep);
+  font-size: 0.8125rem;
+  font-weight: 660;
+}
+
+.hc-step-action {
+  margin-inline-start: auto;
+}
+
+.hc-step-body {
+  display: grid;
+  gap: 16px;
+}
+
+.hc-choices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.hc-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--hc-line-2);
+  border-radius: var(--hc-r-md);
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.hc-choice:hover {
+  border-color: var(--hc-ink-2);
+}
+
+.hc-choice-selected {
+  border-color: var(--hc-brand);
+  background: var(--hc-brand-wash);
+}
+
+.hc-choice-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--hc-canvas);
+  color: var(--hc-ink-2);
+}
+
+.hc-choice:has(.hc-choice-icon) {
+  grid-template-columns: auto auto minmax(0, 1fr);
+}
+
+.hc-choice-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.hc-choice-body strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--hc-ink);
+}
+
+.hc-choice-empty {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.hc-when {
+  display: grid;
+  gap: 14px;
+}
+
+.hc-windows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-inline-start: 32px;
+}
+
+.hc-window,
+.hc-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--hc-line-2);
+  border-radius: var(--hc-pill);
+  font-size: 0.875rem;
+  font-weight: 550;
+  color: var(--hc-ink-2);
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.hc-window:hover,
+.hc-pill:hover {
+  border-color: var(--hc-ink-2);
+  color: var(--hc-ink);
+}
+
+.hc-window-selected,
+.hc-pill-on {
+  border-color: var(--hc-brand);
+  background: var(--hc-brand-wash);
+  color: var(--hc-brand-deep);
+  font-weight: 600;
+}
+
+.hc-window:has(input:focus-visible),
+.hc-pill:has(input:focus-visible) {
+  box-shadow: var(--hc-focus);
+}
+
+.hc-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hc-verify {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.hc-verify-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 14px;
+  border-radius: var(--hc-r-md);
+  background: var(--hc-tint);
+}
+
+.hc-verify-row > svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--hc-muted);
+}
+
+.hc-verify-ok {
+  background: var(--hc-ok-wash);
+}
+
+.hc-verify-ok > svg {
+  color: var(--hc-ok);
+}
+
+/* Required but unmatched. Amber rather than red: the order can still go ahead,
+   the pharmacy will just ask at hand-over. */
+.hc-verify-open {
+  background: var(--hc-warn-wash);
+}
+
+.hc-verify-open > svg {
+  color: var(--hc-warn);
+}
+
+.hc-verify-row > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hc-verify-row strong {
+  font-size: 0.9063rem;
+  font-weight: 600;
+  color: var(--hc-ink);
+}
+
+.hc-review-lines,
+.hc-order-lines,
+.hc-receipt {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.hc-review-lines li,
+.hc-order-lines li,
+.hc-receipt li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--hc-line);
+  font-size: 0.9375rem;
+  color: var(--hc-ink);
+}
+
+.hc-review-lines li:last-child,
+.hc-order-lines li:last-child,
+.hc-receipt li:last-child {
+  border-bottom: 0;
+}
+
+.hc-review-lines li > span:first-child,
+.hc-order-line-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hc-order-lines {
+  margin-top: 10px;
+}
+
+.hc-receipt {
+  margin-bottom: 18px;
+}
+
+/* --- confirmation --------------------------------------------------------- */
+
+.hc-confirm {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 14px;
+  max-width: 520px;
+  margin-inline: auto;
+  padding-block: clamp(28px, 6vw, 64px);
+}
+
+.hc-confirm-mark {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: var(--hc-ok-wash);
+  color: var(--hc-ok);
+  margin-bottom: 4px;
+}
+
+.hc-confirm-facts {
+  width: 100%;
+  margin-top: 10px;
+  padding: 20px;
+  border: 1px solid var(--hc-line);
+  border-radius: var(--hc-r-lg);
+  background: var(--hc-canvas);
+  text-align: start;
+}
+
+.hc-confirm-actions {
+  margin-top: 8px;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   Orders
+   ========================================================================== */
+
+.hc-ordercard-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
+  margin-bottom: 16px;
+  font-size: 1.125rem;
+}
+
+.hc-stagemark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+}
+
+/* An order in progress gets the brand edge; a delivered one does not need it. */
+.hc-ordercard-active {
+  border-color: var(--hc-line-2);
+  box-shadow: var(--hc-shadow-sm);
+}
+
+.hc-order {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: clamp(18px, 2.6vw, 28px);
+  align-items: start;
+}
+
+.hc-order-main,
+.hc-order-side {
+  display: grid;
+  gap: 16px;
+}
+
+.hc-order-status .hc-card-head {
+  margin-bottom: 20px;
+}
+
+.hc-order-stage {
+  margin: 0;
+  font-family: var(--hc-display);
+  font-weight: 500;
+  font-size: clamp(1.5rem, 2.6vw, 1.875rem);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--hc-ink);
+}
+
+.hc-order-when {
+  margin: 7px 0 0;
+  font-size: 0.9375rem;
+  color: var(--hc-ink-2);
+}
+
+/* The timeline gets more room on the order page than it does on home. */
+.hc-track-lg li {
+  padding-block: 5px;
+  font-size: 0.9375rem;
+}
+
+.hc-order-status .hc-inline-note {
+  margin-top: 18px;
+}
+
+.hc-order-address {
+  display: grid;
+  gap: 3px;
+  margin: 10px 0 16px;
+  font-style: normal;
+  font-size: 0.9063rem;
+  color: var(--hc-ink-2);
+}
+
+.hc-order-address strong {
+  font-size: 0.9375rem;
+  font-weight: 620;
+  color: var(--hc-ink);
+}
+
+.hc-details {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hc-line);
+}
+
+/* Matches `.hc-disclosure` rather than showing the native triangle: the same
+   gesture should not have two appearances in one product. */
+.hc-details > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8438rem;
+  font-weight: 560;
+  color: var(--hc-brand);
+  cursor: pointer;
+  border-radius: 4px;
+  list-style: none;
+}
+
+.hc-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.hc-details > summary::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 160ms ease;
+}
+
+.hc-details[open] > summary::before {
+  transform: translateY(1px) rotate(225deg);
+}
+
+.hc-details > summary:hover {
+  color: var(--hc-brand-hover);
+}
+
+/* --- rating --------------------------------------------------------------- */
+
+.hc-rate {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.hc-rate-star {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--hc-line-2);
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.hc-rate-star:hover {
+  background: var(--hc-tint);
+}
+
+.hc-rate-on {
+  color: var(--hc-warn);
+}
+
+.hc-rate-on svg {
+  fill: currentColor;
+}
+
+.hc-rated {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.hc-rated-stars {
+  display: flex;
+  gap: 3px;
+  color: var(--hc-line-2);
+}
+
+.hc-rated-on {
+  color: var(--hc-warn);
+  fill: currentColor;
+}
+
+/* ==========================================================================
+   Refills
+   ========================================================================== */
+
+.hc-refillcard-name {
+  font-size: 1.125rem;
+}
+
+.hc-refillcard {
+  display: grid;
+  gap: 14px;
+}
+
+.hc-refillcard .hc-card-head {
+  margin-bottom: 0;
+}
+
+/* Paused reads as set aside rather than broken: quieter, not alarming. */
+.hc-refillcard-paused {
+  background: var(--hc-tint-2);
+  border-color: var(--hc-line);
+}
+
+.hc-refill-danger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   Account
+   ========================================================================== */
+
+.hc-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--hc-line);
+  border-radius: var(--hc-r-lg);
+  background: var(--hc-canvas);
+}
+
+.hc-identity-avatar {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--hc-brand-deep);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 620;
+  letter-spacing: 0.02em;
+}
+
+.hc-identity-name {
+  margin: 0 0 3px;
+  font-size: 1.0625rem;
+  font-weight: 620;
+  letter-spacing: -0.012em;
+  color: var(--hc-ink);
+}
+
+.hc-settings {
+  display: grid;
+  gap: 28px;
+}
+
+.hc-settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--hc-line);
+  border-radius: var(--hc-r-lg);
+  overflow: hidden;
+  background: var(--hc-canvas);
+}
+
+.hc-settings-list li + li .hc-settings-row {
+  border-top: 1px solid var(--hc-line);
+}
+
+.hc-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 18px;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.9688rem;
+  color: var(--hc-ink);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.hc-settings-row:hover {
+  background: var(--hc-tint);
+}
+
+.hc-settings-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 9px;
+  background: var(--hc-tint-2);
+  color: var(--hc-brand-deep);
+}
+
+.hc-settings-label {
+  font-weight: 540;
+}
+
+.hc-settings-value {
+  margin-inline-start: auto;
+  font-size: 0.875rem;
+  color: var(--hc-muted);
+}
+
+.hc-settings-chevron {
+  flex: none;
+  margin-inline-start: auto;
+  color: var(--hc-line-2);
+}
+
+.hc-settings-value + .hc-settings-chevron {
+  margin-inline-start: 0;
+}
+
+.hc-settings-danger .hc-settings-row {
+  color: var(--hc-alert);
+}
+
+.hc-settings-danger .hc-settings-icon {
+  background: var(--hc-alert-wash);
+  color: var(--hc-alert);
+}
+
+/* --- addresses & payment cards -------------------------------------------- */
+
+.hc-addresscard-note {
+  margin-top: 6px;
+  font-style: italic;
+}
+
+.hc-addresscard-delete {
+  margin-inline-start: auto;
+}
+
+.hc-paycard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.hc-paycard-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 11px;
+  background: var(--hc-tint-2);
+  color: var(--hc-brand-deep);
+}
+
+.hc-paycard-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hc-paycard-side {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+@media (max-width: 560px) {
+  .hc-paycard {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .hc-paycard-side {
+    grid-column: 1 / -1;
+    grid-auto-flow: column;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding-top: 12px;
+    border-top: 1px solid var(--hc-line);
+  }
+}
+
+/* --- toggles -------------------------------------------------------------- */
+
+.hc-toggles {
+  display: grid;
+}
+
+.hc-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--hc-line);
+}
+
+.hc-toggle-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.hc-toggle-row:first-child {
+  padding-top: 0;
+}
+
+.hc-toggle-row > label {
+  display: grid;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.hc-toggle-label {
+  font-size: 0.9375rem;
+  font-weight: 560;
+  color: var(--hc-ink);
+}
+
+.hc-toggle-hint {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--hc-muted);
+  max-width: 52ch;
+}
+
+.hc-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 27px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--hc-line-2);
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.hc-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  inset-inline-start: 3px;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(14, 37, 48, 0.28);
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hc-switch:checked {
+  background: var(--hc-brand);
+}
+
+.hc-switch:checked::after {
+  transform: translateX(19px);
+}
+
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+
+.hc-form {
+  display: grid;
+  gap: 16px;
+}
+
+.hc-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.hc-textarea {
+  min-height: 92px;
+  padding-block: 12px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.55;
+}
+
+select.hc-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--hc-muted) 50%),
+    linear-gradient(135deg, var(--hc-muted) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 22px, calc(100% - 15px) 22px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-inline-end: 40px;
+}
+
+@media (max-width: 480px) {
+  .hc-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   Home additions
+   ========================================================================== */
+
+.hc-home-cardtitle {
+  margin-top: 6px;
+  font-size: 1.25rem;
+}
+
+.hc-home-cardfoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   Layout collapse
+
+   Every two-column composition above becomes one column at the same breakpoint,
+   so the whole signed-in area changes shape at once rather than one screen at a
+   time. The summary rail stops being sticky when it is no longer beside
+   anything.
+   ========================================================================== */
+
+@media (max-width: 1040px) {
+  .hc-cart-layout,
+  .hc-fulfil-layout,
+  .hc-checkout,
+  .hc-order {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hc-summary-sticky {
+    position: static;
+  }
+
+  /* Order matters here: on a phone the rail is a summary of what is above it,
+     not a thing to read first. */
+  .hc-order-side {
+    order: 2;
+  }
+}
+
+@media (max-width: 620px) {
+  .hc-cardgrid {
+    grid-template-columns: 1fr;
+  }
+
+  .hc-plan-costs,
+  .hc-plan-breakdown {
+    padding-inline-start: 20px;
+  }
+
+  .hc-windows {
+    padding-inline-start: 0;
+  }
+
+  .hc-pagehead-row {
+    align-items: flex-start;
+  }
+}
+
+/* ==========================================================================
+   Reduced motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .hc-modal-panel,
+  .hc-toast {
+    animation: none;
+  }
+
+  .hc-spinner,
+  .hc-searching svg {
+    animation: none;
+  }
+
+  .hc-switch::after,
+  .hc-disclosure svg,
+  .hc-details > summary::before,
+  .hc-backlink svg {
+    transition: none;
+  }
+}

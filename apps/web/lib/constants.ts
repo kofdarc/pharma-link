@@ -55,7 +55,7 @@ export const ROLE_HOME: Record<string, string> = {
   PHARMACY_OWNER: "/pharmacy/dashboard",
   PHARMACY_STAFF: "/pharmacy/dashboard",
   DOCTOR: "/doctor/prescriptions",
-  CUSTOMER: "/shop",
+  CUSTOMER: "/home",
   DRIVER: "/driver"
 };
 

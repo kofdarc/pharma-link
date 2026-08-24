@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AUTH_EXPIRED_EVENT, apiFetch, clearToken } from "./api-client";
+import { AUTH_EXPIRED_EVENT, apiFetch, clearToken, getToken } from "./api-client";
 import { ROLE_HOME } from "./constants";
 import type { User, UserRole } from "@/types/api";
 
@@ -21,6 +21,33 @@ export function useCurrentUser() {
   }, []);
 
   return { user, loading };
+}
+
+/**
+ * The signed-in user, if there happens to be one.
+ *
+ * For pages that are open to everyone but adapt when someone is signed in (the
+ * public header, medication search). Unlike `useCurrentUser` it makes no
+ * request at all without a token, so anonymous visitors do not pay for a 401 on
+ * every page they open.
+ */
+export function useOptionalUser() {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    let cancelled = false;
+    apiFetch<User>("/auth/me/")
+      .then((value) => {
+        if (!cancelled) setUser(value);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return user;
 }
 
 export function useRequireRole(roles: UserRole[]) {
