@@ -61,7 +61,7 @@ export default function DoctorActivationPage() {
       <div className="auth-card">
         <Link href="/" className="brand">
           <BrandMark />
-          <span>PharmaLink</span>
+          <span>HealthConnect</span>
         </Link>
         <h1>Activate your prescriber account</h1>
         <p className="muted">

@@ -1,4 +1,4 @@
-# PharmaLink
+# HealthConnect
 
 A pharmacy operations platform for Lebanon: stock and invoicing for pharmacies, unified
 medicine search and delivery for the public, QR prescriptions for doctors, and a smart

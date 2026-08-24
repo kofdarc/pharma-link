@@ -23,7 +23,7 @@ def send_password_reset_email(user) -> None:
     try:
         send_email(
             to=[user.email],
-            subject=_("Reset your PharmaLink password"),
+            subject=_("Reset your HealthConnect password"),
             text_body=_(
                 "Hi,\n\nUse this link to set a new password: %(url)s\n\n"
                 "If you didn't request this, you can ignore this email - your password hasn't changed.\n"
@@ -40,7 +40,7 @@ def send_verification_email(user) -> None:
     try:
         send_email(
             to=[user.email],
-            subject=_("Verify your PharmaLink email"),
+            subject=_("Verify your HealthConnect email"),
             text_body=_("Hi,\n\nConfirm your email to start ordering: %(url)s\n") % {"url": verify_url},
         )
     except Exception:

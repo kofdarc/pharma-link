@@ -25,7 +25,7 @@ export default function HomePage() {
       <header className="public-header">
         <Link href="/" className="brand">
           <BrandMark />
-          <span>PharmaLink</span>
+          <span>HealthConnect</span>
         </Link>
         <div className="actions">
           <LanguageSwitcher />

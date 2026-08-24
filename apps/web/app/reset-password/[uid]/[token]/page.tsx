@@ -42,7 +42,7 @@ export default function ResetPasswordPage() {
       <div className="auth-card">
         <Link href="/" className="brand">
           <BrandMark />
-          <span>PharmaLink</span>
+          <span>HealthConnect</span>
         </Link>
         <h1>Set a new password</h1>
 

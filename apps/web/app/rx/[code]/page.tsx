@@ -117,7 +117,7 @@ function PrescriptionView() {
         <header className="public-header">
           <Link href="/" className="brand">
             <BrandMark />
-            <span>PharmaLink</span>
+            <span>HealthConnect</span>
           </Link>
         </header>
         <main className="public-main narrow">
@@ -152,7 +152,7 @@ function PrescriptionView() {
       <header className="public-header">
         <Link href="/" className="brand">
           <BrandMark />
-          <span>PharmaLink</span>
+          <span>HealthConnect</span>
         </Link>
         <Link className="button button-secondary" href="/rx">
           Different prescription

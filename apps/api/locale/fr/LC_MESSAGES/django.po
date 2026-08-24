@@ -33,8 +33,8 @@ msgstr "Un compte existe déjà pour cet e-mail."
 msgid "Pharmacy users must be assigned to a pharmacy."
 msgstr "Les utilisateurs de pharmacie doivent être rattachés à une pharmacie."
 
-msgid "Reset your PharmaLink password"
-msgstr "Réinitialisez votre mot de passe PharmaLink"
+msgid "Reset your HealthConnect password"
+msgstr "Réinitialisez votre mot de passe HealthConnect"
 
 #, python-format
 msgid ""
@@ -50,8 +50,8 @@ msgstr ""
 "\n"
 "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail - votre mot de passe n'a pas changé.\n"
 
-msgid "Verify your PharmaLink email"
-msgstr "Vérifiez votre e-mail PharmaLink"
+msgid "Verify your HealthConnect email"
+msgstr "Vérifiez votre e-mail HealthConnect"
 
 #, python-format
 msgid ""

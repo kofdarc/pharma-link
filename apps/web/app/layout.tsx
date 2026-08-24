@@ -6,13 +6,13 @@ import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { I18nProvider } from "@/lib/i18n/context";
 
 export const metadata: Metadata = {
-  title: "PharmaLink",
+  title: "HealthConnect",
   description: "Pharmacy medication availability and inventory management",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "PharmaLink"
+    title: "HealthConnect"
   },
   icons: {
     icon: [

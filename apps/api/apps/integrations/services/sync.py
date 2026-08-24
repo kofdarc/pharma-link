@@ -198,7 +198,7 @@ def sync_stock(*, pharmacy, user, rows: list[dict], integration_key=None, idempo
 @transaction.atomic
 def sync_sales(*, pharmacy, user, rows: list[dict], integration_key=None, idempotency_key: str) -> SyncRun:
     """
-    Sales pushed from the till. Recorded as PharmaLink sales so analytics see the whole
+    Sales pushed from the till. Recorded as HealthConnect sales so analytics see the whole
     business, not just what happened through the platform.
     """
     existing = SyncRun.objects.filter(pharmacy=pharmacy, idempotency_key=idempotency_key).first()

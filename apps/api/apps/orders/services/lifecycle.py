@@ -52,7 +52,7 @@ def _notify_order_delivered(order: Order) -> None:
         send_email(
             to=[order.customer.email],
             subject=f"Order {order.reference} {verb}",
-            text_body=f"Hi {order.contact_name},\n\nYour order {order.reference} {verb}. Thanks for shopping with PharmaLink.\n",
+            text_body=f"Hi {order.contact_name},\n\nYour order {order.reference} {verb}. Thanks for shopping with HealthConnect.\n",
         )
     except Exception:
         logger.exception("Failed to send order-delivered email for %s", order.reference)

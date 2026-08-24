@@ -30,7 +30,7 @@ export default function VerifyEmailPage() {
       <div className="auth-card">
         <Link href="/" className="brand">
           <BrandMark />
-          <span>PharmaLink</span>
+          <span>HealthConnect</span>
         </Link>
         <h1>Verify your email</h1>
 
@@ -39,7 +39,7 @@ export default function VerifyEmailPage() {
           <>
             <Notice tone="success">Your email is verified. You can now place orders.</Notice>
             <Button type="button" onClick={() => (window.location.href = "/shop")}>
-              Continue to PharmaLink
+              Continue to HealthConnect
             </Button>
           </>
         ) : null}
