@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const CONNECTED_WORDS = ["medications", "prescriptions", "pharmacies", "deliveries"] as const;
+const CONNECTED_WORDS = ["medications", "prescriptions", "physicians", "pharmacies"] as const;
 const FINALE_INDEX = CONNECTED_WORDS.length;
 const WORD_DURATION_MS = 2400;
 const FINALE_DURATION_MS = 4600;

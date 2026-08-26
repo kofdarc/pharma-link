@@ -20,7 +20,7 @@ export function sourcingLine(medicine: MedicineSummary): string {
 export function MedicineResult({ medicine }: { medicine: MedicineSummary }) {
   return (
     <article className="hc-result">
-      <PackThumb brand={medicine.brand} image={medicine.image} />
+      <PackThumb brand={medicine.brand} image={medicine.image} size="result" />
 
       <div className="hc-result-main">
         <h3 className="hc-result-title">
@@ -41,7 +41,7 @@ export function MedicineResult({ medicine }: { medicine: MedicineSummary }) {
         <div>
           {medicine.fromPrice !== null ? (
             <p className="hc-price">
-              <small>From</small>
+              {!medicine.isPriceRegulated ? <small>From</small> : null}
               {formatPrice(medicine.fromPrice)}
             </p>
           ) : (

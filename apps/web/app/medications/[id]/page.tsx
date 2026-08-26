@@ -146,8 +146,7 @@ export default function MedicationDetailPage() {
                 </div>
               </dl>
               <p className="hc-small" style={{ marginTop: 18 }}>
-                Product information only. HealthConnect does not provide dosage, treatment or medical advice — follow the
-                instructions from your physician or pharmacist.
+                Prices are set by the Ministry of Public Health (MoPH).
               </p>
             </section>
 
@@ -198,7 +197,7 @@ export default function MedicationDetailPage() {
               {medicine.fromPrice !== null ? (
                 <>
                   <strong>{formatPrice(medicine.fromPrice)}</strong>
-                  <span className="hc-small">from, per pack</span>
+                  <span className="hc-small">per pack</span>
                 </>
               ) : (
                 <span className="hc-body">Price confirmed when a pharmacy is matched</span>

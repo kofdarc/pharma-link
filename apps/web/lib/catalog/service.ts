@@ -84,6 +84,7 @@ function groupByMedicine(rows: PublicAvailability[]): MedicineSummary[] {
         productType: inferProductType(medicine.brand_name, medicine.generic_name || ""),
         availability,
         fromPrice: price,
+        isPriceRegulated: row.is_price_regulated,
         sourcingCount: canFulfil ? 1 : 0,
         aliases: []
       });
@@ -182,7 +183,15 @@ export async function getMedicine(id: string, signal?: AbortSignal): Promise<Med
   try {
     const rows = await apiFetch<PublicAvailability[]>(`/public/search/?medicine_id=${encodeURIComponent(id)}`, { signal });
     const [medicine] = groupByMedicine(rows);
-    if (!medicine) return fromMock();
+    if (!medicine) {
+      // `/public/search/?medicine_id=` only returns rows backed by real,
+      // in-stock inventory. An empty result here doesn't mean the id is
+      // bogus — the medicine may still be a real catalogue entry that no
+      // connected pharmacy currently stocks. Look it up directly so the page
+      // can still show the product, just marked unavailable.
+      const catalogueOnly = await fromCatalogueOnly(id, signal);
+      return catalogueOnly.medicine ? catalogueOnly : fromMock();
+    }
 
     // Same active ingredient, different product. One extra query, and it is the
     // only way to offer "other listed strengths" without a dedicated endpoint.
@@ -198,6 +207,51 @@ export async function getMedicine(id: string, signal?: AbortSignal): Promise<Med
   } catch (error) {
     if (signal?.aborted) throw error;
     return fromMock();
+  }
+}
+
+/**
+ * The medicine has no live stock anywhere, so `/public/search/` won't return
+ * it. Fall back to the catalogue record itself (via `/medicines/search/?id=`,
+ * auth-free) so the page can still show what the product is — just marked
+ * unavailable — instead of a dead end.
+ */
+async function fromCatalogueOnly(id: string, signal?: AbortSignal): Promise<MedicineOutcome> {
+  try {
+    const record = await apiFetch<Medicine>(`/medicines/search/?id=${encodeURIComponent(id)}`, { signal });
+    // A MoPH-regulated price is fixed nationwide, not something an individual
+    // pharmacy sets - so it's known even when no pharmacy currently stocks the
+    // item. Free-priced products have no such fallback: without a stocking
+    // pharmacy there's genuinely no price to show.
+    const fromPrice = record.is_price_regulated ? parsePrice(record.regulated_price ?? null) : null;
+    const medicine: MedicineSummary = {
+      id: record.id,
+      brand: record.brand_name,
+      strength: record.strength || "",
+      generic: record.generic_name || "",
+      form: record.form || "",
+      image: record.image,
+      requiresPrescription: Boolean(record.requires_prescription),
+      productType: inferProductType(record.brand_name, record.generic_name || ""),
+      availability: "unavailable",
+      fromPrice,
+      isPriceRegulated: Boolean(record.is_price_regulated),
+      sourcingCount: 0,
+      aliases: (record.aliases ?? []).map((entry) => entry.alias)
+    };
+
+    let related: MedicineSummary[] = [];
+    try {
+      const siblings = await apiFetch<PublicAvailability[]>(`/public/search/?q=${encodeURIComponent(medicine.generic)}`, { signal });
+      related = relatedTo(medicine, groupByMedicine(siblings));
+    } catch {
+      related = [];
+    }
+
+    return { medicine: { ...medicine, related }, usedFallback: false };
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    return { medicine: null, usedFallback: false };
   }
 }
 

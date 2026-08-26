@@ -49,6 +49,7 @@ export function MedicineSearchBox({
   const listId = useId();
   const optionId = (index: number) => `${listId}-option-${index}`;
 
+  const rootRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [suggestions, setSuggestions] = useState<MedicineSuggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -90,6 +91,19 @@ export function MedicineSearchBox({
     setActiveIndex(-1);
   }
 
+  useEffect(() => {
+    if (!open) return;
+
+    function dismissOnOutsidePointer(event: PointerEvent) {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+      setActiveIndex(-1);
+    }
+
+    document.addEventListener("pointerdown", dismissOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", dismissOnOutsidePointer);
+  }, [open]);
+
   function commit(suggestion: MedicineSuggestion) {
     committing.current = true;
     close();
@@ -129,6 +143,7 @@ export function MedicineSearchBox({
 
   return (
     <form
+      ref={rootRef}
       className={`hc-searchbox${size === "lg" ? " hc-searchbox-lg" : ""}`}
       onSubmit={submit}
       role="search"
@@ -182,42 +197,48 @@ export function MedicineSearchBox({
       </div>
 
       {open ? (
-        <ul className="hc-ac" id={listId} role="listbox" aria-label="Medicine suggestions">
-          <li className="hc-ac-head" role="presentation">
-            Medicines
-          </li>
-          {suggestions.map((suggestion, index) => (
-            <li
-              key={suggestion.id}
-              id={optionId(index)}
-              role="option"
-              aria-selected={index === activeIndex}
-              data-active={index === activeIndex}
-              className="hc-ac-item"
-              onMouseEnter={() => setActiveIndex(index)}
-              // mousedown, not click: the input's blur would otherwise close the
-              // panel before the click ever lands.
-              onMouseDown={(event) => {
-                event.preventDefault();
-                commit(suggestion);
-              }}
-            >
-              <span className="hc-ac-icon">
-                <Icon name="pill" size={16} />
-              </span>
-              <span className="hc-ac-main">
-                <strong>{highlight([suggestion.brand, suggestion.strength].filter(Boolean).join(" "), value)}</strong>
-                <span>{suggestion.generic || suggestion.form}</span>
-              </span>
-              {suggestion.requiresPrescription ? (
-                <span className="hc-chip hc-chip-rx">
-                  <Icon name="rx" size={12} />
-                  Rx
+        <div className="hc-ac">
+          <div className="hc-ac-head">
+            <span>Medicines</span>
+            <button type="button" className="hc-ac-dismiss" aria-label="Close suggestions" onClick={close}>
+              <span>Close</span>
+              <Icon name="close" size={13} />
+            </button>
+          </div>
+          <ul className="hc-ac-list" id={listId} role="listbox" aria-label="Medicine suggestions">
+            {suggestions.map((suggestion, index) => (
+              <li
+                key={suggestion.id}
+                id={optionId(index)}
+                role="option"
+                aria-selected={index === activeIndex}
+                data-active={index === activeIndex}
+                className="hc-ac-item"
+                onMouseEnter={() => setActiveIndex(index)}
+                // mousedown, not click: the input's blur would otherwise close the
+                // panel before the click ever lands.
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  commit(suggestion);
+                }}
+              >
+                <span className="hc-ac-icon">
+                  <Icon name="pill" size={16} />
                 </span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+                <span className="hc-ac-main">
+                  <strong>{highlight([suggestion.brand, suggestion.strength].filter(Boolean).join(" "), value)}</strong>
+                  <span>{suggestion.generic || suggestion.form}</span>
+                </span>
+                {suggestion.requiresPrescription ? (
+                  <span className="hc-chip hc-chip-rx">
+                    <Icon name="rx" size={12} />
+                    Rx
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
     </form>
   );
