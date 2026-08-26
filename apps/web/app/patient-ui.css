@@ -374,9 +374,24 @@
 
 .hc-pack-xl {
   width: min(240px, 100%);
-  aspect-ratio: 1;
+  height: 240px;
   border-radius: var(--hc-r-xl);
   font-size: 3rem;
+}
+
+/* On the medication page, cap a real pack shot to a fixed width and let its
+   height follow the image's natural aspect ratio, so wide/landscape packaging
+   never blows out past the header instead of just scaling down with it. */
+.hc-pack-xl.hc-pack-image {
+  width: min(240px, 100%);
+  height: auto;
+}
+
+.hc-pack-xl.hc-pack-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+  padding: 10px;
 }
 
 /* --- prescription visual -------------------------------------------------- */
@@ -2285,6 +2300,11 @@
 
   .hc-pack-xl {
     width: 140px;
+    height: 140px;
+  }
+
+  .hc-pack-xl.hc-pack-image {
+    width: min(140px, 100%);
   }
 }
 
