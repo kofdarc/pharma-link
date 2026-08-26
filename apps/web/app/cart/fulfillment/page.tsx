@@ -3,16 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, EmptyPanel, LoadError, PageHead } from "@/components/patient/Page";
 import { FulfillmentOption, WhyMultiplePharmacies } from "@/components/cart/FulfillmentParts";
 import { useToast } from "@/components/patient/Toast";
 import { Icon } from "@/components/ui/Icon";
-import { useCurrentUser } from "@/lib/auth";
 import { useBasket } from "@/lib/basket";
 import { useAutoPrescriptionMatch, useCheckoutPlan } from "@/lib/patient/checkout";
 import { buildFulfillment, type FulfillmentPlan, type FulfillmentResult } from "@/lib/patient/fulfillment";
-import { MOCK_PROFILE } from "@/lib/patient/mock-patient";
 import { formatMoney, plural } from "@/lib/patient/format";
 import { usePrescriptions } from "@/lib/patient/store";
 
@@ -26,7 +24,6 @@ import { usePrescriptions } from "@/lib/patient/store";
  */
 export default function FulfillmentPage() {
   const router = useRouter();
-  const { user } = useCurrentUser();
   const basket = useBasket();
   const { choose } = useCheckoutPlan();
   const { prescriptions, ready: prescriptionsReady } = usePrescriptions();
@@ -75,7 +72,6 @@ export default function FulfillmentPage() {
     if (!searching && result && result.plans.length > 0 && !selected) setSelected(result.plans[0].kind);
   }, [searching, result, selected]);
 
-  const initials = initialsFor(user?.first_name ?? MOCK_PROFILE.firstName, user?.last_name);
   const plan = result?.plans.find((entry) => entry.kind === selected) ?? null;
   const everythingAvailable = (result?.unavailable.length ?? 0) === 0;
 
@@ -85,7 +81,7 @@ export default function FulfillmentPage() {
   }
 
   return (
-    <PatientShell initials={initials}>
+    <PatientShell>
       <div className="hc-wrap hc-page">
         {/* No page title: the hero below is this page's headline, and two
             stacked display headings would be one too many. */}

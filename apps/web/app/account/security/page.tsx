@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { PageHead } from "@/components/patient/Page";
 import { Dialog } from "@/components/patient/Dialog";
 import { PasswordField } from "@/components/site/FormField";
 import { useToast } from "@/components/patient/Toast";
 import { Icon } from "@/components/ui/Icon";
-import { useCurrentUser } from "@/lib/auth";
 import { useAccount } from "@/lib/patient/store";
 
 /**
@@ -22,7 +21,6 @@ import { useAccount } from "@/lib/patient/store";
  * warns about a threat the patient cannot act on.
  */
 export default function SecurityPage() {
-  const { user } = useCurrentUser();
   const account = useAccount();
   const { notify } = useToast();
 
@@ -54,7 +52,7 @@ export default function SecurityPage() {
   }
 
   return (
-    <PatientShell initials={initialsFor(user?.first_name ?? account.profile.firstName, user?.last_name)}>
+    <PatientShell>
       <div className="hc-wrap hc-page hc-wrap-narrow">
         <PageHead title="Password and security" back={{ href: "/account", label: "Account" }} />
 

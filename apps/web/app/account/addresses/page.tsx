@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, EmptyPanel, PageHead } from "@/components/patient/Page";
 import { AddressCard } from "@/components/account/SettingsParts";
 import { AddressFormDialog } from "@/components/account/AddressForm";
 import { ConfirmDialog } from "@/components/patient/Dialog";
 import { useToast } from "@/components/patient/Toast";
 import { Icon } from "@/components/ui/Icon";
-import { useCurrentUser } from "@/lib/auth";
 import { refillsUsingAddress, useAccount, useRefills } from "@/lib/patient/store";
 import { plural } from "@/lib/patient/format";
 import type { Address } from "@/lib/patient/types";
@@ -21,7 +20,6 @@ import type { Address } from "@/lib/patient/types";
  * refusing the delete, so the confirmation names what depends on it.
  */
 export default function AddressesPage() {
-  const { user } = useCurrentUser();
   const account = useAccount();
   const { refills } = useRefills();
   const { notify } = useToast();
@@ -33,7 +31,7 @@ export default function AddressesPage() {
   const affected = deleting ? refillsUsingAddress(refills, deleting.id) : [];
 
   return (
-    <PatientShell initials={initialsFor(user?.first_name ?? account.profile.firstName, user?.last_name)}>
+    <PatientShell>
       <div className="hc-wrap hc-page hc-wrap-narrow">
         <PageHead
           title="Addresses"

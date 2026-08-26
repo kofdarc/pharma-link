@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, EmptyPanel, PageHead } from "@/components/patient/Page";
 import { RefillCard, RefillScheduleDialog } from "@/components/refills/RefillParts";
 import { ConfirmDialog } from "@/components/patient/Dialog";
 import { useToast } from "@/components/patient/Toast";
-import { useCurrentUser } from "@/lib/auth";
 import { useAccount, usePrescriptions, useRefills } from "@/lib/patient/store";
-import { MOCK_PROFILE } from "@/lib/patient/mock-patient";
 import type { Refill } from "@/lib/patient/types";
 
 /**
@@ -20,7 +18,6 @@ import type { Refill } from "@/lib/patient/types";
  * page waits to be visited rather than pushing anyone to sign up.
  */
 export default function RefillsPage() {
-  const { user } = useCurrentUser();
   const { refills, ready, setStatus, updateRefill, refillNow } = useRefills();
   const { prescriptions } = usePrescriptions();
   const account = useAccount();
@@ -33,7 +30,7 @@ export default function RefillsPage() {
   const paused = refills.filter((refill) => refill.status === "paused");
 
   return (
-    <PatientShell initials={initialsFor(user?.first_name ?? MOCK_PROFILE.firstName, user?.last_name)}>
+    <PatientShell>
       <div className="hc-wrap hc-page">
         <PageHead title="Refills" lead="Keep track of the medicines you need regularly." />
 

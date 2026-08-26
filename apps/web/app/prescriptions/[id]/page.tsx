@@ -3,16 +3,14 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, EmptyPanel, PageHead } from "@/components/patient/Page";
 import { PrescriptionAccessDialog } from "@/components/prescriptions/PrescriptionAccessDialog";
 import { PrescriptionMedicationRow, PrescriptionStatusChip } from "@/components/prescriptions/PrescriptionParts";
 import { useToast } from "@/components/patient/Toast";
 import { Icon } from "@/components/ui/Icon";
-import { useCurrentUser } from "@/lib/auth";
 import { useBasket } from "@/lib/basket";
 import { usePrescriptions } from "@/lib/patient/store";
-import { MOCK_PROFILE } from "@/lib/patient/mock-patient";
 import { formatDate, plural } from "@/lib/patient/format";
 import { isClaimable, remaining, type Prescription } from "@/lib/patient/types";
 import { MOCK_CATALOG } from "@/lib/catalog/mock-catalog";
@@ -31,7 +29,6 @@ function PrescriptionDetailScreen() {
   const id = typeof params.id === "string" ? decodeURIComponent(params.id) : "";
   const router = useRouter();
   const search = useSearchParams();
-  const { user } = useCurrentUser();
   const { prescriptions, ready } = usePrescriptions();
   const basket = useBasket();
   const { notify } = useToast();
@@ -48,11 +45,10 @@ function PrescriptionDetailScreen() {
     if (ready && search.get("order") === "1") orderButton.current?.focus();
   }, [ready, search]);
 
-  const initials = initialsFor(user?.first_name ?? MOCK_PROFILE.firstName, user?.last_name);
 
   if (!ready) {
     return (
-      <PatientShell initials={initials}>
+      <PatientShell>
         <div className="hc-wrap hc-page">
           <CardSkeletons count={2} lines={5} />
         </div>
@@ -62,7 +58,7 @@ function PrescriptionDetailScreen() {
 
   if (!prescription) {
     return (
-      <PatientShell initials={initials}>
+      <PatientShell>
         <div className="hc-wrap hc-page">
           <PageHead title="Prescription" back={{ href: "/prescriptions", label: "Prescriptions" }} />
           <EmptyPanel
@@ -102,7 +98,7 @@ function PrescriptionDetailScreen() {
   }
 
   return (
-    <PatientShell initials={initials}>
+    <PatientShell>
       <div className="hc-wrap hc-page hc-rxdetail">
         <PageHead title="Digital prescription" back={{ href: "/prescriptions", label: "Prescriptions" }} />
 

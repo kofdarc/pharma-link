@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { usePatientUser } from "@/components/site/PatientGuard";
 import { PageHead } from "@/components/patient/Page";
 import { SettingsRow, SettingsSection } from "@/components/account/SettingsParts";
 import { ConfirmDialog } from "@/components/patient/Dialog";
-import { useCurrentUser } from "@/lib/auth";
-import { clearToken } from "@/lib/api-client";
+import { signOut } from "@/lib/auth";
 import { profileFor, useAccount } from "@/lib/patient/store";
 import { plural } from "@/lib/patient/format";
 
@@ -20,7 +20,7 @@ import { plural } from "@/lib/patient/format";
  */
 export default function AccountPage() {
   const router = useRouter();
-  const { user } = useCurrentUser();
+  const user = usePatientUser();
   const account = useAccount();
   const [signOutOpen, setSignOutOpen] = useState(false);
 
@@ -29,7 +29,7 @@ export default function AccountPage() {
   const cards = account.payments.filter((method) => method.kind === "card");
 
   return (
-    <PatientShell initials={initialsFor(firstName, lastName)}>
+    <PatientShell>
       <div className="hc-wrap hc-page hc-wrap-narrow">
         <PageHead title="Account" />
 
@@ -97,7 +97,7 @@ export default function AccountPage() {
         body="You will need to sign in again to see your prescriptions and orders on this device."
         confirmLabel="Sign out"
         onConfirm={() => {
-          clearToken();
+          signOut();
           router.push("/login");
         }}
       />

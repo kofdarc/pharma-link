@@ -1,9 +1,8 @@
 "use client";
 
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, PageHead, Toggle } from "@/components/patient/Page";
 import { useToast } from "@/components/patient/Toast";
-import { useCurrentUser } from "@/lib/auth";
 import { useAccount } from "@/lib/patient/store";
 import type { NotificationPreferences } from "@/lib/patient/types";
 
@@ -28,7 +27,6 @@ const OPERATIONAL: { key: keyof NotificationPreferences; label: string; hint: st
 ];
 
 export default function NotificationsPage() {
-  const { user } = useCurrentUser();
   const account = useAccount();
   const { notify } = useToast();
 
@@ -38,7 +36,7 @@ export default function NotificationsPage() {
   }
 
   return (
-    <PatientShell initials={initialsFor(user?.first_name ?? account.profile.firstName, user?.last_name)}>
+    <PatientShell>
       <div className="hc-wrap hc-page hc-wrap-narrow">
         <PageHead
           title="Notifications"

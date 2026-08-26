@@ -2,12 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, EmptyPanel, PageHead, Segmented } from "@/components/patient/Page";
 import { PrescriptionCard } from "@/components/prescriptions/PrescriptionParts";
-import { useCurrentUser } from "@/lib/auth";
 import { usePrescriptions } from "@/lib/patient/store";
-import { MOCK_PROFILE } from "@/lib/patient/mock-patient";
 import type { Prescription } from "@/lib/patient/types";
 
 type Tab = "active" | "completed" | "expired";
@@ -33,7 +31,6 @@ function bucket(prescription: Prescription): Tab {
 }
 
 export default function PrescriptionsPage() {
-  const { user } = useCurrentUser();
   const { prescriptions, ready } = usePrescriptions();
   const [tab, setTab] = useState<Tab>("active");
 
@@ -53,7 +50,7 @@ export default function PrescriptionsPage() {
   );
 
   return (
-    <PatientShell initials={initialsFor(user?.first_name ?? MOCK_PROFILE.firstName, user?.last_name)}>
+    <PatientShell>
       <div className="hc-wrap hc-page">
         <PageHead
           title="Prescriptions"

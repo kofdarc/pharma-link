@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { clearToken } from "@/lib/api-client";
+import { signOut } from "@/lib/auth";
 import { ADMIN_NAV, DOCTOR_NAV, PHARMACY_NAV, SHOP_NAV } from "@/lib/constants";
 import { useTranslations } from "@/lib/i18n/context";
 import type { User } from "@/types/api";
@@ -132,7 +132,7 @@ export function AppShell({
             <button
               className="button button-secondary"
               onClick={() => {
-                clearToken();
+                signOut();
                 router.push("/login");
               }}
             >

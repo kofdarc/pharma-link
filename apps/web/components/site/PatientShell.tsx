@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ToastProvider } from "@/components/patient/Toast";
+import { useMaybePatientUser } from "@/components/site/PatientGuard";
 import { useBasket } from "@/lib/basket";
+import type { User } from "@/types/api";
 
 /**
  * Chrome for the signed-in patient area.
@@ -22,9 +24,18 @@ const TABS: { href: string; label: string; short: string; icon: IconName }[] = [
   { href: "/account", label: "Account", short: "Account", icon: "user" }
 ];
 
-export function PatientShell({ children, initials }: { children: React.ReactNode; initials: string }) {
+/**
+ * `user` is only passed on pages outside `PatientGuard` - the public search
+ * page, which wears this chrome when a patient happens to be signed in. Inside
+ * the patient area the guard has already resolved the user, so the shell reads
+ * it from there rather than every page threading it down.
+ */
+export function PatientShell({ children, user }: { children: React.ReactNode; user?: User | null }) {
   const pathname = usePathname();
   const { count, ready } = useBasket();
+  const contextUser = useMaybePatientUser();
+  const shellUser = user ?? contextUser;
+  const initials = initialsFor(shellUser?.first_name, shellUser?.last_name);
 
   // `/cart` and `/checkout` belong to the basket action, so no tab claims them.
   const current = (href: string) => (pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined);

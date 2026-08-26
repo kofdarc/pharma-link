@@ -11,15 +11,6 @@ import type {
   Refill,
   RefillStatus
 } from "./types";
-import {
-  MOCK_ADDRESSES,
-  MOCK_NOTIFICATIONS,
-  MOCK_ORDERS,
-  MOCK_PAYMENTS,
-  MOCK_PRESCRIPTIONS,
-  MOCK_PROFILE,
-  MOCK_REFILLS
-} from "./mock-patient";
 import { addDays, todayIso } from "./format";
 
 /**
@@ -29,14 +20,23 @@ import { addDays, todayIso } from "./format";
  * custom event so components in the same tab stay in sync, and no provider to
  * thread through the tree. There is no patient-facing API for prescriptions,
  * orders, refills or account settings yet, so this is the seam. When those
- * endpoints land, each `use*` hook below becomes a fetch and the seed data
- * disappears; nothing outside this file has to change.
+ * endpoints land, each `use*` hook below becomes a fetch; nothing outside this
+ * file has to change.
+ *
+ * A new patient starts empty. This used to seed itself from
+ * `mock-patient.ts` so the demo had something to show, but that meant every
+ * visitor - signed in or not - was shown one fictional patient's records as if
+ * they were their own. The fixtures are still there for tests and design work;
+ * nothing in the running app reads them.
  *
  * Kept deliberately small. A demo does not need a state library, and adding one
  * would make this slice the odd one out in a repo that has none.
  */
 
-const STORAGE_KEY = "healthconnect_patient_v1";
+// Bumped from _v1 when the seed data was removed: browsers that visited the
+// demo build hold a blob full of the old fictional patient's records, and a
+// signed-in user must not inherit them.
+export const PATIENT_STORAGE_KEY = "healthconnect_patient_v2";
 const CHANGED_EVENT = "healthconnect:patient-changed";
 
 export interface PatientState {
@@ -49,22 +49,37 @@ export interface PatientState {
   refills: Refill[];
 }
 
+/** What a patient with no records yet has. Preferences still need a default. */
+const DEFAULT_NOTIFICATIONS: NotificationPreferences = {
+  orderUpdates: true,
+  deliveryUpdates: true,
+  prescriptionReminders: true,
+  refillReminders: true,
+  productNews: false
+};
+
 function seed(): PatientState {
   return {
-    profile: { ...MOCK_PROFILE },
-    addresses: MOCK_ADDRESSES.map((entry) => ({ ...entry })),
-    payments: MOCK_PAYMENTS.map((entry) => ({ ...entry })),
-    notifications: { ...MOCK_NOTIFICATIONS },
-    prescriptions: MOCK_PRESCRIPTIONS.map((entry) => ({ ...entry, items: entry.items.map((item) => ({ ...item })) })),
-    orders: MOCK_ORDERS.map((entry) => ({ ...entry, lines: entry.lines.map((line) => ({ ...line })) })),
-    refills: MOCK_REFILLS.map((entry) => ({ ...entry }))
+    profile: { firstName: "", lastName: "", email: "", phone: "" },
+    addresses: [],
+    payments: [],
+    notifications: { ...DEFAULT_NOTIFICATIONS },
+    prescriptions: [],
+    orders: [],
+    refills: []
   };
+}
+
+/** Drop everything this device holds for the patient. Used when signing out. */
+export function clearPatientState() {
+  window.localStorage.removeItem(PATIENT_STORAGE_KEY);
+  window.dispatchEvent(new Event(CHANGED_EVENT));
 }
 
 function read(): PatientState {
   if (typeof window === "undefined") return seed();
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(PATIENT_STORAGE_KEY);
     if (!raw) return seed();
     // Shallow-merged over the seed so a stored blob written by an older build
     // still renders: missing collections fall back rather than crashing a page.
@@ -75,7 +90,7 @@ function read(): PatientState {
 }
 
 function write(state: PatientState) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  window.localStorage.setItem(PATIENT_STORAGE_KEY, JSON.stringify(state));
   window.dispatchEvent(new Event(CHANGED_EVENT));
 }
 
