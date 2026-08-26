@@ -16,7 +16,7 @@ from django.utils import timezone
 from apps.accounts.models import UserRole
 from apps.inventory.models import InventoryBatch
 from apps.inventory.services.stock import create_inventory_batch
-from apps.medicines.models import Medicine, PriceRegime, ProductCategory
+from apps.medicines.models import MarketStatus, Medicine, PriceRegime, ProductCategory
 from apps.orders.models import Order, OrderFulfillment, StockReservation, UnmetDemandSignal
 from apps.orders.services.lifecycle import hand_over, reject_fulfillment
 from apps.orders.services.placement import OrderError, expire_stale_reservations, place_order
@@ -415,6 +415,23 @@ class ScheduledOrderTests(SourcingTestCase):
                 address=self.address,
                 scheduled_for=timezone.now() - timezone.timedelta(hours=1),
             )
+
+
+class NonMarketedMedicineTests(SourcingTestCase):
+    def test_non_marketed_item_cannot_be_ordered(self):
+        self.panadol.market_status = MarketStatus.NON_MARKETED
+        self.panadol.save(update_fields=["market_status"])
+        self.stock(self.hamra, self.panadol, 10)
+
+        with self.assertRaises(OrderError):
+            place_order(customer=self.shopper, items=[{"medicine": str(self.panadol.id), "quantity": 1}], address=self.address)
+
+    def test_marketed_item_is_unaffected(self):
+        self.stock(self.hamra, self.panadol, 10)
+
+        order = place_order(customer=self.shopper, items=[{"medicine": str(self.panadol.id), "quantity": 1}], address=self.address)
+
+        self.assertEqual(order.status, Order.Status.PENDING)
 
 
 class PrescriptionRequirementTests(SourcingTestCase):

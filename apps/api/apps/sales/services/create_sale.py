@@ -56,6 +56,11 @@ def create_sale(
         names = ", ".join(str(medicine) for medicine in needs_prescription)
         raise ValueError(f"A valid prescription is required to sell: {names}.")
 
+    non_marketed = [medicine for medicine in medicines_by_id.values() if not medicine.is_marketed]
+    if non_marketed:
+        names = ", ".join(str(medicine) for medicine in non_marketed)
+        raise ValueError(f"Not currently marketed in Lebanon and cannot be sold: {names}.")
+
     sale = Sale.objects.create(
         invoice_number=next_invoice_number(pharmacy.id),
         pharmacy=pharmacy,
