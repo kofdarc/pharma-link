@@ -134,6 +134,10 @@ MEDIA_ROOT = PRIVATE_MEDIA_ROOT
 # lives in its own public root/URL instead of the private prescription storage above.
 PUBLIC_MEDIA_URL = "/media/"
 PUBLIC_MEDIA_ROOT = BASE_DIR / "media" / "public"
+# Development can read public product photography directly from a remote bucket while
+# keeping ImageField values storage-relative (for example, medicines/<uuid>.webp).
+# Production ignores this and uses ProductImageStorage's S3 backend when USE_S3=true.
+PRODUCT_IMAGE_BASE_URL = os.getenv("PRODUCT_IMAGE_BASE_URL", "")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
