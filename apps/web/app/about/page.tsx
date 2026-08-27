@@ -23,6 +23,55 @@ const ECOSYSTEM: { icon: IconName; title: string; body: string; center?: boolean
   { icon: "shield", title: "Oversight", body: "A reviewable record" }
 ];
 
+const REASONS: { icon: IconName; title: string; items: string[] }[] = [
+  {
+    icon: "stethoscope",
+    title: "Prescribers",
+    items: [
+      "Issue prescriptions digitally instead of a handwritten slip that can be lost, altered or faxed back and forth.",
+      "Approve or deny a pharmacy's renewal request from one queue, without a phone call chasing you down between patients.",
+      "Prescribe against the same medicine catalog pharmacies dispense from, so what you write and what's on the shelf line up.",
+      "Every prescription you issue and every renewal decision is written to a reviewable record — no explaining yourself from memory.",
+      "More time for patient care: less paperwork chasing pharmacies for stock or confirming what was actually dispensed."
+    ]
+  },
+  {
+    icon: "pharmacy",
+    title: "Pharmacists",
+    items: [
+      "Scan a prescription's code and key to confirm it's genuine and unclaimed before you dispense — not a signature taken on faith.",
+      "Pull structured drug, dose and quantity lines off a photographed paper prescription instead of retyping it by hand.",
+      "Keep the point-of-sale system you already run — HealthConnect syncs stock and sales through it rather than asking you to replace it.",
+      "Request a renewal straight from the counter when a patient's script has run out, instead of a call to the clinic.",
+      "A plain-language insights digest flags what needs attention — reorder-now items, dead stock, unmet demand — instead of building the spreadsheet yourself.",
+      "More time for patient consultations, less time on transcription and stock-chasing."
+    ]
+  },
+  {
+    icon: "people",
+    title: "Patients",
+    items: [
+      "Search once and see what's actually available across every connected pharmacy, instead of calling pharmacy after pharmacy.",
+      "One order can be sourced from more than one pharmacy and still arrive as a single delivery.",
+      "Fewer lost or damaged prescriptions — your script lives on your phone, not a slip of paper.",
+      "Decreased risk of a prescription being seen by the wrong person: no fax line, no unsecured email, and every lookup is logged.",
+      "Set up a recurring refill for an ongoing medication so it's ready before you run out.",
+      "Improved patient safety: a pharmacy can only dispense against a prescription confirmed valid and unclaimed."
+    ]
+  },
+  {
+    icon: "shield",
+    title: "Health care system",
+    items: [
+      "Reduction of duplicate or inappropriately filled prescriptions — a script can be claimed exactly once across the network, in full or in part.",
+      "Less fraud and potential for abuse: every access to a prescription is logged, with lockouts after repeated failed attempts.",
+      "Improved medication cost management through tracked insurance claim adjudication, from submission to payment.",
+      "Fewer shortages: reorder points, dead stock and expiry exposure are visible instead of discovered at the register.",
+      "Catalog pricing stays aligned to Ministry of Public Health rates when pharmacies import their stock."
+    ]
+  }
+];
+
 const PRINCIPLES = [
   {
     title: "Accessible",
@@ -105,6 +154,35 @@ export default function AboutPage() {
         </section>
 
         <section className="hc-section hc-band">
+          <div className="hc-wrap">
+            <SectionHeading
+              title="Reasons to use HealthConnect."
+              lead="Every participant in the journey gets something concrete out of being connected — not just the patient at the end of it."
+            />
+            <div className="hc-reasons-grid">
+              {REASONS.map((role) => (
+                <div className="hc-reason-card" key={role.title}>
+                  <div className="hc-reason-head">
+                    <span className="hc-reason-icon">
+                      <Icon name={role.icon} size={19} />
+                    </span>
+                    <h3 className="hc-h3">{role.title}</h3>
+                  </div>
+                  <ul className="hc-reason-list">
+                    {role.items.map((item) => (
+                      <li key={item.slice(0, 40)}>
+                        <Icon name="check" size={15} />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="hc-section">
           <div className="hc-wrap">
             <SectionHeading title="What we hold to." />
             <div className="hc-principles">

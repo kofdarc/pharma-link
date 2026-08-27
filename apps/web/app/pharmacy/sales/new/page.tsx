@@ -8,18 +8,37 @@ import type { Client, Medicine, Paginated, PatientInsurancePolicy } from "@/type
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import { PRESCRIPTION_PREFILL_KEY } from "@/lib/constants";
+
+type SaleLine = { medicine: string; quantity: number; unit_price: string; discount: string };
 
 export default function NewSalePage() {
   const t = useTranslations();
   const router = useRouter();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [lines, setLines] = useState([{ medicine: "", quantity: 1, unit_price: "", discount: "0" }]);
+  const [lines, setLines] = useState<SaleLine[]>([{ medicine: "", quantity: 1, unit_price: "", discount: "0" }]);
   const [error, setError] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
   const [clientId, setClientId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [policies, setPolicies] = useState<PatientInsurancePolicy[]>([]);
   const [insurancePolicyId, setInsurancePolicyId] = useState("");
+  const [prescriptionRecordId, setPrescriptionRecordId] = useState("");
+
+  useEffect(() => {
+    const raw = window.sessionStorage.getItem(PRESCRIPTION_PREFILL_KEY);
+    if (!raw) return;
+    window.sessionStorage.removeItem(PRESCRIPTION_PREFILL_KEY);
+    try {
+      const prefill = JSON.parse(raw) as { recordId: string; lines: SaleLine[] };
+      if (prefill.lines?.length) {
+        setLines(prefill.lines);
+        setPrescriptionRecordId(prefill.recordId);
+      }
+    } catch {
+      // Malformed/stale prefill data - ignore and fall back to the blank form.
+    }
+  }, []);
 
   useEffect(() => {
     apiFetch<Medicine[] | { results: Medicine[] }>("/medicines/search/?q=").then((payload) => setMedicines(asList(payload)));
@@ -58,7 +77,8 @@ export default function NewSalePage() {
           })),
           client: clientId || undefined,
           payment_method: paymentMethod,
-          insurance_policy: insurancePolicyId || undefined
+          insurance_policy: insurancePolicyId || undefined,
+          prescription_record_id: prescriptionRecordId || undefined
         })
       });
       router.push(`/pharmacy/invoices/${sale.id}`);
@@ -75,6 +95,7 @@ export default function NewSalePage() {
           <p>{t("pharmacySalesNew.subtitle")}</p>
         </div>
       </div>
+      {prescriptionRecordId ? <Notice>{t("pharmacySalesNew.prefillNotice")}</Notice> : null}
       <form onSubmit={submit}>
         <div className="form-grid" style={{ marginBottom: 12 }}>
           <Field label={t("pharmacySalesNew.client")}>

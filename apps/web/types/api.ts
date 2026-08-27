@@ -132,6 +132,22 @@ export interface PrescriptionRecord {
   created_at: string;
 }
 
+export interface PrescriptionOcrCandidate {
+  raw_line: string;
+  name_guess: string;
+  medicine_id: string | null;
+  medicine_name: string;
+  confidence: number;
+  quantity_guess: number | null;
+  dosage_guess: string;
+}
+
+export interface PrescriptionOcrResult {
+  provider: string;
+  ocr_text: string;
+  candidates: PrescriptionOcrCandidate[];
+}
+
 export interface InventoryImport {
   id: string;
   original_filename: string;
@@ -263,6 +279,7 @@ export interface Prescription {
   patient_name: string;
   patient_email?: string;
   patient_phone?: string;
+  patient_fax?: string;
   patient_date_of_birth?: string | null;
   diagnosis_note?: string;
   status: PrescriptionStatus;
@@ -271,6 +288,7 @@ export interface Prescription {
   cancelled_at?: string | null;
   cancellation_reason?: string;
   email_sent_at?: string | null;
+  fax_sent_at?: string | null;
   is_expired: boolean;
   is_consumable: boolean;
   items: PrescriptionItem[];
@@ -692,6 +710,21 @@ export interface DemandSignals {
   window_days: number;
   area: string;
   signals: { medicine_id: string; name: string; requests: number; units_requested: number; source: string; you_stock_it: boolean }[];
+}
+
+export type InsightSeverity = "critical" | "warning" | "opportunity" | "info";
+
+export interface Insight {
+  id: string;
+  severity: InsightSeverity;
+  category: string;
+  title: string;
+  detail: string;
+  metric: number;
+}
+
+export interface AnalyticsInsights {
+  insights: Insight[];
 }
 
 /* --- Integrations ----------------------------------------------------------------- */

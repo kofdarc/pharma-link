@@ -8,9 +8,12 @@ The PrescribeIT-style features layered on top of the base e-prescribing flow:
   - Rx Status: a pharmacist substitution is pushed back to the doctor.
   - Clinical Communication: doctor and target pharmacy can message each other.
   - Formulary Services: a doctor can look up a named patient's known insurance coverage.
+  - Guaranteed delivery: fax is a back-up channel when the prescription can't reach the
+    patient by email (none on file, or the send fails).
 """
 
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -299,6 +302,56 @@ class ClinicalCommunicationTests(TestCase):
 
         result = self.client.get(f"/api/pharmacy/prescriptions/{untargeted.id}/messages/")
         self.assertEqual(result.status_code, 404)
+
+
+class FaxBackupDeliveryTests(TestCase):
+    def setUp(self):
+        self.doctor = make_doctor()
+        self.medicine = Medicine.objects.create(brand_name="Augmentin", strength="1g", form="Tablet", regulated_price="14.75")
+
+    def test_no_email_on_file_falls_back_to_fax(self):
+        prescription, _secret, pin = issue_prescription(
+            doctor=self.doctor,
+            patient={"patient_name": "Georges Haddad", "patient_fax": "+961-1-555-000"},
+            items=[{"medicine": str(self.medicine.id), "quantity_prescribed": 14}],
+        )
+
+        self.assertIsNone(prescription.email_sent_at)
+        self.assertIsNotNone(prescription.fax_sent_at)
+
+    def test_failed_email_send_falls_back_to_fax(self):
+        with patch("apps.eprescriptions.services.mailer.send_email", side_effect=RuntimeError("SMTP down")):
+            prescription, _secret, pin = issue_prescription(
+                doctor=self.doctor,
+                patient={"patient_name": "Georges Haddad", "patient_email": "georges@example.test", "patient_fax": "+961-1-555-000"},
+                items=[{"medicine": str(self.medicine.id), "quantity_prescribed": 14}],
+            )
+
+        self.assertIsNone(prescription.email_sent_at)
+        self.assertIsNotNone(prescription.fax_sent_at)
+
+    def test_successful_email_does_not_use_fax(self):
+        prescription, _secret, pin = issue_prescription(
+            doctor=self.doctor,
+            patient={"patient_name": "Georges Haddad", "patient_email": "georges@example.test", "patient_fax": "+961-1-555-000"},
+            items=[{"medicine": str(self.medicine.id), "quantity_prescribed": 14}],
+        )
+
+        self.assertIsNotNone(prescription.email_sent_at)
+        self.assertIsNone(prescription.fax_sent_at)
+
+    def test_no_email_and_no_fax_still_issues_the_prescription(self):
+        """The paper/e-signed copy handed to the patient is always the authoritative record -
+        digital delivery is a convenience on top, never a precondition for issuing."""
+        prescription, _secret, pin = issue_prescription(
+            doctor=self.doctor,
+            patient={"patient_name": "Georges Haddad"},
+            items=[{"medicine": str(self.medicine.id), "quantity_prescribed": 14}],
+        )
+
+        self.assertIsNone(prescription.email_sent_at)
+        self.assertIsNone(prescription.fax_sent_at)
+        self.assertEqual(prescription.status, Prescription.Status.ISSUED)
 
 
 class FormularyLookupTests(TestCase):

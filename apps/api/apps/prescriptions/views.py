@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.http import FileResponse
 from rest_framework import status
 from rest_framework.decorators import action
@@ -8,6 +9,9 @@ from apps.accounts.permissions import IsPharmacyUserWithActivePharmacy
 from apps.audit.services import write_audit_log
 from apps.prescriptions.models import ALLOWED_PRESCRIPTION_MIME_TYPES, PrescriptionRecord
 from apps.prescriptions.serializers import PrescriptionRecordSerializer
+from apps.prescriptions.services.extraction import extract_candidate_lines
+from apps.prescriptions.services.ocr.base import OcrProviderError, UnsupportedFileType
+from apps.prescriptions.services.ocr.registry import get_provider
 
 
 class PrescriptionRecordViewSet(ModelViewSet):
@@ -55,4 +59,39 @@ class PrescriptionRecordViewSet(ModelViewSet):
             summary="Downloaded prescription file",
         )
         return FileResponse(record.file.open("rb"), as_attachment=True, filename=record.file_original_name or "prescription")
+
+    @action(detail=True, methods=["post"])
+    def extract(self, request, pk=None):
+        """
+        OCR the scan and return candidate drug/dose/quantity lines for a pharmacist to
+        review - nothing here is added to a sale automatically (docs/AI_FEATURES.md §2).
+        The OCR transcription is cached on first call; candidate matching against the
+        catalog is cheap and deterministic, so it's always recomputed fresh.
+        """
+        record = self.get_object()
+        if not record.file:
+            return Response({"detail": "This prescription record has no file to read."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not record.ocr_text:
+            provider = get_provider(settings.PRESCRIPTION_OCR_PROVIDER)
+            try:
+                with record.file.open("rb") as file_obj:
+                    result = provider.extract_text(file_obj, mime_type=record.file_mime_type)
+            except UnsupportedFileType as exc:
+                return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            except OcrProviderError as exc:
+                return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+            record.ocr_text = result.text
+            record.save(update_fields=["ocr_text"])
+            write_audit_log(
+                actor_user=request.user,
+                pharmacy=request.user.pharmacy,
+                action="prescriptions.ocr_extracted",
+                entity_type="PrescriptionRecord",
+                entity_id=record.id,
+                summary=f"Ran OCR ({provider.code}) on prescription scan",
+            )
+
+        candidates = extract_candidate_lines(record.ocr_text)
+        return Response({"provider": settings.PRESCRIPTION_OCR_PROVIDER, "ocr_text": record.ocr_text, "candidates": candidates})
 

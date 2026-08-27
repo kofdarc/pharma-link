@@ -2,7 +2,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsPharmacyUserWithActivePharmacy
-from apps.analytics.services import kpis
+from apps.analytics.services import insights, kpis
 
 
 def _int_param(request, name: str, default: int, *, maximum: int = 365) -> int:
@@ -67,3 +67,10 @@ class AnalyticsDemandView(APIView):
 
     def get(self, request):
         return Response(kpis.demand_signals(request.user.pharmacy, days=_int_param(request, "days", 30)))
+
+
+class AnalyticsInsightsView(APIView):
+    permission_classes = [IsPharmacyUserWithActivePharmacy]
+
+    def get(self, request):
+        return Response({"insights": insights.generate_insights(request.user.pharmacy)})

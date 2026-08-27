@@ -5,6 +5,7 @@ export interface Patient {
   name: string;
   email: string;
   phone: string;
+  fax: string;
   prescriptions: Prescription[];
 }
 
@@ -18,12 +19,14 @@ export function groupPatients(prescriptions: Prescription[]): Patient[] {
     if (existing) {
       existing.prescriptions.push(prescription);
       if (!existing.phone && prescription.patient_phone) existing.phone = prescription.patient_phone;
+      if (!existing.fax && prescription.patient_fax) existing.fax = prescription.patient_fax;
     } else {
       groups.set(key, {
         key,
         name: prescription.patient_name,
         email: prescription.patient_email || "",
         phone: prescription.patient_phone || "",
+        fax: prescription.patient_fax || "",
         prescriptions: [prescription]
       });
     }

@@ -188,6 +188,7 @@ your DNS provider). App Runner provisions and renews the TLS cert for you.
    | Variable | Value |
    |---|---|
    | `NEXT_PUBLIC_API_BASE_URL` | `https://api.yourdomain.com/api` |
+   | `NEXT_PUBLIC_ENABLE_DEMO_LOGIN` | `true` (optional - shows one-click "log in as" buttons for each seeded role on `/login`. Only turn this on for a demo deployment seeded via `seed_poc`, never one holding real user data - every seeded account shares the same password.) |
 
 4. Deploy. Amplify builds and serves the Next.js app (SSR) behind its own CDN/HTTPS.
 5. **Custom domain** (optional): Amplify → Domain management → add `yourdomain.com`; it walks you through the Route 53 records and provisions the cert.
