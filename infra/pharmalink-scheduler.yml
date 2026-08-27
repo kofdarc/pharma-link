@@ -27,9 +27,6 @@ Parameters:
   LoadBalancerFullName:
     Type: String
     Description: Application Load Balancer FullName dimension used by CloudWatch
-  TargetGroupFullName:
-    Type: String
-    Description: Target group FullName dimension used by CloudWatch
 
 Resources:
   SchedulerLogGroup:
@@ -57,11 +54,6 @@ Resources:
             Principal:
               Service: scheduler.amazonaws.com
             Action: sts:AssumeRole
-            Condition:
-              StringEquals:
-                aws:SourceAccount: !Ref AWS::AccountId
-              ArnEquals:
-                aws:SourceArn: !Sub arn:${AWS::Partition}:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/default/pharmalink-scheduler
       Policies:
         - PolicyName: run-pharmalink-scheduler
           PolicyDocument:
@@ -126,7 +118,7 @@ Resources:
           PlatformVersion: LATEST
           TaskCount: 1
           NetworkConfiguration:
-            AwsVpcConfiguration:
+            AwsvpcConfiguration:
               AssignPublicIp: ENABLED
               SecurityGroups:
                 - !Ref TaskSecurityGroup
@@ -245,8 +237,6 @@ Resources:
               Dimensions:
                 - Name: LoadBalancer
                   Value: !Ref LoadBalancerFullName
-                - Name: TargetGroup
-                  Value: !Ref TargetGroupFullName
             Period: 60
             Stat: Sum
         - Id: target5xx
@@ -258,8 +248,6 @@ Resources:
               Dimensions:
                 - Name: LoadBalancer
                   Value: !Ref LoadBalancerFullName
-                - Name: TargetGroup
-                  Value: !Ref TargetGroupFullName
             Period: 60
             Stat: Sum
         - Id: alb5xx
