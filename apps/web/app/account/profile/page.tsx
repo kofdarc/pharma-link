@@ -54,15 +54,21 @@ export default function ProfilePage() {
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
-    account.saveProfile({
-      firstName: draft.firstName.trim(),
-      lastName: draft.lastName.trim(),
-      email: draft.email.trim(),
-      phone: draft.phone.trim()
-    });
-    setEditing(false);
-    setSaved(true);
-    notify("Profile updated");
+    account
+      .saveProfile({
+        firstName: draft.firstName.trim(),
+        lastName: draft.lastName.trim(),
+        email: draft.email.trim(),
+        phone: draft.phone.trim()
+      })
+      .then(() => {
+        setEditing(false);
+        setSaved(true);
+        notify("Profile updated");
+      })
+      // Kept in edit mode on failure, so the details the patient typed are
+      // still there to try again with rather than silently discarded.
+      .catch(() => notify("We couldn't save your profile", "alert"));
   }
 
 

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { PatientShell } from "@/components/site/PatientShell";
-import { CardSkeletons, EmptyPanel, PageHead, Segmented } from "@/components/patient/Page";
+import { CardSkeletons, EmptyPanel, LoadError, PageHead, Segmented } from "@/components/patient/Page";
 import { OrderCard } from "@/components/orders/OrderParts";
 import { Icon } from "@/components/ui/Icon";
 import { useOrders } from "@/lib/patient/store";
@@ -12,7 +12,7 @@ import { isOrderActive } from "@/lib/patient/types";
 type Tab = "active" | "past";
 
 export default function OrdersPage() {
-  const { orders, ready } = useOrders();
+  const { orders, ready, failed, refresh } = useOrders();
   const [tab, setTab] = useState<Tab>("active");
 
   const { active, past } = useMemo(
@@ -43,6 +43,10 @@ export default function OrdersPage() {
         <div className="hc-page-body">
           {!ready ? (
             <CardSkeletons count={2} />
+          ) : failed ? (
+            // Distinct from the empty states below: "we couldn't ask" must
+            // never be shown as "you have no orders".
+            <LoadError title="We couldn't load your orders" onRetry={refresh} />
           ) : visible.length > 0 ? (
             <div className="hc-cardgrid">
               {visible.map((order) => (

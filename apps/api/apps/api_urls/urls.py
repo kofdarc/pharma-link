@@ -10,6 +10,7 @@ from apps.accounts.views import (
     LoginView,
     LogoutView,
     MeView,
+    NotificationPreferencesView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
     PharmacyStaffViewSet,
@@ -99,11 +100,12 @@ from apps.orders.views import (
     AdminReviewViewSet,
     BasketQuoteView,
     DeliveryAddressViewSet,
+    FulfillmentOptionsView,
     PharmacyOrderViewSet,
     RecurringOrderViewSet,
     ShopperOrderViewSet,
 )
-from apps.payments.views import AdminOrderRefundView, OrderPaymentView, PaymentMethodsView
+from apps.payments.views import AdminOrderRefundView, OrderPaymentView, PaymentMethodsView, SavedPaymentMethodViewSet
 from apps.pharmacies.views import (
     AdminPharmacyApplicationViewSet,
     AdminPharmacyViewSet,
@@ -150,6 +152,9 @@ router.register("shop/addresses", DeliveryAddressViewSet, basename="shop-address
 router.register("shop/orders", ShopperOrderViewSet, basename="shop-orders")
 router.register("shop/recurring-orders", RecurringOrderViewSet, basename="shop-recurring-orders")
 router.register("shop/insurance-policies", ShopInsurancePolicyViewSet, basename="shop-insurance-policies")
+# The shopper's own saved cards/cash, distinct from shop/payment-methods/ below
+# which lists the providers the platform supports.
+router.register("shop/saved-payment-methods", SavedPaymentMethodViewSet, basename="shop-saved-payment-methods")
 
 # Platform admin
 router.register("admin/pharmacies", AdminPharmacyViewSet, basename="admin-pharmacies")
@@ -207,6 +212,7 @@ urlpatterns = [
     path("auth/password-reset/confirm/", PasswordResetConfirmView.as_view()),
     path("auth/verify-email/", VerifyEmailView.as_view()),
     path("auth/verify-email/resend/", ResendVerificationView.as_view()),
+    path("auth/notification-preferences/", NotificationPreferencesView.as_view()),
     # Public
     path("public/search/", public_search),
     path("public/pharmacy-directory/", public_pharmacy_directory),
@@ -217,6 +223,7 @@ urlpatterns = [
     path("public/whatsapp/webhook/", WhatsAppWebhookView.as_view()),
     # Shopper
     path("shop/quote/", BasketQuoteView.as_view()),
+    path("shop/fulfillment-options/", FulfillmentOptionsView.as_view()),
     path("shop/prescriptions/mine/", MyPrescriptionsView.as_view()),
     path("shop/payment-methods/", PaymentMethodsView.as_view()),
     path("shop/orders/<uuid:pk>/pay/", OrderPaymentView.as_view()),

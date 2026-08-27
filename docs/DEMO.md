@@ -27,6 +27,13 @@ Open http://localhost:3000.
 `seed_poc` prints the demo prescription code, PIN and QR link — **copy them**, they are
 shown once by design.
 
+It also needs the MoPH catalog already synced: the demo's 20 medicines are real registered
+products picked out of it, never invented ones. If the catalog is empty, run
+`manage.py sync_moph_catalog` first — `seed_poc` will refuse rather than make anything up.
+
+There is no mock data behind the patient screens. With the API stopped, search and the
+medication pages show an error, not a plausible-looking catalogue.
+
 ### Accounts (password `Password123!` for all)
 
 | Role | Email |

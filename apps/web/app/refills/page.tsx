@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PatientShell } from "@/components/site/PatientShell";
-import { CardSkeletons, EmptyPanel, PageHead } from "@/components/patient/Page";
+import { CardSkeletons, EmptyPanel, LoadError, PageHead } from "@/components/patient/Page";
 import { RefillCard, RefillScheduleDialog } from "@/components/refills/RefillParts";
 import { ConfirmDialog } from "@/components/patient/Dialog";
 import { useToast } from "@/components/patient/Toast";
@@ -18,7 +18,7 @@ import type { Refill } from "@/lib/patient/types";
  * page waits to be visited rather than pushing anyone to sign up.
  */
 export default function RefillsPage() {
-  const { refills, ready, setStatus, updateRefill, refillNow } = useRefills();
+  const { refills, ready, failed, refresh, setStatus, updateRefill, refillNow } = useRefills();
   const { prescriptions } = usePrescriptions();
   const account = useAccount();
   const { notify } = useToast();
@@ -37,6 +37,8 @@ export default function RefillsPage() {
         <div className="hc-page-body">
           {!ready ? (
             <CardSkeletons count={2} />
+          ) : failed ? (
+            <LoadError title="We couldn't load your refills" onRetry={refresh} />
           ) : refills.length === 0 ? (
             <EmptyPanel
               icon="refresh"
@@ -64,8 +66,9 @@ export default function RefillsPage() {
                         onManage={() => setManaging(refill)}
                         onResume={() => setStatus(refill.id, "active")}
                         onRefillNow={() => {
-                          refillNow(refill.id);
-                          notify(`${refill.name} refill requested`);
+                          refillNow(refill.id)
+                            .then(() => notify(`${refill.name} refill requested`))
+                            .catch(() => notify("We couldn't bring that refill forward", "alert"));
                         }}
                       />
                     ))}
@@ -88,8 +91,9 @@ export default function RefillsPage() {
                         onManage={() => setManaging(refill)}
                         onRefillNow={() => refillNow(refill.id)}
                         onResume={() => {
-                          setStatus(refill.id, "active");
-                          notify(`${refill.name} refill resumed`);
+                          setStatus(refill.id, "active")
+                            .then(() => notify(`${refill.name} refill resumed`))
+                            .catch(() => notify("We couldn't resume that refill", "alert"));
                         }}
                       />
                     ))}
@@ -113,12 +117,14 @@ export default function RefillsPage() {
           addresses={account.addresses}
           onClose={() => setManaging(null)}
           onSave={(patch) => {
-            updateRefill(managing.id, patch);
-            notify("Refill schedule updated");
+            updateRefill(managing.id, patch)
+              .then(() => notify("Refill schedule updated"))
+              .catch(() => notify("We couldn't update that schedule", "alert"));
           }}
           onPause={() => {
-            setStatus(managing.id, "paused");
-            notify(`${managing.name} refill paused`);
+            setStatus(managing.id, "paused")
+              .then(() => notify(`${managing.name} refill paused`))
+              .catch(() => notify("We couldn't pause that refill", "alert"));
           }}
           onCancel={() => {
             setCancelling(managing);
@@ -137,8 +143,9 @@ export default function RefillsPage() {
           confirmLabel="Cancel refill"
           tone="danger"
           onConfirm={() => {
-            setStatus(cancelling.id, "cancelled");
-            notify(`${cancelling.name} refill cancelled`);
+            setStatus(cancelling.id, "cancelled")
+              .then(() => notify(`${cancelling.name} refill cancelled`))
+              .catch(() => notify("We couldn't cancel that refill", "alert"));
           }}
         />
       ) : null}

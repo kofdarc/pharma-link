@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { PatientShell } from "@/components/site/PatientShell";
-import { CardSkeletons, EmptyPanel, PageHead, Segmented } from "@/components/patient/Page";
+import { CardSkeletons, EmptyPanel, LoadError, PageHead, Segmented } from "@/components/patient/Page";
 import { PrescriptionCard } from "@/components/prescriptions/PrescriptionParts";
 import { usePrescriptions } from "@/lib/patient/store";
 import type { Prescription } from "@/lib/patient/types";
@@ -31,7 +31,7 @@ function bucket(prescription: Prescription): Tab {
 }
 
 export default function PrescriptionsPage() {
-  const { prescriptions, ready } = usePrescriptions();
+  const { prescriptions, ready, failed, refresh } = usePrescriptions();
   const [tab, setTab] = useState<Tab>("active");
 
   const counts = useMemo(() => {
@@ -67,6 +67,11 @@ export default function PrescriptionsPage() {
         <div className="hc-page-body">
           {!ready ? (
             <CardSkeletons count={2} />
+          ) : failed ? (
+            // A prescription the platform couldn't fetch still exists. Saying
+            // "you have none" here would be telling the patient something false
+            // about their own medication.
+            <LoadError title="We couldn't load your prescriptions" onRetry={refresh} />
           ) : visible.length > 0 ? (
             <div className="hc-cardgrid">
               {visible.map((prescription) => (

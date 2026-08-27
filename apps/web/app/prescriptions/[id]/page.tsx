@@ -13,7 +13,6 @@ import { useBasket } from "@/lib/basket";
 import { usePrescriptions } from "@/lib/patient/store";
 import { formatDate, plural } from "@/lib/patient/format";
 import { isClaimable, remaining, type Prescription } from "@/lib/patient/types";
-import { MOCK_CATALOG } from "@/lib/catalog/mock-catalog";
 
 /**
  * A single prescription.
@@ -82,14 +81,15 @@ function PrescriptionDetailScreen() {
   function orderClaimable(target: Prescription) {
     const items = target.items.filter((item) => remaining(item) > 0);
     for (const item of items) {
-      const listing = MOCK_CATALOG.find((entry) => entry.id === item.medicineId);
       basket.add({
         medicine: item.medicineId,
         name: item.name,
         generic: item.generic,
         quantity: 1,
         requires_prescription: true,
-        unit_price: listing?.fromPrice ?? null,
+        // A prescription records what was authorised, not what anything costs.
+        // The price comes from the sourcing quote once pharmacies are matched.
+        unit_price: null,
         prescription_id: target.id
       });
     }

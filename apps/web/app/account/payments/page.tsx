@@ -49,8 +49,10 @@ export default function PaymentsPage() {
                 key={method.id}
                 method={method}
                 onSetDefault={() => {
-                  account.setDefaultPayment(method.id);
-                  notify("Default payment method updated");
+                  account
+                    .setDefaultPayment(method.id)
+                    .then(() => notify("Default payment method updated"))
+                    .catch(() => notify("We couldn't update your default payment method", "alert"));
                 }}
                 onRemove={() => setRemoving(method)}
               />
@@ -97,8 +99,10 @@ export default function PaymentsPage() {
           confirmLabel="Remove"
           tone="danger"
           onConfirm={() => {
-            account.removePayment(removing.id);
-            notify("Payment method removed");
+            account
+              .removePayment(removing.id)
+              .then(() => notify("Payment method removed"))
+              .catch(() => notify("We couldn't remove that payment method", "alert"));
           }}
         />
       ) : null}

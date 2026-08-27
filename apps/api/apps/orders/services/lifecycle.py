@@ -202,6 +202,10 @@ def hand_over(*, fulfillment: OrderFulfillment, user, handover_code: str = "", c
         notes=f"Platform order {order.reference}",
         client=client,
         channel=Sale.Channel.PLATFORM_ORDER,
+        # Cover for any prescription-only line. Placement already checked that
+        # this prescription is consumable and covers the basket, so the sale
+        # must not ask the pharmacy for a second one at the counter.
+        eprescription=order.prescription,
     )
     fulfillment.sale = sale
     fulfillment.status = OrderFulfillment.Status.COLLECTED if collected_in_store else OrderFulfillment.Status.PICKED_UP

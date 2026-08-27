@@ -30,6 +30,7 @@ def create_sale(
     payment_method: str = "",
     notes: str = "",
     prescription_record_id=None,
+    eprescription=None,
     client=None,
     channel: str = Sale.Channel.COUNTER,
     insurance_policy=None,
@@ -52,7 +53,12 @@ def create_sale(
 
     medicines_by_id = {str(raw_item["medicine"]): Medicine.objects.get(id=raw_item["medicine"]) for raw_item in items}
     needs_prescription = [medicine for medicine in medicines_by_id.values() if medicine.requires_prescription]
-    if needs_prescription and prescription is None:
+    # Two kinds of cover satisfy this. `prescription_record_id` is the document
+    # a pharmacy scanned at its own counter; `eprescription` is a HealthConnect
+    # prescription a doctor issued, already validated when the online order was
+    # placed. Without the second, a platform order for a prescription-only
+    # medicine could be accepted and then never handed over.
+    if needs_prescription and prescription is None and eprescription is None:
         names = ", ".join(str(medicine) for medicine in needs_prescription)
         raise ValueError(f"A valid prescription is required to sell: {names}.")
 

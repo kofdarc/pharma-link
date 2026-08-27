@@ -74,6 +74,13 @@ export interface Address {
   city: string;
   notes?: string;
   isDefault: boolean;
+  /**
+   * Where this is, for ranking pharmacies by distance. Resolved from the area
+   * by the API rather than asked for - nobody types their own latitude - so it
+   * is absent on an address the patient has only just filled in locally.
+   */
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface PaymentMethod {
@@ -106,6 +113,12 @@ export interface OrderLine {
   unitPrice: number;
   /** Which connected pharmacy supplied this line. Supporting detail only. */
   pharmacy: string;
+  /**
+   * Carried on the line so "order again" can rebuild the basket without a
+   * second catalogue lookup. Cover is re-checked against what is valid today,
+   * so this says the medicine needs a prescription, not that one is held.
+   */
+  requiresPrescription: boolean;
   prescriptionId?: string | null;
 }
 

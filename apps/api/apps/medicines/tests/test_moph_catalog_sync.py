@@ -258,6 +258,46 @@ class SyncProductsTests(TestCase):
 
         self.assertEqual(Medicine.objects.count(), 2)
 
+    def test_same_variant_different_moph_codes_in_one_batch_are_merged(self):
+        result = sync_products([
+            make_row(moph_code=1001, source=MophSource.MOPH_ONLINE),
+            make_row(moph_code=1002, source=MophSource.MOPH_MARKETED_EXCEL, price_usd=Decimal("7.25")),
+            make_row(
+                moph_code=1003, source=MophSource.MOPH_NON_MARKETED_EXCEL,
+                market_status=MarketStatus.NON_MARKETED,
+            ),
+        ])
+
+        self.assertEqual(Medicine.objects.count(), 1)
+        medicine = Medicine.objects.get()
+        # Highest-priority source (online) keeps identity and market status.
+        self.assertEqual(medicine.moph_code, 1001)
+        self.assertEqual(medicine.market_status, MarketStatus.MARKETED)
+        self.assertEqual(medicine.moph_extra["alternate_moph_codes"], [1002, 1003])
+        # USD price is still borrowed from the marketed-excel sibling.
+        self.assertEqual(medicine.regulated_price, Decimal("7.25"))
+        self.assertEqual(result["created"], 1)
+        self.assertEqual(result["duplicates_skipped"], 2)
+
+    def test_same_variant_merge_keeps_the_code_already_bound_to_the_existing_row(self):
+        Medicine.objects.create(
+            brand_name="Example Brand", strength="500mg", form="Tablet", moph_code=1002,
+            price_regime=PriceRegime.REGULATED, regulated_price=Decimal("1.00"),
+            market_status=MarketStatus.MARKETED,
+        )
+
+        result = sync_products([
+            make_row(moph_code=1001, source=MophSource.MOPH_ONLINE),
+            make_row(moph_code=1002, source=MophSource.MOPH_ONLINE),
+        ])
+
+        self.assertEqual(Medicine.objects.count(), 1)
+        medicine = Medicine.objects.get()
+        self.assertEqual(medicine.moph_code, 1002)
+        self.assertEqual(medicine.moph_extra["alternate_moph_codes"], [1001])
+        self.assertEqual(result["updated"], 1)
+        self.assertEqual(result["duplicates_skipped"], 1)
+
     def test_malformed_row_missing_brand_is_skipped(self):
         result = sync_products([make_row(brand_name="")])
 

@@ -10,11 +10,10 @@ import { MedicineSearchBox } from "@/components/medicines/MedicineSearchBox";
 import { MedicineResult } from "@/components/medicines/MedicineResult";
 import { FilterRail, FilterSheet } from "@/components/medicines/MedicineFilters";
 import { ResultSkeletons, StateBlock } from "@/components/medicines/SearchStates";
-import { FormAlert } from "@/components/site/FormField";
 import { Icon } from "@/components/ui/Icon";
 import { useOptionalUser } from "@/lib/auth";
 import { useRecentSearches } from "@/lib/recent-searches";
-import { COMMON_SEARCH_TERMS } from "@/lib/catalog/mock-catalog";
+import { COMMON_SEARCH_TERMS } from "@/lib/catalog/prompts";
 import { applyFilters, applySort, availableForms, searchMedicines } from "@/lib/catalog/service";
 import { countActiveFilters, DEFAULT_FILTERS, type MedicineSummary, type SearchFilters, type SortMode } from "@/lib/catalog/types";
 import type { User } from "@/types/api";
@@ -50,7 +49,6 @@ function SearchScreen() {
   const [results, setResults] = useState<MedicineSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  const [degraded, setDegraded] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortMode>("recommended");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -63,7 +61,6 @@ function SearchScreen() {
     if (!query.trim()) {
       setResults([]);
       setError(false);
-      setDegraded(false);
       return;
     }
 
@@ -73,9 +70,8 @@ function SearchScreen() {
     remember(query);
 
     searchMedicines(query, controller.signal)
-      .then((outcome) => {
-        setResults(outcome.results);
-        setDegraded(outcome.usedFallback);
+      .then((found) => {
+        setResults(found);
         setFilters(DEFAULT_FILTERS);
       })
       .catch(() => {
@@ -205,15 +201,6 @@ function SearchScreen() {
                 </label>
               </div>
             </div>
-
-            {degraded && !loading ? (
-              <div style={{ marginBottom: 16 }}>
-                <FormAlert tone="info">
-                  Live availability isn&apos;t reachable right now, so these are sample results. Prices and availability may not
-                  reflect what pharmacies currently hold.
-                </FormAlert>
-              </div>
-            ) : null}
 
             {loading ? <ResultSkeletons /> : null}
 

@@ -9,7 +9,6 @@ import { AvailabilityBadge, MetaChip, PrescriptionBadge } from "@/components/med
 import { PackThumb } from "@/components/medicines/PackThumb";
 import { formatPrice, sourcingLine } from "@/components/medicines/MedicineResult";
 import { StateBlock } from "@/components/medicines/SearchStates";
-import { FormAlert } from "@/components/site/FormField";
 import { Icon } from "@/components/ui/Icon";
 import { getMedicine } from "@/lib/catalog/service";
 import { medicineLabel, type MedicineDetail } from "@/lib/catalog/types";
@@ -23,8 +22,12 @@ export default function MedicationDetailPage() {
   const basket = useBasket();
 
   const [medicine, setMedicine] = useState<MedicineDetail | null>(null);
-  const [degraded, setDegraded] = useState(false);
+  // Distinct from `medicine === null`: "we couldn't ask" is not "no such
+  // medicine", and telling a patient a product doesn't exist because a request
+  // failed is the wrong answer.
+  const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
@@ -32,19 +35,19 @@ export default function MedicationDetailPage() {
     if (!id) return;
     const controller = new AbortController();
     setLoading(true);
-    setDegraded(false);
+    setError(false);
     getMedicine(id, controller.signal)
-      .then((outcome) => {
-        setMedicine(outcome.medicine);
-        // Only worth saying when there is something on screen to qualify.
-        setDegraded(outcome.usedFallback && outcome.medicine !== null);
+      .then((found) => setMedicine(found))
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setMedicine(null);
+        setError(true);
       })
-      .catch(() => setMedicine(null))
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [id]);
+  }, [id, attempt]);
 
   if (loading) {
     return (
@@ -57,6 +60,30 @@ export default function MedicationDetailPage() {
             <span className="hc-skel" style={{ width: "45%", height: 18 }} />
             <span className="hc-skel" style={{ width: 260, height: 26, borderRadius: 999 }} />
           </div>
+        </main>
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="hc">
+        <SiteHeader />
+        <main className="hc-main hc-wrap" style={{ paddingBlock: 64 }}>
+          <StateBlock
+            icon="alert"
+            tone="alert"
+            title="We couldn't load this medication"
+            body="Something went wrong on our side, so we can't show what pharmacies currently hold. Nothing about this product has changed."
+          >
+            <button type="button" className="hc-btn hc-btn-primary" onClick={() => setAttempt((value) => value + 1)}>
+              Try again
+            </button>
+            <Link href="/search" className="hc-btn hc-btn-secondary">
+              Search medications
+            </Link>
+          </StateBlock>
         </main>
         <SiteFooter />
       </div>
@@ -113,14 +140,6 @@ export default function MedicationDetailPage() {
             </div>
           </header>
 
-          {degraded ? (
-            <div style={{ marginTop: 20 }}>
-              <FormAlert tone="info">
-                Live availability isn&apos;t reachable right now, so this is a sample listing. The price and the pharmacies
-                shown may not reflect what is currently stocked.
-              </FormAlert>
-            </div>
-          ) : null}
         </div>
 
         <div className="hc-wrap hc-med">

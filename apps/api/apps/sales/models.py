@@ -23,7 +23,11 @@ class Sale(UUIDTimeStampedModel):
         PLATFORM_ORDER = "PLATFORM_ORDER", "Platform order"
         INTEGRATION = "INTEGRATION", "Pharmacy software sync"
 
-    invoice_number = models.CharField(max_length=40, unique=True)
+    # Unique within the pharmacy, not globally: an invoice number is a position
+    # in one pharmacy's own books, and next_invoice_number numbers them per
+    # pharmacy. A global constraint made two pharmacies' first sale of the day
+    # collide - which happens on any order split across two counters.
+    invoice_number = models.CharField(max_length=40)
     pharmacy = models.ForeignKey("pharmacies.Pharmacy", on_delete=models.PROTECT, related_name="sales", db_index=True)
     staff_user = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="sales")
     client = models.ForeignKey("customers.Client", null=True, blank=True, on_delete=models.PROTECT, related_name="sales", db_index=True)
@@ -40,6 +44,7 @@ class Sale(UUIDTimeStampedModel):
     class Meta:
         ordering = ["-sale_datetime"]
         indexes = [models.Index(fields=["pharmacy", "sale_datetime"]), models.Index(fields=["pharmacy", "client"])]
+        constraints = [models.UniqueConstraint(fields=["pharmacy", "invoice_number"], name="unique_invoice_number_per_pharmacy")]
 
     def __str__(self) -> str:
         return self.invoice_number

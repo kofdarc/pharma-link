@@ -22,6 +22,7 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
+  phone?: string;
   role: UserRole;
   pharmacy?: string;
   pharmacy_detail?: Pharmacy;
@@ -468,6 +469,8 @@ export interface Order {
   status: OrderStatus;
   fulfillment_type: "DELIVERY" | "PICKUP";
   source: "WEB" | "RECURRING";
+  /** The e-prescription this order was dispensed against, when it needed one. */
+  prescription?: string | null;
   contact_name: string;
   contact_phone: string;
   address: string;
@@ -484,6 +487,8 @@ export interface Order {
   cancelled_reason?: string;
   fulfillments: OrderFulfillment[];
   payment: Payment | null;
+  /** The shopper's own review of this order, once they have left one. */
+  review: { rating: number; comment: string; pharmacy: string } | null;
   created_at: string;
 }
 
@@ -492,6 +497,16 @@ export interface RecurringOrder {
   label: string;
   address: string;
   items: { medicine: string; quantity: number }[];
+  /** `items` resolved against the catalogue, so a schedule can be named without extra lookups. */
+  item_details?: {
+    medicine: string;
+    name: string;
+    generic_name: string;
+    quantity: number;
+    requires_prescription: boolean;
+  }[];
+  prescription?: string | null;
+  prescription_code_value?: string;
   interval_days: number;
   preferred_hour: number;
   next_run_at: string;

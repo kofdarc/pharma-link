@@ -179,8 +179,14 @@ python -m venv .venv
 </details>
 
 `seed_poc` builds a full Beirut scenario — 5 pharmacies with deliberately fragmented stock,
-3 doctors, 6 shoppers with orders clustered in two neighbourhoods, and 3 drivers — and
-prints every login plus a live prescription code and PIN.
+3 doctors, 6 shoppers with orders in every lifecycle state, refill schedules,
+e-prescriptions and saved payment methods, and 3 drivers — and prints every login plus a
+live prescription code and PIN.
+
+The demo catalogue is **not invented**. `seed_poc` picks 20 real MoPH-registered products
+out of whatever `sync_moph_catalog` has loaded, one per active ingredient (see
+`SEED_INGREDIENTS`), at their real published prices. Run the catalog sync first — the seed
+refuses to guess and will tell you so.
 
 ### Demo accounts
 

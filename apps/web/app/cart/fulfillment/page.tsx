@@ -12,7 +12,7 @@ import { useBasket } from "@/lib/basket";
 import { useAutoPrescriptionMatch, useCheckoutPlan } from "@/lib/patient/checkout";
 import { buildFulfillment, type FulfillmentPlan, type FulfillmentResult } from "@/lib/patient/fulfillment";
 import { formatMoney, plural } from "@/lib/patient/format";
-import { usePrescriptions } from "@/lib/patient/store";
+import { useAccount, usePrescriptions } from "@/lib/patient/store";
 
 /**
  * How the basket can actually be filled.
@@ -27,6 +27,7 @@ export default function FulfillmentPage() {
   const basket = useBasket();
   const { choose } = useCheckoutPlan();
   const { prescriptions, ready: prescriptionsReady } = usePrescriptions();
+  const account = useAccount();
   const { notify } = useToast();
 
   const [searching, setSearching] = useState(true);
@@ -38,35 +39,39 @@ export default function FulfillmentPage() {
   const items = basket.items;
   const basketReady = basket.ready;
 
+  // Sourcing ranks pharmacies by how far they are from the door, so there is
+  // nothing to plan against until the patient has an address on file.
+  const deliverTo = account.addresses.find((entry) => entry.isDefault) ?? account.addresses[0] ?? null;
+  const hasCoordinates = deliverTo?.latitude !== undefined && deliverTo?.longitude !== undefined;
+
   // Resolve prescription cover before the plans are built, so a plan carries
   // the same cover the checkout will later state.
   useAutoPrescriptionMatch(items, prescriptions, basketReady && prescriptionsReady, basket.setPrescription);
 
-  /**
-   * The sourcing lookup, with the pause it will really have.
-   *
-   * Matching a basket against connected pharmacies is work in production, and
-   * the loading state is where the patient understands that something was
-   * checked on their behalf rather than read off a list. When this becomes a
-   * fetch, the try/catch and the retry below are already the right shape.
-   */
   useEffect(() => {
-    if (!basketReady) return;
+    if (!basketReady || !account.ready) return;
+    if (!deliverTo || !hasCoordinates) {
+      setSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
     setSearching(true);
     setFailed(false);
 
-    const timer = setTimeout(() => {
-      try {
-        setResult(buildFulfillment(items));
-      } catch {
+    buildFulfillment(items, { latitude: deliverTo.latitude!, longitude: deliverTo.longitude! }, controller.signal)
+      .then(setResult)
+      .catch(() => {
+        if (controller.signal.aborted) return;
         setFailed(true);
-      } finally {
-        setSearching(false);
-      }
-    }, 900);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSearching(false);
+      });
 
-    return () => clearTimeout(timer);
-  }, [basketReady, items, attempt]);
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [basketReady, account.ready, deliverTo?.id, items, attempt]);
 
   useEffect(() => {
     if (!searching && result && result.plans.length > 0 && !selected) setSelected(result.plans[0].kind);
@@ -87,8 +92,21 @@ export default function FulfillmentPage() {
             stacked display headings would be one too many. */}
         <PageHead back={{ href: "/cart", label: "Basket" }} />
 
-        {!basket.ready || searching ? (
+        {!basket.ready || !account.ready || searching ? (
           <SearchingState count={basket.items.length} />
+        ) : basket.items.length > 0 && !deliverTo ? (
+          <EmptyPanel
+            icon="pin"
+            title="Where should this go?"
+            body="HealthConnect matches your basket to the pharmacies nearest you, so it needs a delivery address before it can work out how the order is filled."
+          >
+            <Link href="/account/addresses" className="hc-btn hc-btn-primary">
+              Add a delivery address
+            </Link>
+            <Link href="/cart" className="hc-btn hc-btn-secondary">
+              Back to basket
+            </Link>
+          </EmptyPanel>
         ) : failed ? (
           <LoadError
             title="We could not check availability just now"

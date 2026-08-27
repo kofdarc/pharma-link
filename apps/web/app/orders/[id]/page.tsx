@@ -12,7 +12,6 @@ import { useBasket } from "@/lib/basket";
 import { useOrders } from "@/lib/patient/store";
 import { formatDate, formatMoney, plural } from "@/lib/patient/format";
 import { orderPharmacies, orderTotal, type Order } from "@/lib/patient/types";
-import { MOCK_CATALOG } from "@/lib/catalog/mock-catalog";
 
 /**
  * A single order.
@@ -45,14 +44,15 @@ function OrderDetailScreen() {
   useEffect(() => {
     if (!ready || !order || search.get("again") !== "1") return;
     for (const line of order.lines) {
-      const listing = MOCK_CATALOG.find((entry) => entry.id === line.medicineId);
       basket.add({
         medicine: line.medicineId,
         name: line.name,
         generic: line.generic,
         quantity: line.quantity,
-        requires_prescription: Boolean(listing?.requiresPrescription),
-        unit_price: listing?.fromPrice ?? null,
+        requires_prescription: line.requiresPrescription,
+        // What this line actually cost last time, shown as an estimate until
+        // the basket is re-sourced against today's pharmacies.
+        unit_price: line.unitPrice,
         prescription_id: null
       });
     }
@@ -280,8 +280,9 @@ function OrderDetailScreen() {
         onClose={() => setReviewOpen(false)}
         orderId={order.id}
         onSubmit={(rating, comment) => {
-          reviewOrder(order.id, rating, comment);
-          notify("Thank you for the feedback");
+          reviewOrder(order.id, rating, comment)
+            .then(() => notify("Thank you for the feedback"))
+            .catch(() => notify("We couldn't save your review", "alert"));
         }}
       />
       <ReceiptDialog open={receiptOpen} onClose={() => setReceiptOpen(false)} order={order as Order} />

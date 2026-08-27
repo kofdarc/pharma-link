@@ -8,17 +8,14 @@
  * baskets the platform believes it can deliver, each with a price, an estimate
  * and which pharmacy supplies what.
  *
- * Until the sourcing endpoint exists, the options are derived from the
- * catalogue the patient already saw, so the numbers on this screen and the
- * numbers on the medication page agree.
+ * All of it comes from `POST /shop/fulfillment-options/`, which plans the same
+ * basket against live inventory several ways and returns only the ones that
+ * actually exist. Nothing here invents a pharmacy, a price or an arrival time —
+ * if the request fails the caller shows an error rather than a plan.
  */
 
-import { MOCK_CATALOG } from "@/lib/catalog/mock-catalog";
-import type { MedicineSummary } from "@/lib/catalog/types";
+import { apiFetch } from "@/lib/api-client";
 import type { BasketItem } from "@/lib/basket";
-
-/** The connected pharmacies used across the demo. Fictional. */
-const PHARMACIES = ["Cedar Care Pharmacy", "Verdun Health Pharmacy", "Achrafieh Pharmacy", "Mar Elias Pharmacy"];
 
 export type PlanKind = "best" | "fastest" | "cheapest" | "single";
 
@@ -30,7 +27,7 @@ export interface FulfillmentLine {
   unitPrice: number;
   pharmacy: string;
   /**
-   * Carried through from the catalogue rather than inferred from whether a
+   * Carried through from the basket rather than inferred from whether a
    * prescription happens to be attached. Checkout has to be able to say "this
    * needs a prescription and does not have one yet", which is not the same
    * statement as "this needs no prescription".
@@ -65,138 +62,147 @@ export interface FulfillmentResult {
   totalCount: number;
 }
 
-/** Stable per-medicine number, so the same basket always splits the same way. */
-function hash(value: string): number {
-  let total = 0;
-  for (let index = 0; index < value.length; index += 1) total = (total * 31 + value.charCodeAt(index)) >>> 0;
-  return total;
+/** Where the basket is being delivered. Sourcing is distance-ranked, so this is required. */
+export interface DeliveryPoint {
+  latitude: number;
+  longitude: number;
 }
 
-function catalogEntry(id: string): MedicineSummary | undefined {
-  return MOCK_CATALOG.find((entry) => entry.id === id);
+// --- API payloads ----------------------------------------------------------
+
+interface ApiAllocationLine {
+  medicine: string;
+  medicine_name: string;
+  quantity: number;
+  unit_price: string;
+  line_total: string;
+  is_price_regulated: boolean;
 }
 
-function round(value: number): number {
-  return Math.round(value * 100) / 100;
+interface ApiAllocation {
+  pharmacy: string;
+  pharmacy_name: string;
+  pharmacy_area: string;
+  distance_km: number;
+  preparation_minutes: number;
+  subtotal: string;
+  lines: ApiAllocationLine[];
 }
 
-interface PlanShape {
+interface ApiUnfulfilled {
+  medicine: string;
+  medicine_name: string;
+  quantity_short: number;
+}
+
+interface ApiOption {
   kind: PlanKind;
   label: string;
   tagline: string;
-  etaLabel: string;
-  priceFactor: number;
-  deliveryFee: number;
-  pharmacyCount: number;
+  allocations: ApiAllocation[];
+  unfulfilled: ApiUnfulfilled[];
+  items_subtotal: string;
+  delivery_fee: string;
+  total: string;
+  eta_minutes_low: number | null;
+  eta_minutes_high: number | null;
+  explanation: string[];
 }
 
-const SHAPES: PlanShape[] = [
-  {
-    kind: "best",
-    label: "Best overall",
-    tagline: "The quickest way to get everything, at close to the lowest price.",
-    etaLabel: "45 - 60 min",
-    priceFactor: 1,
-    deliveryFee: 3,
-    pharmacyCount: 2
-  },
-  {
-    kind: "fastest",
-    label: "Fastest",
-    tagline: "Pharmacies that can start preparing straight away.",
-    etaLabel: "35 - 45 min",
-    priceFactor: 1.08,
-    deliveryFee: 4.5,
-    pharmacyCount: 2
-  },
-  {
-    kind: "cheapest",
-    label: "Lowest cost",
-    tagline: "The lowest listed prices, with a longer wait.",
-    etaLabel: "60 - 75 min",
-    priceFactor: 0.96,
-    deliveryFee: 2.5,
-    pharmacyCount: 2
-  },
-  {
-    kind: "single",
-    label: "One pharmacy",
-    tagline: "Everything from a single pharmacy, if you would rather keep it together.",
-    etaLabel: "70 - 90 min",
-    priceFactor: 1.05,
-    deliveryFee: 3.5,
-    pharmacyCount: 1
-  }
-];
+function money(value: string): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 /**
- * Spread the basket over `count` pharmacies.
- *
- * Contiguous rather than round-robin: a patient reading the breakdown should
- * see a couple of short lists, not every item at a different counter.
+ * "45 - 60 min", or hours once the range gets long enough that minutes stop
+ * being the unit anyone thinks in.
  */
-function allocate(items: BasketItem[], count: number, offset: number): string[] {
-  const pool = PHARMACIES.slice(offset, offset + count);
-  const perPharmacy = Math.ceil(items.length / pool.length);
-  return items.map((_, index) => pool[Math.min(pool.length - 1, Math.floor(index / perPharmacy))]);
+function etaLabel(low: number | null, high: number | null): string {
+  if (low === null || high === null) return "Estimated at checkout";
+  if (high < 90) return `${low} - ${high} min`;
+  const hours = (value: number) => (value / 60).toFixed(value % 60 === 0 ? 0 : 1);
+  return `${hours(low)} - ${hours(high)} hours`;
 }
 
-export function buildFulfillment(items: BasketItem[]): FulfillmentResult {
-  const entries = items.map((item) => ({ item, medicine: catalogEntry(item.medicine) }));
+function toPlan(option: ApiOption, items: BasketItem[]): FulfillmentPlan {
+  const byMedicine = new Map(items.map((item) => [item.medicine, item]));
 
-  const unavailable = entries
-    .filter(({ medicine }) => medicine?.availability === "unavailable")
-    .map(({ item }) => ({ medicineId: item.medicine, name: item.name }));
+  const lines: FulfillmentLine[] = option.allocations.flatMap((allocation) =>
+    allocation.lines.map((line) => {
+      const item = byMedicine.get(line.medicine);
+      return {
+        medicineId: line.medicine,
+        // The basket's own name is what the patient chose it by; the
+        // catalogue's is the fallback for a line added elsewhere.
+        name: item?.name ?? line.medicine_name,
+        generic: item?.generic ?? "",
+        quantity: line.quantity,
+        unitPrice: money(line.unit_price),
+        pharmacy: allocation.pharmacy_name,
+        requiresPrescription: Boolean(item?.requires_prescription),
+        prescriptionId: item?.prescription_id ?? null
+      };
+    })
+  );
 
-  const fulfillable = entries.filter(({ medicine }) => medicine?.availability !== "unavailable");
+  return {
+    kind: option.kind,
+    label: option.label,
+    tagline: option.tagline,
+    etaLabel: etaLabel(option.eta_minutes_low, option.eta_minutes_high),
+    lines,
+    medicationTotal: money(option.items_subtotal),
+    deliveryFee: money(option.delivery_fee),
+    total: money(option.total),
+    pharmacies: [...new Set(option.allocations.map((allocation) => allocation.pharmacy_name))]
+  };
+}
 
-  if (fulfillable.length === 0) {
-    return { plans: [], unavailable, availableCount: 0, totalCount: items.length };
+/**
+ * Ask the platform how this basket could be delivered.
+ *
+ * Rejects when the request fails. An empty `plans` array is a different and
+ * real answer: nothing connected can supply this basket right now.
+ */
+export async function buildFulfillment(
+  items: BasketItem[],
+  to: DeliveryPoint,
+  signal?: AbortSignal
+): Promise<FulfillmentResult> {
+  if (items.length === 0) {
+    return { plans: [], unavailable: [], availableCount: 0, totalCount: 0 };
   }
 
-  // A single pharmacy can only be offered when nothing in the basket is in
-  // short supply. Promising it otherwise would be inventing a capability.
-  const everythingWidelyStocked = fulfillable.every(({ medicine }) => medicine?.availability === "available");
-
-  const basketItems = fulfillable.map(({ item }) => item);
-  const seedOffset = hash(basketItems.map((item) => item.medicine).join("|")) % 2;
-
-  const plans = SHAPES.filter((shape) => {
-    if (shape.kind === "single") return everythingWidelyStocked && basketItems.length > 1;
-    // With one line there is nothing to split, so the multi-pharmacy variants
-    // would be four identical cards with different prices.
-    if (basketItems.length === 1) return shape.kind === "best" || shape.kind === "cheapest";
-    return true;
-  }).map((shape) => {
-    const pharmacyCount = Math.min(shape.pharmacyCount, basketItems.length);
-    const assigned = allocate(basketItems, pharmacyCount, shape.kind === "cheapest" ? seedOffset + 1 : seedOffset);
-
-    const lines: FulfillmentLine[] = fulfillable.map(({ item, medicine }, index) => ({
-      medicineId: item.medicine,
-      name: item.name,
-      generic: item.generic ?? medicine?.generic ?? "",
-      quantity: item.quantity,
-      unitPrice: round((item.unit_price ?? medicine?.fromPrice ?? 0) * shape.priceFactor),
-      pharmacy: assigned[index],
-      requiresPrescription: Boolean(item.requires_prescription ?? medicine?.requiresPrescription),
-      prescriptionId: item.prescription_id ?? null
-    }));
-
-    const medicationTotal = round(lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0));
-    return {
-      kind: shape.kind,
-      label: shape.label,
-      tagline: shape.tagline,
-      etaLabel: shape.etaLabel,
-      lines,
-      medicationTotal,
-      deliveryFee: shape.deliveryFee,
-      total: round(medicationTotal + shape.deliveryFee),
-      pharmacies: [...new Set(lines.map((line) => line.pharmacy))]
-    };
+  const payload = await apiFetch<{ options: ApiOption[] }>("/shop/fulfillment-options/", {
+    method: "POST",
+    signal,
+    body: JSON.stringify({
+      items: items.map((item) => ({ medicine: item.medicine, quantity: item.quantity })),
+      latitude: to.latitude,
+      longitude: to.longitude
+    })
   });
 
-  return { plans, unavailable, availableCount: fulfillable.length, totalCount: items.length };
+  const options = payload.options ?? [];
+  const plans = options.map((option) => toPlan(option, items));
+
+  // What no plan could source. Taken from the first option rather than
+  // intersected across them: the options are alternative ways to fill the same
+  // basket, and a medicine missing from the best plan is missing from stock.
+  const shortfall = options[0]?.unfulfilled ?? [];
+  const unavailable: UnavailableItem[] = shortfall.map((entry) => ({
+    medicineId: entry.medicine,
+    name: items.find((item) => item.medicine === entry.medicine)?.name || entry.medicine_name
+  }));
+
+  const sourcedIds = new Set(plans[0]?.lines.map((line) => line.medicineId) ?? []);
+  return {
+    plans,
+    unavailable,
+    availableCount: items.filter((item) => sourcedIds.has(item.medicine)).length,
+    totalCount: items.length
+  };
 }
 
 /** Group a plan's lines by the pharmacy supplying them, in reading order. */

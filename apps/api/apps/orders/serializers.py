@@ -2,7 +2,9 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.common.geo import area_coordinates
 from apps.medicines.serializers import MedicineSerializer
+from apps.medicines.models import Medicine
 from apps.orders.models import DeliveryAddress, Order, OrderFulfillment, OrderLine, PharmacyReview, RecurringOrder
 from apps.payments.models import Payment
 from apps.payments.serializers import PaymentSerializer
@@ -26,6 +28,25 @@ class DeliveryAddressSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+        # Sourcing needs coordinates, but nobody can type their own latitude.
+        # When a client sends none, they are resolved from the area below.
+        extra_kwargs = {"latitude": {"required": False}, "longitude": {"required": False}}
+
+    def validate(self, attrs):
+        has_coordinates = attrs.get("latitude") is not None and attrs.get("longitude") is not None
+        if has_coordinates:
+            return attrs
+        instance_has = self.instance is not None and self.instance.latitude is not None
+        # An edit that doesn't touch the area keeps whatever coordinates the
+        # address already has - re-deriving them would discard a real map pin.
+        if instance_has and "area" not in attrs:
+            return attrs
+        area = attrs.get("area", getattr(self.instance, "area", ""))
+        city = attrs.get("city", getattr(self.instance, "city", ""))
+        latitude, longitude = area_coordinates(area, city)
+        attrs["latitude"] = Decimal(str(latitude))
+        attrs["longitude"] = Decimal(str(longitude))
+        return attrs
 
 
 class OrderLineSerializer(serializers.ModelSerializer):
@@ -69,6 +90,7 @@ class OrderSerializer(serializers.ModelSerializer):
     window_start = serializers.DateTimeField(read_only=True)
     window_end = serializers.DateTimeField(read_only=True)
     payment = serializers.SerializerMethodField()
+    review = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -98,6 +120,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "cancelled_reason",
             "fulfillments",
             "payment",
+            "review",
             "created_at",
         ]
         read_only_fields = fields
@@ -105,6 +128,17 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_payment(self, obj):
         payment = getattr(obj, "payment", None)
         return PaymentSerializer(payment).data if payment else None
+
+    def get_review(self, obj):
+        """
+        The shopper's own review, so their order history can show what they said
+        without a second request. Hidden reviews are moderated out of the
+        pharmacy's public rating but remain visible to the person who wrote them.
+        """
+        review = obj.reviews.order_by("-created_at").first()
+        if review is None:
+            return None
+        return {"rating": review.rating, "comment": review.comment, "pharmacy": str(review.pharmacy_id)}
 
 
 class PharmacyOrderFulfillmentSerializer(OrderFulfillmentSerializer):
@@ -172,7 +206,9 @@ class OrderCreateSerializer(serializers.Serializer):
 
 class RecurringOrderSerializer(serializers.ModelSerializer):
     items = BasketItemSerializer(many=True)
+    item_details = serializers.SerializerMethodField()
     prescription_code = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=24)
+    prescription_code_value = serializers.CharField(source="prescription.code", read_only=True, default="")
 
     class Meta:
         model = RecurringOrder
@@ -181,8 +217,10 @@ class RecurringOrderSerializer(serializers.ModelSerializer):
             "label",
             "address",
             "items",
+            "item_details",
             "prescription",
             "prescription_code",
+            "prescription_code_value",
             "interval_days",
             "preferred_hour",
             "next_run_at",
@@ -192,7 +230,41 @@ class RecurringOrderSerializer(serializers.ModelSerializer):
             "last_error",
             "created_at",
         ]
-        read_only_fields = ["id", "prescription", "last_run_at", "occurrences_created", "last_error", "created_at"]
+        read_only_fields = [
+            "id",
+            "item_details",
+            "prescription",
+            "prescription_code_value",
+            "last_run_at",
+            "occurrences_created",
+            "last_error",
+            "created_at",
+        ]
+
+    def get_item_details(self, obj) -> list:
+        """
+        `items` is a JSON list of medicine ids, so a client showing a schedule
+        would otherwise have to look each one up to name it.
+        """
+        medicines = {
+            str(medicine.id): medicine
+            for medicine in Medicine.objects.filter(id__in=[entry.get("medicine") for entry in obj.items or []])
+        }
+        details = []
+        for entry in obj.items or []:
+            medicine = medicines.get(str(entry.get("medicine")))
+            if medicine is None:
+                continue
+            details.append(
+                {
+                    "medicine": str(medicine.id),
+                    "name": str(medicine),
+                    "generic_name": medicine.generic_name,
+                    "quantity": entry.get("quantity", 1),
+                    "requires_prescription": medicine.requires_prescription,
+                }
+            )
+        return details
 
     def validate_items(self, items):
         if not items:

@@ -36,7 +36,7 @@ from apps.orders.services.lifecycle import (
 )
 from apps.insurance.models import PatientInsurancePolicy
 from apps.orders.services.placement import OrderError, place_order
-from apps.orders.services.sourcing import plan_basket
+from apps.orders.services.sourcing import fulfillment_options, plan_basket
 from apps.pharmacies.models import Pharmacy
 
 
@@ -78,6 +78,27 @@ class BasketQuoteView(APIView):
         return Response(plan)
 
 
+class FulfillmentOptionsView(APIView):
+    """
+    The same basket planned several ways, so the shopper picks the trade-off
+    rather than being handed one. Like a quote, this holds no stock.
+    """
+
+    permission_classes = [IsShopper]
+
+    def post(self, request):
+        serializer = BasketQuoteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        options = fulfillment_options(
+            items=[{"medicine": str(entry["medicine"]), "quantity": entry["quantity"]} for entry in data["items"]],
+            latitude=float(data["latitude"]),
+            longitude=float(data["longitude"]),
+            radius_km=data.get("radius_km"),
+        )
+        return Response({"options": options})
+
+
 class ShopperOrderViewSet(ModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [IsShopper]
@@ -86,7 +107,8 @@ class ShopperOrderViewSet(ModelViewSet):
     def get_queryset(self):
         return (
             Order.objects.filter(customer=self.request.user)
-            .prefetch_related("fulfillments__lines__medicine", "fulfillments__pharmacy")
+            .prefetch_related("fulfillments__lines__medicine", "fulfillments__pharmacy", "reviews")
+            .select_related("payment")
             .order_by("-created_at")
         )
 

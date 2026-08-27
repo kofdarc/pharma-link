@@ -1,21 +1,20 @@
-import { apiFetch } from "@/lib/api-client";
+import { ApiError, apiFetch } from "@/lib/api-client";
 import type { Medicine, PublicAvailability } from "@/types/api";
-import { MOCK_CATALOG } from "./mock-catalog";
 import type { AvailabilityState, MedicineDetail, MedicineSummary, ProductType, SearchFilters, SortMode } from "./types";
 
 /**
  * The catalogue as patients see it.
  *
- * Two things happen here that the API deliberately does not do for us:
+ * One thing happens here that the API deliberately does not do for us:
+ * **medicine-first shaping**. `/public/search/` answers per (medicine, pharmacy)
+ * pair, because that is what sourcing and delivery need. Patients are choosing a
+ * *medicine*, not a pharmacy, so rows are folded into one entry per medicine and
+ * pharmacies become a count.
  *
- * 1. **Medicine-first shaping.** `/public/search/` answers per (medicine,
- *    pharmacy) pair, because that is what sourcing and delivery need. Patients
- *    are choosing a *medicine*, not a pharmacy, so rows are folded into one
- *    entry per medicine and pharmacies become a count.
- * 2. **A demo fallback.** If the API is unreachable the pages fall back to
- *    `MOCK_CATALOG` rather than dead-ending, so the patient slice can be
- *    demoed, screenshotted and design-reviewed without the backend running.
- *    `usedFallback` is returned so callers can say so honestly if they want to.
+ * Everything returned here comes from the API. There is no local fallback
+ * catalogue: if the request fails the error propagates and the page says so.
+ * Showing invented medicines, prices or availability when the platform cannot
+ * reach live stock would be worse than showing nothing.
  */
 
 export interface MedicineSuggestion {
@@ -25,16 +24,6 @@ export interface MedicineSuggestion {
   generic: string;
   form: string;
   requiresPrescription: boolean;
-}
-
-export interface SearchOutcome {
-  results: MedicineSummary[];
-  usedFallback: boolean;
-}
-
-export interface MedicineOutcome {
-  medicine: MedicineDetail | null;
-  usedFallback: boolean;
 }
 
 const AVAILABILITY_RANK: Record<AvailabilityState, number> = { available: 0, limited: 1, unavailable: 2 };
@@ -103,45 +92,22 @@ function groupByMedicine(rows: PublicAvailability[]): MedicineSummary[] {
   return [...grouped.values()];
 }
 
-// --- mock matching ---------------------------------------------------------
-
-function matchScore(medicine: MedicineSummary, query: string): number {
-  const q = query.trim().toLowerCase();
-  if (!q) return 0;
-  const brand = medicine.brand.toLowerCase();
-  const generic = medicine.generic.toLowerCase();
-
-  if (brand.startsWith(q)) return 100;
-  if (brand.includes(q)) return 80;
-  if (generic.startsWith(q)) return 60;
-  if (generic.includes(q)) return 50;
-  if (medicine.aliases.some((alias) => alias.toLowerCase().includes(q))) return 40;
-  if (medicine.form.toLowerCase().startsWith(q)) return 20;
-  return -1;
-}
-
-function searchMock(query: string): MedicineSummary[] {
-  return MOCK_CATALOG.map((medicine) => ({ medicine, score: matchScore(medicine, query) }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score || AVAILABILITY_RANK[a.medicine.availability] - AVAILABILITY_RANK[b.medicine.availability])
-    .map((entry) => ({ ...entry.medicine }));
-}
-
 // --- public API ------------------------------------------------------------
 
-export async function searchMedicines(query: string, signal?: AbortSignal): Promise<SearchOutcome> {
+export async function searchMedicines(query: string, signal?: AbortSignal): Promise<MedicineSummary[]> {
   const trimmed = query.trim();
-  if (!trimmed) return { results: [], usedFallback: false };
-
-  try {
-    const rows = await apiFetch<PublicAvailability[]>(`/public/search/?q=${encodeURIComponent(trimmed)}`, { signal });
-    return { results: groupByMedicine(rows), usedFallback: false };
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    return { results: searchMock(trimmed), usedFallback: true };
-  }
+  if (!trimmed) return [];
+  const rows = await apiFetch<PublicAvailability[]>(`/public/search/?q=${encodeURIComponent(trimmed)}`, { signal });
+  return groupByMedicine(rows);
 }
 
+/**
+ * Type-ahead suggestions.
+ *
+ * The one place a failed request is swallowed: suggestions are an accelerator
+ * over a search box that still works without them, so a dropdown that quietly
+ * stays empty is the right failure. Nothing invented is ever shown.
+ */
 export async function suggestMedicines(query: string, signal?: AbortSignal): Promise<MedicineSuggestion[]> {
   const trimmed = query.trim();
   if (trimmed.length < 2) return [];
@@ -158,56 +124,30 @@ export async function suggestMedicines(query: string, signal?: AbortSignal): Pro
     }));
   } catch (error) {
     if (signal?.aborted) throw error;
-    return searchMock(trimmed)
-      .slice(0, 6)
-      .map(({ id, brand, strength, generic, form, requiresPrescription }) => ({
-        id,
-        brand,
-        strength,
-        generic,
-        form,
-        requiresPrescription
-      }));
+    return [];
   }
 }
 
-export async function getMedicine(id: string, signal?: AbortSignal): Promise<MedicineOutcome> {
-  const fromMock = (): MedicineOutcome => {
-    const medicine = MOCK_CATALOG.find((entry) => entry.id === id);
-    return {
-      medicine: medicine ? { ...medicine, related: relatedTo(medicine, MOCK_CATALOG) } : null,
-      usedFallback: true
-    };
-  };
-
-  try {
-    const rows = await apiFetch<PublicAvailability[]>(`/public/search/?medicine_id=${encodeURIComponent(id)}`, { signal });
-    const [medicine] = groupByMedicine(rows);
-    if (!medicine) {
-      // `/public/search/?medicine_id=` only returns rows backed by real,
-      // in-stock inventory. An empty result here doesn't mean the id is
-      // bogus — the medicine may still be a real catalogue entry that no
-      // connected pharmacy currently stocks. Look it up directly so the page
-      // can still show the product, just marked unavailable.
-      const catalogueOnly = await fromCatalogueOnly(id, signal);
-      return catalogueOnly.medicine ? catalogueOnly : fromMock();
-    }
-
-    // Same active ingredient, different product. One extra query, and it is the
-    // only way to offer "other listed strengths" without a dedicated endpoint.
-    let related: MedicineSummary[] = [];
-    try {
-      const siblings = await apiFetch<PublicAvailability[]>(`/public/search/?q=${encodeURIComponent(medicine.generic)}`, { signal });
-      related = relatedTo(medicine, groupByMedicine(siblings));
-    } catch {
-      related = [];
-    }
-
-    return { medicine: { ...medicine, related }, usedFallback: false };
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    return fromMock();
+/**
+ * One medicine, with the other products listing the same active ingredient.
+ *
+ * Resolves to `null` only when the id genuinely is not in the catalogue. A
+ * failed request rejects, so the page can tell "no such medicine" apart from
+ * "we couldn't ask".
+ */
+export async function getMedicine(id: string, signal?: AbortSignal): Promise<MedicineDetail | null> {
+  const rows = await apiFetch<PublicAvailability[]>(`/public/search/?medicine_id=${encodeURIComponent(id)}`, { signal });
+  const [medicine] = groupByMedicine(rows);
+  if (!medicine) {
+    // `/public/search/?medicine_id=` only returns rows backed by real, in-stock
+    // inventory. An empty result here doesn't mean the id is bogus — the
+    // medicine may still be a real catalogue entry that no connected pharmacy
+    // currently stocks. Look it up directly so the page can still show the
+    // product, just marked unavailable.
+    return fromCatalogueOnly(id, signal);
   }
+
+  return { ...medicine, related: await relatedTo(medicine, signal) };
 }
 
 /**
@@ -216,46 +156,60 @@ export async function getMedicine(id: string, signal?: AbortSignal): Promise<Med
  * auth-free) so the page can still show what the product is — just marked
  * unavailable — instead of a dead end.
  */
-async function fromCatalogueOnly(id: string, signal?: AbortSignal): Promise<MedicineOutcome> {
+async function fromCatalogueOnly(id: string, signal?: AbortSignal): Promise<MedicineDetail | null> {
+  let record: Medicine;
   try {
-    const record = await apiFetch<Medicine>(`/medicines/search/?id=${encodeURIComponent(id)}`, { signal });
-    // A MoPH-regulated price is fixed nationwide, not something an individual
-    // pharmacy sets - so it's known even when no pharmacy currently stocks the
-    // item. Free-priced products have no such fallback: without a stocking
-    // pharmacy there's genuinely no price to show.
-    const fromPrice = record.is_price_regulated ? parsePrice(record.regulated_price ?? null) : null;
-    const medicine: MedicineSummary = {
-      id: record.id,
-      brand: record.brand_name,
-      strength: record.strength || "",
-      generic: record.generic_name || "",
-      form: record.form || "",
-      image: record.image,
-      requiresPrescription: Boolean(record.requires_prescription),
-      productType: inferProductType(record.brand_name, record.generic_name || ""),
-      availability: "unavailable",
-      fromPrice,
-      isPriceRegulated: Boolean(record.is_price_regulated),
-      sourcingCount: 0,
-      aliases: (record.aliases ?? []).map((entry) => entry.alias)
-    };
-
-    let related: MedicineSummary[] = [];
-    try {
-      const siblings = await apiFetch<PublicAvailability[]>(`/public/search/?q=${encodeURIComponent(medicine.generic)}`, { signal });
-      related = relatedTo(medicine, groupByMedicine(siblings));
-    } catch {
-      related = [];
-    }
-
-    return { medicine: { ...medicine, related }, usedFallback: false };
+    record = await apiFetch<Medicine>(`/medicines/search/?id=${encodeURIComponent(id)}`, { signal });
   } catch (error) {
-    if (signal?.aborted) throw error;
-    return { medicine: null, usedFallback: false };
+    // A 404 here is the answer — no such medicine. Anything else is the
+    // platform failing to answer, which must not be reported as "not found".
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
   }
+
+  // A MoPH-regulated price is fixed nationwide, not something an individual
+  // pharmacy sets - so it's known even when no pharmacy currently stocks the
+  // item. Free-priced products have no such fallback: without a stocking
+  // pharmacy there's genuinely no price to show.
+  const fromPrice = record.is_price_regulated ? parsePrice(record.regulated_price ?? null) : null;
+  const medicine: MedicineSummary = {
+    id: record.id,
+    brand: record.brand_name,
+    strength: record.strength || "",
+    generic: record.generic_name || "",
+    form: record.form || "",
+    image: record.image,
+    requiresPrescription: Boolean(record.requires_prescription),
+    productType: inferProductType(record.brand_name, record.generic_name || ""),
+    availability: "unavailable",
+    fromPrice,
+    isPriceRegulated: Boolean(record.is_price_regulated),
+    sourcingCount: 0,
+    aliases: (record.aliases ?? []).map((entry) => entry.alias)
+  };
+
+  return { ...medicine, related: await relatedTo(medicine, signal) };
 }
 
-function relatedTo(medicine: MedicineSummary, pool: MedicineSummary[]): MedicineSummary[] {
+/**
+ * Other products with the same listed active ingredient.
+ *
+ * One extra query against the ingredient text, and it is the only way to offer
+ * this without a dedicated endpoint. Supporting information rather than the
+ * answer to the page, so a failure here empties the section instead of failing
+ * the whole medicine.
+ */
+async function relatedTo(medicine: MedicineSummary, signal?: AbortSignal): Promise<MedicineSummary[]> {
+  if (!medicine.generic) return [];
+  let pool: MedicineSummary[];
+  try {
+    const siblings = await apiFetch<PublicAvailability[]>(`/public/search/?q=${encodeURIComponent(medicine.generic)}`, { signal });
+    pool = groupByMedicine(siblings);
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    return [];
+  }
+
   return pool
     .filter((entry) => entry.id !== medicine.id && entry.generic.toLowerCase() === medicine.generic.toLowerCase())
     .sort((a, b) => AVAILABILITY_RANK[a.availability] - AVAILABILITY_RANK[b.availability])

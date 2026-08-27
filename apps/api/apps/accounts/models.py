@@ -39,6 +39,7 @@ class User(AbstractUser):
     email = models.EmailField(unique=True, db_index=True)
     role = models.CharField(max_length=32, choices=UserRole.choices)
     pharmacy = models.ForeignKey("pharmacies.Pharmacy", null=True, blank=True, on_delete=models.PROTECT, related_name="users")
+    phone = models.CharField(max_length=40, blank=True, help_text="Contact number for deliveries. Not used for sign-in or verification.")
     email_verified = models.BooleanField(
         default=False, help_text="Shoppers must verify before checkout; other roles are created by staff and pre-verified."
     )
@@ -66,3 +67,33 @@ class User(AbstractUser):
     @property
     def is_pharmacy_owner(self) -> bool:
         return self.role == UserRole.PHARMACY_OWNER
+
+
+class NotificationPreferences(models.Model):
+    """
+    Which notifications a shopper has asked to receive.
+
+    A row per user rather than a JSON blob on User: each of these gates a
+    different sending path (order lifecycle, dispatch, prescription expiry,
+    refill due, marketing), and those queries need to filter on the individual
+    flag. Absence of a row means "never chosen" and is read as the defaults
+    below - see `for_user`.
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="notification_preferences")
+    order_updates = models.BooleanField(default=True)
+    delivery_updates = models.BooleanField(default=True)
+    prescription_reminders = models.BooleanField(default=True)
+    refill_reminders = models.BooleanField(default=True)
+    # Opt-in, not opt-out: the only one here that is marketing rather than
+    # transactional, so it must never default to on.
+    product_news = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def for_user(cls, user) -> "NotificationPreferences":
+        preferences, _ = cls.objects.get_or_create(user=user)
+        return preferences
+
+    def __str__(self) -> str:
+        return f"Notification preferences for {self.user.email}"

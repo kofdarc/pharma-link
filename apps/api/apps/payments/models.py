@@ -41,3 +41,38 @@ class Payment(UUIDTimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.order.reference} - {self.provider} - {self.status}"
+
+
+class SavedPaymentMethod(UUIDTimeStampedModel):
+    """
+    A shopper's saved way to pay, so checkout doesn't ask again every order.
+
+    Deliberately holds no payment credentials. A card is stored as brand, last
+    four digits and expiry - enough to recognise it in a list and nothing that
+    could be used to charge it. When a real Lebanese gateway is integrated the
+    charge is made against `provider_token`, an opaque reference the provider
+    issues and owns; this table never sees a card number.
+    """
+
+    class Kind(models.TextChoices):
+        CARD = "CARD", "Card"
+        CASH = "CASH", "Cash on delivery"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="payment_methods")
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    brand = models.CharField(max_length=40, blank=True, help_text="Card only, e.g. Visa.")
+    last4 = models.CharField(max_length=4, blank=True, help_text="Card only. The last four digits, never the full number.")
+    expiry = models.CharField(max_length=7, blank=True, help_text="Card only, MM/YY.")
+    provider_token = models.CharField(max_length=255, blank=True, help_text="Opaque gateway reference, if one exists.")
+    is_default = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-is_default", "created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["user"], condition=models.Q(is_default=True), name="one_default_payment_method_per_user"),
+        ]
+
+    def __str__(self) -> str:
+        if self.kind == self.Kind.CARD:
+            return f"{self.brand} ending {self.last4}".strip()
+        return "Cash on delivery"

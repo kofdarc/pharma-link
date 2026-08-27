@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from apps.accounts.models import User, UserRole
+from apps.accounts.models import NotificationPreferences, User, UserRole
 from apps.pharmacies.serializers import PharmacySerializer
 
 
@@ -93,6 +93,7 @@ class UserSerializer(serializers.ModelSerializer):
             "email",
             "first_name",
             "last_name",
+            "phone",
             "role",
             "pharmacy",
             "pharmacy_detail",
@@ -130,4 +131,33 @@ class UserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
+
+
+class OwnProfileSerializer(serializers.ModelSerializer):
+    """
+    What a user may change about themselves.
+
+    Narrower than UserSerializer on purpose: role, pharmacy, is_active and
+    email_verified are decisions the platform makes about an account, not
+    decisions the account holder makes. Email is excluded because changing it
+    changes the sign-in identity and must go through verification.
+    """
+
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "phone"]
+
+
+class NotificationPreferencesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NotificationPreferences
+        fields = [
+            "order_updates",
+            "delivery_updates",
+            "prescription_reminders",
+            "refill_reminders",
+            "product_news",
+            "updated_at",
+        ]
+        read_only_fields = ["updated_at"]
 

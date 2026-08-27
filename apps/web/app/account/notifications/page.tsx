@@ -31,8 +31,10 @@ export default function NotificationsPage() {
   const { notify } = useToast();
 
   function set(key: keyof NotificationPreferences, value: boolean) {
-    account.setNotifications({ ...account.notifications, [key]: value });
-    notify("Notification preferences saved");
+    account
+      .setNotifications({ ...account.notifications, [key]: value })
+      .then(() => notify("Notification preferences saved"))
+      .catch(() => notify("We couldn't save that preference", "alert"));
   }
 
   return (

@@ -20,7 +20,7 @@ from apps.medicines.models import MarketStatus, Medicine, PriceRegime, ProductCa
 from apps.orders.models import Order, OrderFulfillment, StockReservation, UnmetDemandSignal
 from apps.orders.services.lifecycle import hand_over, reject_fulfillment
 from apps.orders.services.placement import OrderError, expire_stale_reservations, place_order
-from apps.orders.services.sourcing import plan_basket
+from apps.orders.services.sourcing import fulfillment_options, plan_basket
 from apps.pharmacies.models import Pharmacy
 
 # Two pharmacies ~3.5 km apart, shopper next door to the first.
@@ -547,3 +547,129 @@ class ConnectorFreshnessSourcingTests(SourcingTestCase):
         plan = self.quote([{"medicine": str(self.panadol.id), "quantity": 2}])
 
         self.assertEqual(plan["allocations"][0]["pharmacy"], self.hamra.id)
+
+
+class FulfillmentOptionTests(SourcingTestCase):
+    """
+    The shopper is offered several ways to fill one basket.
+
+    What must hold: every option is a plan that really exists, they differ in
+    the trade-off they make, and an option with no answer is absent rather than
+    invented.
+    """
+
+    def options(self, items):
+        return fulfillment_options(items=items, latitude=SHOPPER_HOME[0], longitude=SHOPPER_HOME[1])
+
+    def test_one_pharmacy_option_is_absent_when_none_can_cover_the_basket(self):
+        self.stock(self.hamra, self.panadol, 20)
+        self.stock(self.achrafieh, self.nexium, 20)
+
+        kinds = [option["kind"] for option in self.options(
+            [{"medicine": str(self.panadol.id), "quantity": 2}, {"medicine": str(self.nexium.id), "quantity": 1}]
+        )]
+
+        self.assertNotIn("single", kinds, "no pharmacy stocks both, so 'one pharmacy' is not an option that exists")
+        self.assertIn("best", kinds)
+
+    def test_one_pharmacy_option_appears_when_a_pharmacy_can_cover_everything(self):
+        self.stock(self.hamra, self.panadol, 20)
+        self.stock(self.hamra, self.nexium, 20)
+
+        options = self.options([{"medicine": str(self.panadol.id), "quantity": 2}, {"medicine": str(self.nexium.id), "quantity": 1}])
+
+        # Every strategy lands on the same single pharmacy here, so they collapse
+        # to one card rather than four identical ones at different prices.
+        self.assertEqual(len(options), 1)
+        self.assertEqual(options[0]["pharmacy_count"], 1)
+
+    def test_identical_plans_are_collapsed_rather_than_repeated(self):
+        self.stock(self.hamra, self.panadol, 20)
+
+        options = self.options([{"medicine": str(self.panadol.id), "quantity": 2}])
+
+        self.assertEqual(len(options), 1, "one possible plan must not be shown four times under four labels")
+
+    def test_cheapest_splits_the_basket_when_that_buys_a_lower_price(self):
+        # Two free-priced items, and each pharmacy is cheap on one and dear on
+        # the other. Either can fill the basket alone, so `best` takes the single
+        # stop; only the cost-led strategy pays for a second pickup to get both
+        # items at their lower price. This is the trade-off the option exists for.
+        vitamin = Medicine.objects.create(
+            brand_name="Vitamin D3",
+            strength="1000IU",
+            form="Capsule",
+            category=ProductCategory.SUPPLEMENT,
+            price_regime=PriceRegime.FREE,
+            regulated_price=None,
+        )
+        self.stock(self.hamra, self.omega, 20, price=Decimal("4.00"))
+        self.stock(self.hamra, vitamin, 20, price=Decimal("40.00"))
+        self.stock(self.achrafieh, self.omega, 20, price=Decimal("40.00"))
+        self.stock(self.achrafieh, vitamin, 20, price=Decimal("4.00"))
+
+        items = [{"medicine": str(self.omega.id), "quantity": 2}, {"medicine": str(vitamin.id), "quantity": 2}]
+        by_kind = {option["kind"]: option for option in self.options(items)}
+
+        self.assertIn("cheapest", by_kind)
+        self.assertEqual(by_kind["best"]["pharmacy_count"], 1)
+        self.assertEqual(by_kind["cheapest"]["pharmacy_count"], 2)
+        self.assertLess(by_kind["cheapest"]["items_subtotal"], by_kind["best"]["items_subtotal"])
+
+    def test_fastest_prefers_the_pharmacy_that_can_pack_sooner(self):
+        # Same price and same medicine; the nearer pharmacy is slow to pack.
+        self.hamra.order_preparation_minutes = 90
+        self.hamra.save(update_fields=["order_preparation_minutes"])
+        self.achrafieh.order_preparation_minutes = 5
+        self.achrafieh.save(update_fields=["order_preparation_minutes"])
+        self.stock(self.hamra, self.panadol, 20)
+        self.stock(self.achrafieh, self.panadol, 20)
+
+        by_kind = {option["kind"]: option for option in self.options([{"medicine": str(self.panadol.id), "quantity": 2}])}
+
+        self.assertEqual(by_kind["best"]["allocations"][0]["pharmacy"], self.hamra.id)
+        self.assertEqual(by_kind["fastest"]["allocations"][0]["pharmacy"], self.achrafieh.id)
+
+    def test_every_option_carries_a_total_and_an_arrival_estimate(self):
+        self.stock(self.hamra, self.panadol, 20)
+        self.stock(self.achrafieh, self.nexium, 20)
+
+        for option in self.options([{"medicine": str(self.panadol.id), "quantity": 2}, {"medicine": str(self.nexium.id), "quantity": 1}]):
+            self.assertEqual(option["total"], option["items_subtotal"] + option["delivery_fee"])
+            self.assertGreater(option["eta_minutes_low"], 0)
+            self.assertGreater(option["eta_minutes_high"], option["eta_minutes_low"])
+
+    def test_a_split_basket_is_estimated_to_take_longer_than_a_single_stop(self):
+        # The second pickup is a real detour and a real stop, and the estimate
+        # has to say so rather than quoting the same window either way.
+        self.stock(self.hamra, self.panadol, 20)
+        self.stock(self.hamra, self.nexium, 20)
+        single = self.options([{"medicine": str(self.panadol.id), "quantity": 2}, {"medicine": str(self.nexium.id), "quantity": 1}])[0]
+
+        # Archived rather than deleted: a batch with stock movements against it
+        # is protected, and archiving is how a pharmacy retires one anyway.
+        InventoryBatch.objects.filter(pharmacy=self.hamra, medicine=self.nexium).update(is_archived=True)
+        self.stock(self.achrafieh, self.nexium, 20)
+        split = self.options([{"medicine": str(self.panadol.id), "quantity": 2}, {"medicine": str(self.nexium.id), "quantity": 1}])[0]
+
+        self.assertGreater(split["eta_minutes_low"], single["eta_minutes_low"])
+
+    def test_an_unsourceable_basket_offers_nothing_rather_than_an_empty_plan(self):
+        options = self.options([{"medicine": str(self.panadol.id), "quantity": 2}])
+
+        self.assertEqual(options, [])
+
+    def test_lowest_cost_is_not_offered_when_it_saves_nothing(self):
+        # MoPH-regulated prices are identical at every pharmacy by law, so
+        # splitting buys no saving and costs an extra pickup. Offering that as
+        # "lowest cost" would be a worse plan wearing a better label.
+        self.stock(self.hamra, self.panadol, 20)
+        self.stock(self.hamra, self.nexium, 20)
+        self.stock(self.achrafieh, self.panadol, 20)
+        self.stock(self.achrafieh, self.nexium, 20)
+
+        kinds = [option["kind"] for option in self.options(
+            [{"medicine": str(self.panadol.id), "quantity": 2}, {"medicine": str(self.nexium.id), "quantity": 1}]
+        )]
+
+        self.assertNotIn("cheapest", kinds)

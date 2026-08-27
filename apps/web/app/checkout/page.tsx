@@ -12,14 +12,16 @@ import {
   DeliveryWindowSelector,
   PaymentSelector,
   PrescriptionVerificationSummary,
-  paymentLabel,
   type DeliveryChoice
 } from "@/components/checkout/CheckoutParts";
 import { Icon } from "@/components/ui/Icon";
+import { apiFetch, ApiError } from "@/lib/api-client";
 import { useBasket } from "@/lib/basket";
 import { useCheckoutPlan } from "@/lib/patient/checkout";
-import { applyDispensing, useAccount, useOrders, usePrescriptions } from "@/lib/patient/store";
-import { formatMoney, plural, todayIso } from "@/lib/patient/format";
+import { useAccount, usePrescriptions } from "@/lib/patient/store";
+import { toOrder } from "@/lib/patient/adapters";
+import { formatMoney, plural } from "@/lib/patient/format";
+import type { Order as ApiOrder } from "@/types/api";
 import type { Order } from "@/lib/patient/types";
 
 /** Windows offered for a scheduled delivery. Three, so the choice stays a choice. */
@@ -41,18 +43,21 @@ export default function CheckoutPage() {
   const { plan, ready: planReady, clearPlan } = useCheckoutPlan();
   const account = useAccount();
   const { prescriptions } = usePrescriptions();
-  const { placeOrder } = useOrders();
 
   const [addressId, setAddressId] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [when, setWhen] = useState<DeliveryChoice>({ kind: "asap" });
   const [addressOpen, setAddressOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("editing");
+  const [failure, setFailure] = useState("");
   const [placed, setPlaced] = useState<Order | null>(null);
 
   // Guards the button against a second press while the first is in flight and
   // against a double-submit from a fast double click.
   const submitting = useRef(false);
+  // Stable for the life of this checkout, so a retry after a lost response
+  // returns the order the first attempt created instead of placing a second.
+  const idempotencyKey = useRef(`checkout-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
   useEffect(() => {
     if (!account.ready) return;
@@ -104,44 +109,36 @@ export default function CheckoutPage() {
     if (!plan || !address || !payment || submitting.current) return;
     submitting.current = true;
     setPhase("placing");
+    setFailure("");
 
     try {
-      // Stands in for POST /orders/. The delay is what makes the disabled and
-      // loading states worth building rather than theoretical.
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      // The platform re-sources the basket at this point and reserves the
+      // stock. The plan chosen a screen ago informed the price shown; it is not
+      // an instruction, because supply moves and only what is actually
+      // reservable can be sold.
+      const record = await apiFetch<ApiOrder>("/shop/orders/", {
+        method: "POST",
+        // Guards against a double-submit surviving a retry or a lost response:
+        // the same key returns the order the first request created.
+        headers: { "Idempotency-Key": idempotencyKey.current },
+        body: JSON.stringify({
+          items: plan.lines.map((line) => ({ medicine: line.medicineId, quantity: line.quantity })),
+          address: address.id,
+          fulfillment_type: "DELIVERY",
+          scheduled_for: when.kind === "scheduled" ? windowStart(when.window) : null,
+          payment_method: payment.kind === "cash" ? "COD" : "MOCK_GATEWAY",
+          prescription_code: plan.lines.find((line) => line.prescriptionId)?.prescriptionId ?? ""
+        })
+      });
 
-      const reference = `HC-${Math.floor(24100 + Math.random() * 800)}`;
-      const order: Order = {
-        id: reference,
-        placedAt: todayIso(),
-        stage: "confirmed",
-        arrivalWindow: when.kind === "asap" ? plan.etaLabel : when.window,
-        scheduled: when.kind === "scheduled",
-        deliveredAt: null,
-        address,
-        paymentLabel: paymentLabel(payment),
-        medicationTotal: plan.medicationTotal,
-        deliveryFee: plan.deliveryFee,
-        reachedAt: { confirmed: nowLabel() },
-        rating: null,
-        reviewComment: "",
-        lines: plan.lines.map((line) => ({
-          medicineId: line.medicineId,
-          name: line.name,
-          generic: line.generic,
-          quantity: line.quantity,
-          unitPrice: line.unitPrice,
-          pharmacy: line.pharmacy,
-          prescriptionId: line.prescriptionId ?? null
-        }))
-      };
-
-      placeOrder(order);
-      applyDispensing(order.lines);
       basket.clear();
       clearPlan();
-      setPlaced(order);
-    } catch {
+      setPlaced(toOrder(record));
+    } catch (error) {
+      // The API explains a refusal — an unverified email, a missing
+      // prescription, stock that went while the patient was deciding — and
+      // that reason is far more useful than "something went wrong".
+      setFailure(error instanceof ApiError ? error.message : "");
       setPhase("failed");
     } finally {
       submitting.current = false;
@@ -255,7 +252,7 @@ export default function CheckoutPage() {
             {phase === "failed" ? (
               <p className="hc-inline-note hc-inline-note-alert" role="alert">
                 <Icon name="alert" size={16} />
-                We could not place your order. Nothing has been charged. Please try again.
+                {failure || "We could not place your order. Please try again."} Nothing has been charged.
               </p>
             ) : null}
           </aside>
@@ -275,8 +272,25 @@ export default function CheckoutPage() {
   );
 }
 
-function nowLabel(): string {
-  return new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+/**
+ * The instant a chosen window opens, as the API wants it.
+ *
+ * WINDOWS above are written the way they are read aloud ("4:00 - 5:00 PM"), so
+ * the start time is parsed back out of the label rather than kept alongside it.
+ * The window's width is the order's `window_minutes`, which the API defaults.
+ */
+function windowStart(label: string): string {
+  const match = /^(\d{1,2}):(\d{2})\s*-\s*\d{1,2}:\d{2}\s*(AM|PM)$/i.exec(label.trim());
+  const when = new Date();
+  if (match) {
+    const [, rawHour, minutes, meridiem] = match;
+    let hour = Number(rawHour) % 12;
+    if (meridiem.toUpperCase() === "PM") hour += 12;
+    when.setHours(hour, Number(minutes), 0, 0);
+    // A window that has already passed today is meant for tomorrow.
+    if (when.getTime() < Date.now()) when.setDate(when.getDate() + 1);
+  }
+  return when.toISOString();
 }
 
 /**

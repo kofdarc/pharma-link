@@ -3,20 +3,13 @@
 import { useState } from "react";
 import { Dialog } from "@/components/patient/Dialog";
 import { Icon } from "@/components/ui/Icon";
-import { MetaChip } from "@/components/medicines/Badges";
 import { PackThumb } from "@/components/medicines/PackThumb";
-import { MOCK_CATALOG } from "@/lib/catalog/mock-catalog";
-import type { MedicineSummary } from "@/lib/catalog/types";
 import type { BasketItem } from "@/lib/basket";
 import { formatDate, formatMoney, plural } from "@/lib/patient/format";
 import { prescriptionsCovering, remainingFor } from "@/lib/patient/checkout";
 import type { Prescription } from "@/lib/patient/types";
 
 const MAX_QUANTITY = 10;
-
-export function listing(id: string): MedicineSummary | undefined {
-  return MOCK_CATALOG.find((entry) => entry.id === id);
-}
 
 /**
  * One medication in the basket.
@@ -41,22 +34,20 @@ export function CartLine({
   onAttach: (prescriptionId: string | null) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const medicine = listing(item.medicine);
-  const price = item.unit_price ?? medicine?.fromPrice ?? null;
+  // Everything shown here comes off the basket line itself, captured when the
+  // medicine was added. The cart does not re-query the catalogue: a line the
+  // patient put there must keep rendering even when the API is unreachable.
+  const price = item.unit_price ?? null;
   const matches = prescriptionsCovering(prescriptions, item.medicine);
   const attached = prescriptions.find((entry) => entry.id === item.prescription_id) ?? null;
 
   return (
     <article className="hc-cartline">
-      <PackThumb brand={medicine?.brand ?? item.name} image={medicine?.image} />
+      <PackThumb brand={item.name} />
 
       <div className="hc-cartline-main">
         <h3 className="hc-cartline-name">{item.name}</h3>
-        {item.generic || medicine?.generic ? <p className="hc-small">{item.generic || medicine?.generic}</p> : null}
-        <div className="hc-cartline-meta">
-          {medicine?.form ? <MetaChip>{medicine.form}</MetaChip> : null}
-          {medicine?.packSize ? <MetaChip>{medicine.packSize}</MetaChip> : null}
-        </div>
+        {item.generic ? <p className="hc-small">{item.generic}</p> : null}
 
         {item.requires_prescription ? (
           <div className={`hc-cover${attached ? " hc-cover-met" : ""}`}>
@@ -217,11 +208,8 @@ export function CartSummary({
   // Distinct medications, not packs. "4 medications" for three medicines, one
   // of which is doubled, is a different and wrong fact.
   const count = items.length;
-  const priced = items.filter((item) => (item.unit_price ?? listing(item.medicine)?.fromPrice ?? null) !== null);
-  const subtotal = priced.reduce(
-    (sum, item) => sum + (item.unit_price ?? listing(item.medicine)?.fromPrice ?? 0) * item.quantity,
-    0
-  );
+  const priced = items.filter((item) => (item.unit_price ?? null) !== null);
+  const subtotal = priced.reduce((sum, item) => sum + (item.unit_price ?? 0) * item.quantity, 0);
   const someUnpriced = priced.length < items.length;
 
   return (

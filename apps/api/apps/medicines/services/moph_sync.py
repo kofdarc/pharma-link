@@ -383,6 +383,13 @@ def sync_products(rows: list[MophProductRow]) -> dict:
     for the ~5.7k rows synced before this field existed. Once a `moph_code` is
     attached it is never reassigned.
 
+    Multiple MoPH `code`s that reduce to one (brand, strength, form) - typically
+    pack-size or re-registration variants of the same product - are folded into a
+    single row within a batch (`unique_active_medicine_variant` allows only one
+    active row per triple). The survivor keeps the highest-priority source's
+    `moph_code` (or the code already bound to that variant's existing row) and
+    carries the rest in `moph_extra["alternate_moph_codes"]`.
+
     Field updates never let a blank/missing incoming value erase a good existing
     value (except the bookkeeping fields moph_source/moph_source_reference/
     moph_last_synced_at, and market_status - see below). `market_status` only
@@ -424,6 +431,50 @@ def sync_products(rows: list[MophProductRow]) -> dict:
         for m in backfill_candidates:
             if m.category == ProductCategory.MEDICINE:
                 existing_by_identity[(normalize_name(m.brand_name), normalize_name(m.strength))].append(m)
+
+        # MoPH issues a distinct `code` per pack size / re-registration of what is
+        # otherwise the same product; after `_clean_form` many collapse onto one
+        # (brand, strength, form) triple, which `unique_active_medicine_variant`
+        # only allows a single active row for. Fold same-variant rows in this
+        # batch into one - highest-priority source wins identity and market status
+        # (as in `_merge_same_code_rows`), the other codes are kept in
+        # `extra["alternate_moph_codes"]` - so they enrich that one row instead of
+        # all but the first raising IntegrityError in the upsert loop below.
+        existing_variant_code = {
+            (m.brand_name.lower(), m.strength.lower(), m.form.lower()): m.moph_code
+            for m in existing_by_code.values()
+            if m.is_active and m.moph_code is not None
+        }
+        by_variant: dict[tuple[str, str, str], list[MophProductRow]] = defaultdict(list)
+        for row in merged_rows:
+            by_variant[(row.brand_name.lower(), row.strength.lower(), row.form.lower())].append(row)
+
+        merged_rows = []
+        for variant_key, group in by_variant.items():
+            if len(group) == 1:
+                merged_rows.append(group[0])
+                continue
+            merged = _merge_same_code_rows(group)
+            group_codes = {r.moph_code for r in group if r.moph_code is not None}
+            pinned = existing_variant_code.get(variant_key)
+            if pinned in group_codes:
+                primary_code = pinned
+            elif merged.moph_code is not None:
+                primary_code = merged.moph_code
+            else:
+                primary_code = min(group_codes) if group_codes else None
+            if primary_code != merged.moph_code:
+                merged = replace(merged, moph_code=primary_code)
+            siblings = sorted(c for c in group_codes if c != primary_code)
+            if siblings:
+                merged.extra = {
+                    **merged.extra,
+                    "alternate_moph_codes": sorted(
+                        {*merged.extra.get("alternate_moph_codes", []), *siblings}
+                    ),
+                }
+            duplicates_skipped += len(group) - 1
+            merged_rows.append(merged)
 
         for row in merged_rows:
             medicine = existing_by_code.get(row.moph_code) if row.moph_code is not None else None

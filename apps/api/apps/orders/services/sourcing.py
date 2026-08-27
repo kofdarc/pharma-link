@@ -21,6 +21,13 @@ removes any pharmacy whose items the others can absorb.
 Freshness only penalises pharmacies whose stock is fed by the POS connector: a pharmacy
 with no `last_pos_observed_at` on its batches (dashboard-managed, or never yet synced)
 is treated as live and pays nothing, since there is no observation to call stale.
+
+Those weights are the platform's own judgement about what a good plan is, and they are
+what `plan_basket` uses by default. A shopper may reasonably want a different trade-off,
+so `Strategy` re-weighs the same cost model - faster, cheaper, one pharmacy only - and
+`fulfillment_options` plans the basket every way at once for them to choose from. Every
+option returned is a plan against live stock; a strategy with no answer is left out
+rather than shown empty.
 """
 
 from __future__ import annotations
@@ -33,7 +40,7 @@ from django.conf import settings
 from django.db.models import Min, Sum
 from django.utils import timezone
 
-from apps.common.geo import road_km
+from apps.common.geo import DROPOFF_SERVICE_MINUTES, PICKUP_SERVICE_MINUTES, road_km, travel_minutes
 from apps.inventory.models import InventoryBatch
 from apps.medicines.models import Medicine
 from apps.pharmacies.models import Pharmacy
@@ -46,6 +53,89 @@ FRESHNESS_WEIGHT = Decimal("0.15")
 STALE_GRACE_HOURS = Decimal("2")
 STALE_PENALTY_CAP_HOURS = Decimal("48")
 UNRATED_PHARMACY_RATING = Decimal("3.8")
+
+# Every estimate is a range. The upper bound is not padding for its own sake - a
+# quoted single number reads as a promise the platform cannot keep.
+ETA_SPREAD = Decimal("1.35")
+
+
+@dataclass(frozen=True)
+class Strategy:
+    """
+    One way of weighing the same live stock.
+
+    The set-cover in `plan_basket` is unchanged between strategies; only what it
+    considers expensive moves. `best` is the platform's own judgement and its
+    weights are the module constants above, so a plain `plan_basket()` call
+    behaves exactly as it always has.
+
+    `goods_weight` is what actually separates `cheapest` from the rest: raising
+    it while dropping the stop penalty makes the planner accept another pickup
+    stop in exchange for a lower shelf price, which is the trade a shopper
+    picking "lowest cost" is asking for.
+    """
+
+    key: str
+    label: str
+    tagline: str
+    stop_penalty: Decimal = STOP_PENALTY
+    distance_weight: Decimal = DISTANCE_WEIGHT
+    goods_weight: Decimal = Decimal("1")
+    rating_weight: Decimal = RATING_WEIGHT
+    reliability_weight: Decimal = RELIABILITY_WEIGHT
+    freshness_weight: Decimal = FRESHNESS_WEIGHT
+    # Cost per minute a pharmacy takes to pack an order. Zero everywhere except
+    # `fastest`, where it is the whole point.
+    preparation_weight: Decimal = Decimal("0")
+    # Only consider pharmacies that can carry the entire basket alone.
+    single_pharmacy_only: bool = False
+    # Take the one-stop shortcut whenever a pharmacy can cover everything, without
+    # costing a split against it. True for every strategy except `cheapest`, which
+    # exists precisely to find out whether splitting buys a lower price.
+    prefer_single_stop: bool = True
+    # Source each medicine from whoever sells it cheapest, instead of covering the
+    # basket with the fewest good pharmacies. Only `cheapest` does this - see
+    # `_cheapest_allocation` for why the set-cover cannot answer this question.
+    per_item_lowest_price: bool = False
+
+
+BEST = Strategy(
+    key="best",
+    label="Best overall",
+    tagline="The quickest way to get everything, at close to the lowest price.",
+)
+
+FASTEST = Strategy(
+    key="fastest",
+    label="Fastest",
+    tagline="Pharmacies that can start preparing straight away, and are closest to you.",
+    distance_weight=DISTANCE_WEIGHT * 3,
+    preparation_weight=Decimal("0.5"),
+    # A pharmacy whose connector went quiet may be packing against stock it no
+    # longer has, which is the slowest outcome of all.
+    freshness_weight=FRESHNESS_WEIGHT * 2,
+)
+
+CHEAPEST = Strategy(
+    key="cheapest",
+    label="Lowest cost",
+    tagline="The lowest listed prices, accepting a longer wait and more pickups.",
+    stop_penalty=STOP_PENALTY / 4,
+    distance_weight=DISTANCE_WEIGHT / 2,
+    goods_weight=Decimal("3"),
+    rating_weight=Decimal("0"),
+    prefer_single_stop=False,
+    per_item_lowest_price=True,
+)
+
+SINGLE = Strategy(
+    key="single",
+    label="One pharmacy",
+    tagline="Everything from a single pharmacy, if you would rather keep it together.",
+    single_pharmacy_only=True,
+)
+
+STRATEGIES = [BEST, FASTEST, CHEAPEST, SINGLE]
 
 
 @dataclass
@@ -79,16 +169,62 @@ class Candidate:
                 covered[medicine_id] = min(needed, supply[0])
         return {key: value for key, value in covered.items() if value > 0}
 
-    def cost_for(self, covered: dict[str, int]) -> Decimal:
+    def cost_for(self, covered: dict[str, int], strategy: "Strategy" = None) -> Decimal:
+        strategy = strategy or BEST
         goods = sum((self.offer[medicine_id][1] * units for medicine_id, units in covered.items()), Decimal("0"))
         return (
-            STOP_PENALTY
-            + DISTANCE_WEIGHT * Decimal(str(round(self.distance_km, 3)))
-            + goods
-            + RATING_WEIGHT * (Decimal("5") - self.rating)
-            + RELIABILITY_WEIGHT * (Decimal("100") - Decimal(str(self.pharmacy.fulfillment_success_rate)))
-            + FRESHNESS_WEIGHT * self.stale_hours
+            strategy.stop_penalty
+            + strategy.distance_weight * Decimal(str(round(self.distance_km, 3)))
+            + strategy.goods_weight * goods
+            + strategy.rating_weight * (Decimal("5") - self.rating)
+            + strategy.reliability_weight * (Decimal("100") - Decimal(str(self.pharmacy.fulfillment_success_rate)))
+            + strategy.freshness_weight * self.stale_hours
+            + strategy.preparation_weight * Decimal(str(self.pharmacy.order_preparation_minutes))
         )
+
+
+def _cheapest_allocation(
+    candidates: list[Candidate], outstanding: dict[str, int]
+) -> tuple[list[tuple[Candidate, dict[str, int]]], dict[str, int], list[str]]:
+    """
+    Each medicine from whoever sells it cheapest, however many stops that takes.
+
+    The greedy set-cover in `plan_basket` cannot answer this. It scores a
+    candidate on the whole slice it can cover, so a pharmacy holding the entire
+    basket always wins on cost-per-unit even when another sells half of it for a
+    quarter of the price - the saving is invisible until you look line by line.
+    So the cost-led strategy looks line by line.
+
+    Distance still breaks ties, because between two pharmacies charging the same
+    the nearer one is strictly better. Regulated medicines are priced identically
+    everywhere by law, so for most baskets this lands on the same plan as `best`
+    and gets collapsed away.
+    """
+    picked: dict = {}
+    explanation: list[str] = []
+    remaining = dict(outstanding)
+
+    for medicine_id, units in outstanding.items():
+        offers = sorted(
+            (candidate for candidate in candidates if candidate.offer.get(medicine_id, (0, 0))[0] > 0),
+            key=lambda candidate: (candidate.offer[medicine_id][1], candidate.distance_km),
+        )
+        for candidate in offers:
+            if remaining[medicine_id] <= 0:
+                break
+            take = min(remaining[medicine_id], candidate.offer[medicine_id][0])
+            picked.setdefault(id(candidate), (candidate, {}))[1][medicine_id] = take
+            remaining[medicine_id] -= take
+
+    chosen = list(picked.values())
+    if len(chosen) > 1:
+        explanation.append(
+            f"Split across {len(chosen)} pharmacies so every item comes from whoever lists it cheapest, "
+            "which costs an extra pickup."
+        )
+    elif chosen:
+        explanation.append(f"{chosen[0][0].pharmacy.name} lists every item at the lowest price nearby, so one stop covers it.")
+    return chosen, remaining, explanation
 
 
 def public_cap(pharmacy: Pharmacy) -> int:
@@ -166,17 +302,39 @@ def build_candidates(*, medicine_ids: list[str], latitude: float, longitude: flo
     return list(candidates.values())
 
 
-def plan_basket(*, items: list[dict], latitude: float, longitude: float, radius_km: float | None = None) -> dict:
+def plan_basket(
+    *,
+    items: list[dict],
+    latitude: float,
+    longitude: float,
+    radius_km: float | None = None,
+    strategy: Strategy | None = None,
+) -> dict:
     """
     items: [{"medicine": uuid-ish, "quantity": int}]
     Returns the allocation, what could not be sourced, and why the plan looks the way it does.
+
+    `strategy` re-weighs what counts as expensive. For every strategy but
+    `cheapest` that is all it does - the set-cover is unchanged; `cheapest`
+    swaps in a per-item allocation, for the reason given in
+    `_cheapest_allocation`. Omitted, `strategy` is BEST, which is the behaviour
+    this planner has always had.
     """
+    strategy = strategy or BEST
     requested: dict[str, int] = {}
     for entry in items:
         key = str(entry["medicine"])
         requested[key] = requested.get(key, 0) + int(entry["quantity"])
     if not requested:
-        return {"allocations": [], "unfulfilled": [], "items_subtotal": Decimal("0"), "explanation": []}
+        return {
+            "allocations": [],
+            "unfulfilled": [],
+            "items_subtotal": Decimal("0"),
+            "pharmacy_count": 0,
+            "eta_minutes_low": None,
+            "eta_minutes_high": None,
+            "explanation": [],
+        }
 
     medicines = {str(item.id): item for item in Medicine.objects.filter(id__in=list(requested), is_active=True)}
     candidates = build_candidates(medicine_ids=list(requested), latitude=latitude, longitude=longitude, radius_km=radius_km)
@@ -190,9 +348,16 @@ def plan_basket(*, items: list[dict], latitude: float, longitude: float, radius_
         for candidate in candidates
         if all(candidate.offer.get(medicine_id, (0, 0))[0] >= units for medicine_id, units in requested.items())
     ]
-    if single_stop:
+    if strategy.single_pharmacy_only:
+        # No pharmacy can carry the whole basket, so this strategy has no answer.
+        # Reporting everything as unsourced is honest; inventing a split here
+        # would be answering a question the shopper did not ask.
+        candidates = single_stop
+    if strategy.per_item_lowest_price:
+        chosen, outstanding, explanation = _cheapest_allocation(candidates, outstanding)
+    elif single_stop and (strategy.prefer_single_stop or strategy.single_pharmacy_only):
         # One stop beats every split: pick the best single pharmacy outright.
-        best = min(single_stop, key=lambda candidate: candidate.cost_for(candidate.coverage(requested)))
+        best = min(single_stop, key=lambda candidate: candidate.cost_for(candidate.coverage(requested), strategy))
         chosen.append((best, dict(requested)))
         outstanding = {}
         explanation.append(f"{best.pharmacy.name} covers the whole basket in one stop ({best.distance_km:.1f} km away), so no split was needed.")
@@ -206,7 +371,7 @@ def plan_basket(*, items: list[dict], latitude: float, longitude: float, radius_
                 if not covered:
                     continue
                 units = sum(covered.values())
-                scored.append((candidate.cost_for(covered) / Decimal(units), candidate, covered))
+                scored.append((candidate.cost_for(covered, strategy) / Decimal(units), candidate, covered))
             if not scored:
                 break
             scored.sort(key=lambda entry: entry[0])
@@ -292,10 +457,89 @@ def plan_basket(*, items: list[dict], latitude: float, longitude: float, radius_
     if unfulfilled:
         explanation.append("Some units could not be sourced nearby; they were recorded as unmet demand for pharmacies in that area.")
 
+    allocations = sorted(allocations, key=lambda entry: entry["distance_km"])
+    eta_low, eta_high = delivery_eta_minutes(allocations)
     return {
-        "allocations": sorted(allocations, key=lambda entry: entry["distance_km"]),
+        "allocations": allocations,
         "unfulfilled": unfulfilled,
         "items_subtotal": subtotal,
         "pharmacy_count": len(allocations),
+        "eta_minutes_low": eta_low,
+        "eta_minutes_high": eta_high,
         "explanation": explanation,
     }
+
+
+def fulfillment_options(*, items: list[dict], latitude: float, longitude: float, radius_km: float | None = None) -> list[dict]:
+    """
+    The same basket planned every way the platform can offer, for the shopper to choose from.
+
+    Two rules keep this honest:
+
+      * A strategy that cannot source the basket at all is dropped, not shown
+        empty. `single` is the usual casualty - when no pharmacy stocks
+        everything, "one pharmacy" is not an option that exists.
+      * Two strategies that land on the identical allocation are collapsed to
+        the first. Four cards naming the same pharmacies at four different
+        prices would be four different claims about one plan.
+      * An option that does not deliver what its label promises is dropped.
+        `cheapest` is the one this catches: most of the catalog is MoPH-priced,
+        identical at every counter by law, so splitting the basket buys nothing
+        and costs a pickup. Offering that as "lowest cost" would be a worse plan
+        under a better name.
+    """
+    delivery_fee = Decimal(str(settings.DELIVERY_BASE_FEE))
+    options: list[dict] = []
+    seen: set[tuple] = set()
+    baseline: Decimal | None = None
+
+    for strategy in STRATEGIES:
+        plan = plan_basket(items=items, latitude=latitude, longitude=longitude, radius_km=radius_km, strategy=strategy)
+        if not plan["allocations"]:
+            continue
+        if strategy is BEST:
+            baseline = plan["items_subtotal"]
+        elif strategy is CHEAPEST and baseline is not None and plan["items_subtotal"] >= baseline:
+            continue
+        fingerprint = tuple(
+            sorted(
+                (str(entry["pharmacy"]), line["medicine"], line["quantity"])
+                for entry in plan["allocations"]
+                for line in entry["lines"]
+            )
+        )
+        if fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+        options.append(
+            {
+                **plan,
+                "kind": strategy.key,
+                "label": strategy.label,
+                "tagline": strategy.tagline,
+                "delivery_fee": delivery_fee,
+                "total": plan["items_subtotal"] + delivery_fee,
+            }
+        )
+    return options
+
+
+def delivery_eta_minutes(allocations: list[dict]) -> tuple[int | None, int | None]:
+    """
+    How long this plan should take, door to door.
+
+    Pharmacies pack in parallel, so the wait before collection is the slowest of
+    them, not their total. Travel is then sequential: the driver visits each
+    pickup and carries on to the shopper, so every extra pharmacy on a plan costs
+    both its distance and a service stop. That is the same fact the stop penalty
+    encodes in the cost model, surfaced here as time. Speed and per-stop service
+    times are the routing planner's, from apps.common.geo, so the estimate a
+    shopper is shown and the one dispatch works to cannot drift apart.
+    """
+    if not allocations:
+        return None, None
+    packing = max(float(entry["preparation_minutes"]) for entry in allocations)
+    travel = travel_minutes(sum(float(entry["distance_km"]) for entry in allocations))
+    service = PICKUP_SERVICE_MINUTES * len(allocations) + DROPOFF_SERVICE_MINUTES
+    low = Decimal(str(packing + travel + service))
+    return int(low), int(low * ETA_SPREAD)

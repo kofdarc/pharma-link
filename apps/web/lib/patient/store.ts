@@ -1,6 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api-client";
+import type {
+  DeliveryAddress as ApiAddress,
+  Order as ApiOrder,
+  Prescription as ApiPrescription,
+  RecurringOrder as ApiRecurringOrder,
+  User
+} from "@/types/api";
+import {
+  fromAddress,
+  fromNotifications,
+  fromPaymentMethod,
+  fromPreference,
+  scheduleId,
+  toAddress,
+  toNotifications,
+  toOrder,
+  toPaymentMethod,
+  toPrescription,
+  toProfile,
+  toRefills,
+  type ApiNotificationPreferences,
+  type ApiSavedPaymentMethod
+} from "./adapters";
 import type {
   Address,
   NotificationPreferences,
@@ -14,275 +38,296 @@ import type {
 import { addDays, todayIso } from "./format";
 
 /**
- * The patient's records for the demo build.
+ * The patient's records, read from the API.
  *
- * Same shape and same reasoning as `lib/basket.ts`: one localStorage key, a
- * custom event so components in the same tab stay in sync, and no provider to
- * thread through the tree. There is no patient-facing API for prescriptions,
- * orders, refills or account settings yet, so this is the seam. When those
- * endpoints land, each `use*` hook below becomes a fetch; nothing outside this
- * file has to change.
+ * These used to live in localStorage, which meant a patient's prescriptions,
+ * orders and refills existed only in the browser that created them: invisible
+ * on a second device, gone with the cache, and unrelated to what the pharmacy
+ * or the platform believed. The database is now the only source of truth, and
+ * every hook below is a request against it.
  *
- * A new patient starts empty. This used to seed itself from
- * `mock-patient.ts` so the demo had something to show, but that meant every
- * visitor - signed in or not - was shown one fictional patient's records as if
- * they were their own. The fixtures are still there for tests and design work;
- * nothing in the running app reads them.
+ * Shapes are translated in `adapters.ts` so `types.ts` — and therefore every
+ * page — stays a description of what a patient reads rather than of how the
+ * platform stores it.
  *
- * Kept deliberately small. A demo does not need a state library, and adding one
- * would make this slice the odd one out in a repo that has none.
+ * Each hook fetches independently and exposes a `refresh`. There is no cache
+ * layer and no state library: the patient area is a handful of screens, and a
+ * store would be the odd one out in a repo that has none. A mutation refetches
+ * the collection it touched rather than reconciling it locally, so what is on
+ * screen is always something the server actually said.
  */
 
-// Bumped from _v1 when the seed data was removed: browsers that visited the
-// demo build hold a blob full of the old fictional patient's records, and a
-// signed-in user must not inherit them.
-export const PATIENT_STORAGE_KEY = "healthconnect_patient_v2";
 const CHANGED_EVENT = "healthconnect:patient-changed";
 
-export interface PatientState {
-  profile: PatientProfile;
-  addresses: Address[];
-  payments: PaymentMethod[];
-  notifications: NotificationPreferences;
-  prescriptions: Prescription[];
-  orders: Order[];
-  refills: Refill[];
-}
-
-/** What a patient with no records yet has. Preferences still need a default. */
-const DEFAULT_NOTIFICATIONS: NotificationPreferences = {
-  orderUpdates: true,
-  deliveryUpdates: true,
-  prescriptionReminders: true,
-  refillReminders: true,
-  productNews: false
-};
-
-function seed(): PatientState {
-  return {
-    profile: { firstName: "", lastName: "", email: "", phone: "" },
-    addresses: [],
-    payments: [],
-    notifications: { ...DEFAULT_NOTIFICATIONS },
-    prescriptions: [],
-    orders: [],
-    refills: []
-  };
-}
-
-/** Drop everything this device holds for the patient. Used when signing out. */
-export function clearPatientState() {
-  window.localStorage.removeItem(PATIENT_STORAGE_KEY);
+/** Tell every mounted hook to re-read. Used after a write, and on sign-out. */
+function announce() {
   window.dispatchEvent(new Event(CHANGED_EVENT));
-}
-
-function read(): PatientState {
-  if (typeof window === "undefined") return seed();
-  try {
-    const raw = window.localStorage.getItem(PATIENT_STORAGE_KEY);
-    if (!raw) return seed();
-    // Shallow-merged over the seed so a stored blob written by an older build
-    // still renders: missing collections fall back rather than crashing a page.
-    return { ...seed(), ...(JSON.parse(raw) as Partial<PatientState>) };
-  } catch {
-    return seed();
-  }
-}
-
-function write(state: PatientState) {
-  window.localStorage.setItem(PATIENT_STORAGE_KEY, JSON.stringify(state));
-  window.dispatchEvent(new Event(CHANGED_EVENT));
-}
-
-function mutate(change: (state: PatientState) => PatientState) {
-  write(change(read()));
 }
 
 /**
- * Subscribe to the stored records.
+ * Drop what this device is showing. Used when signing out.
  *
- * `ready` is false until the first client read, because the server renders the
- * seed and the browser may hold something newer. Pages use it to show their
- * skeleton rather than flashing seed data and then replacing it.
+ * There is nothing stored to clear any more — the records live on the server —
+ * so this only asks the mounted hooks to re-read, which they will now do
+ * without a token and get nothing back.
  */
-export function usePatientState() {
-  const [state, setState] = useState<PatientState>(seed);
+export function clearPatientState() {
+  announce();
+}
+
+/**
+ * One collection, fetched and kept in step.
+ *
+ * `ready` is false until the first response, so pages show a skeleton instead
+ * of rendering an empty list and correcting it a moment later — the difference
+ * between "you have no orders" and "we haven't asked yet".
+ */
+function useCollection<T>(load: (signal: AbortSignal) => Promise<T>, empty: T) {
+  const [data, setData] = useState<T>(empty);
   const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    const sync = () => setState(read());
-    sync();
-    setReady(true);
-    window.addEventListener(CHANGED_EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(CHANGED_EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
+    const controller = new AbortController();
+    let cancelled = false;
 
-  return { state, ready };
+    const run = () => {
+      load(controller.signal)
+        .then((result) => {
+          if (cancelled) return;
+          setData(result);
+          setFailed(false);
+        })
+        .catch(() => {
+          if (cancelled || controller.signal.aborted) return;
+          // A signed-out visitor legitimately has no records; the pages read
+          // that as an empty account rather than an error.
+          setData(empty);
+          setFailed(true);
+        })
+        .finally(() => {
+          if (!cancelled) setReady(true);
+        });
+    };
+
+    run();
+    const sync = () => run();
+    window.addEventListener(CHANGED_EVENT, sync);
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.removeEventListener(CHANGED_EVENT, sync);
+    };
+    // `load` is recreated each render by callers; `attempt` is the retry handle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempt]);
+
+  const refresh = useCallback(() => setAttempt((value) => value + 1), []);
+  return { data, ready, failed, refresh };
+}
+
+function list<T>(payload: T[] | { results: T[] } | null | undefined): T[] {
+  if (!payload) return [];
+  return Array.isArray(payload) ? payload : payload.results ?? [];
 }
 
 // --- prescriptions ---------------------------------------------------------
 
 export function usePrescriptions() {
-  const { state, ready } = usePatientState();
-  return { prescriptions: state.prescriptions, ready };
+  const { data, ready, failed, refresh } = useCollection<Prescription[]>(
+    async (signal) => list(await apiFetch<ApiPrescription[]>("/shop/prescriptions/mine/", { signal })).map(toPrescription),
+    []
+  );
+  return { prescriptions: data, ready, failed, refresh };
 }
 
 // --- orders ----------------------------------------------------------------
 
 export function useOrders() {
-  const { state, ready } = usePatientState();
+  const { data, ready, failed, refresh } = useCollection<Order[]>(
+    async (signal) => list(await apiFetch<ApiOrder[]>("/shop/orders/", { signal })).map(toOrder),
+    []
+  );
 
-  const placeOrder = useCallback((order: Order) => {
-    mutate((current) => ({ ...current, orders: [order, ...current.orders] }));
-  }, []);
-
-  const reviewOrder = useCallback((id: string, rating: number, comment: string) => {
-    mutate((current) => ({
-      ...current,
-      orders: current.orders.map((order) => (order.id === id ? { ...order, rating, reviewComment: comment } : order))
-    }));
-  }, []);
-
-  return { orders: state.orders, ready, placeOrder, reviewOrder };
-}
-
-/**
- * Draw down the prescribed quantities an order consumed, and move a
- * prescription to `partial` or `completed` accordingly.
- *
- * The real ledger lives server-side; this keeps the demo self-consistent, so a
- * prescription ordered on one screen reads as partly dispensed on the next.
- */
-export function applyDispensing(lines: { medicineId: string; quantity: number; prescriptionId?: string | null }[]) {
-  mutate((current) => ({
-    ...current,
-    prescriptions: current.prescriptions.map((prescription) => {
-      const relevant = lines.filter((line) => line.prescriptionId === prescription.id);
-      if (relevant.length === 0) return prescription;
-
-      const items = prescription.items.map((item) => {
-        const line = relevant.find((entry) => entry.medicineId === item.medicineId);
-        if (!line) return item;
-        return { ...item, dispensed: Math.min(item.prescribed, item.dispensed + line.quantity) };
+  const reviewOrder = useCallback(
+    async (id: string, rating: number, comment: string) => {
+      // Routes carry the human-readable reference; the API is keyed on the uuid.
+      const record = list(await apiFetch<ApiOrder[]>("/shop/orders/")).find((entry) => entry.reference === id);
+      if (!record) return;
+      // A review is of a pharmacy, on an order. With a split order the patient
+      // rated the delivery as a whole, so it attaches to the pharmacy that
+      // supplied most of it.
+      const largest = [...record.fulfillments].sort((a, b) => Number(b.subtotal) - Number(a.subtotal))[0];
+      if (!largest) return;
+      await apiFetch(`/shop/orders/${record.id}/review/`, {
+        method: "POST",
+        body: JSON.stringify({ pharmacy: largest.pharmacy, rating, comment })
       });
+      announce();
+    },
+    []
+  );
 
-      const anyRemaining = items.some((item) => item.dispensed < item.prescribed);
-      const anyDispensed = items.some((item) => item.dispensed > 0);
-      const status = !anyRemaining ? "completed" : anyDispensed ? "partial" : prescription.status;
-      return { ...prescription, items, status };
-    })
-  }));
+  return { orders: data, ready, failed, refresh, reviewOrder };
 }
 
 // --- refills ---------------------------------------------------------------
 
 export function useRefills() {
-  const { state, ready } = usePatientState();
+  const { data, ready, failed, refresh } = useCollection<Refill[]>(
+    async (signal) => list(await apiFetch<ApiRecurringOrder[]>("/shop/recurring-orders/", { signal })).flatMap(toRefills),
+    []
+  );
 
-  const setStatus = useCallback((id: string, status: RefillStatus) => {
-    mutate((current) => ({
-      ...current,
-      refills:
-        status === "cancelled"
-          ? current.refills.filter((refill) => refill.id !== id)
-          : current.refills.map((refill) => (refill.id === id ? { ...refill, status } : refill))
-    }));
+  // Every write addresses the recurring order, not the row: a refill row is one
+  // medicine on a schedule, and the schedule is what the API stores.
+  const patch = useCallback(async (id: string, body: Record<string, unknown>) => {
+    await apiFetch(`/shop/recurring-orders/${scheduleId(id)}/`, { method: "PATCH", body: JSON.stringify(body) });
+    announce();
   }, []);
 
-  const updateRefill = useCallback((id: string, patch: Partial<Refill>) => {
-    mutate((current) => ({
-      ...current,
-      refills: current.refills.map((refill) => (refill.id === id ? { ...refill, ...patch } : refill))
-    }));
-  }, []);
+  const setStatus = useCallback(
+    async (id: string, status: RefillStatus) => {
+      if (status === "cancelled") {
+        // Cancelling ends the schedule rather than parking it. Pausing is the
+        // reversible option and has its own control.
+        await apiFetch(`/shop/recurring-orders/${scheduleId(id)}/`, { method: "DELETE" });
+        announce();
+        return;
+      }
+      await patch(id, { is_active: status === "active" });
+    },
+    [patch]
+  );
+
+  const updateRefill = useCallback(
+    async (id: string, changes: Partial<Refill>) => {
+      const body: Record<string, unknown> = {};
+      if (changes.everyDays !== undefined) body.interval_days = changes.everyDays;
+      if (changes.preference !== undefined) body.preferred_hour = fromPreference(changes.preference);
+      if (changes.addressId !== undefined) body.address = changes.addressId;
+      if (changes.nextRefill !== undefined) body.next_run_at = changes.nextRefill;
+      if (Object.keys(body).length > 0) await patch(id, body);
+    },
+    [patch]
+  );
 
   /** Bring the next delivery forward to today plus the usual gap. */
-  const refillNow = useCallback((id: string) => {
-    mutate((current) => ({
-      ...current,
-      refills: current.refills.map((refill) =>
-        refill.id === id ? { ...refill, nextRefill: addDays(todayIso(), refill.everyDays) } : refill
-      )
-    }));
-  }, []);
+  const refillNow = useCallback(
+    async (id: string) => {
+      const refill = data.find((entry) => entry.id === id);
+      if (!refill) return;
+      await patch(id, { next_run_at: addDays(todayIso(), refill.everyDays) });
+    },
+    [data, patch]
+  );
 
-  return { refills: state.refills, ready, setStatus, updateRefill, refillNow };
+  return { refills: data, ready, failed, refresh, setStatus, updateRefill, refillNow };
 }
 
 // --- account ---------------------------------------------------------------
 
+interface AccountData {
+  profile: PatientProfile;
+  addresses: Address[];
+  payments: PaymentMethod[];
+  notifications: NotificationPreferences;
+}
+
+const EMPTY_ACCOUNT: AccountData = {
+  profile: { firstName: "", lastName: "", email: "", phone: "" },
+  addresses: [],
+  payments: [],
+  notifications: {
+    orderUpdates: true,
+    deliveryUpdates: true,
+    prescriptionReminders: true,
+    refillReminders: true,
+    productNews: false
+  }
+};
+
 export function useAccount() {
-  const { state, ready } = usePatientState();
+  const { data, ready, failed, refresh } = useCollection<AccountData>(async (signal) => {
+    const [user, addresses, payments, notifications] = await Promise.all([
+      apiFetch<User>("/auth/me/", { signal }),
+      apiFetch<ApiAddress[]>("/shop/addresses/", { signal }),
+      apiFetch<ApiSavedPaymentMethod[]>("/shop/saved-payment-methods/", { signal }),
+      apiFetch<ApiNotificationPreferences>("/auth/notification-preferences/", { signal })
+    ]);
+    return {
+      profile: toProfile(user),
+      addresses: list(addresses).map(toAddress),
+      payments: list(payments).map(toPaymentMethod),
+      notifications: toNotifications(notifications)
+    };
+  }, EMPTY_ACCOUNT);
 
-  const saveProfile = useCallback((profile: PatientProfile) => {
-    mutate((current) => ({ ...current, profile }));
-  }, []);
-
-  const saveAddress = useCallback((address: Address) => {
-    mutate((current) => {
-      const exists = current.addresses.some((entry) => entry.id === address.id);
-      const addresses = exists
-        ? current.addresses.map((entry) => (entry.id === address.id ? address : entry))
-        : [...current.addresses, address];
-      // One default at a time, whichever way the edit came in.
-      return {
-        ...current,
-        addresses: address.isDefault
-          ? addresses.map((entry) => ({ ...entry, isDefault: entry.id === address.id }))
-          : addresses
-      };
+  const saveProfile = useCallback(async (profile: PatientProfile) => {
+    // Email is the sign-in identity and is not editable here; see the API's
+    // OwnProfileSerializer for the rest of that boundary.
+    await apiFetch("/auth/me/", {
+      method: "PATCH",
+      body: JSON.stringify({ first_name: profile.firstName, last_name: profile.lastName, phone: profile.phone })
     });
+    announce();
   }, []);
 
-  const removeAddress = useCallback((id: string) => {
-    mutate((current) => {
-      const addresses = current.addresses.filter((entry) => entry.id !== id);
-      // Never leave the account without a default to deliver to.
-      if (addresses.length > 0 && !addresses.some((entry) => entry.isDefault)) addresses[0].isDefault = true;
-      return { ...current, addresses };
+  const saveAddress = useCallback(
+    async (address: Address) => {
+      const body = fromAddress(address, data.profile);
+      const known = data.addresses.some((entry) => entry.id === address.id);
+      await apiFetch(known ? `/shop/addresses/${address.id}/` : "/shop/addresses/", {
+        method: known ? "PUT" : "POST",
+        body: JSON.stringify(body)
+      });
+      announce();
+    },
+    [data.addresses, data.profile]
+  );
+
+  const removeAddress = useCallback(async (id: string) => {
+    await apiFetch(`/shop/addresses/${id}/`, { method: "DELETE" });
+    announce();
+  }, []);
+
+  const setDefaultAddress = useCallback(async (id: string) => {
+    await apiFetch(`/shop/addresses/${id}/`, { method: "PATCH", body: JSON.stringify({ is_default: true }) });
+    announce();
+  }, []);
+
+  const addPayment = useCallback(async (payment: Omit<PaymentMethod, "id"> & { id?: string }) => {
+    await apiFetch("/shop/saved-payment-methods/", { method: "POST", body: JSON.stringify(fromPaymentMethod(payment)) });
+    announce();
+  }, []);
+
+  const setDefaultPayment = useCallback(async (id: string) => {
+    await apiFetch(`/shop/saved-payment-methods/${id}/`, { method: "PATCH", body: JSON.stringify({ is_default: true }) });
+    announce();
+  }, []);
+
+  const removePayment = useCallback(async (id: string) => {
+    await apiFetch(`/shop/saved-payment-methods/${id}/`, { method: "DELETE" });
+    announce();
+  }, []);
+
+  const setNotifications = useCallback(async (notifications: NotificationPreferences) => {
+    await apiFetch("/auth/notification-preferences/", {
+      method: "PATCH",
+      body: JSON.stringify(fromNotifications(notifications))
     });
-  }, []);
-
-  const setDefaultAddress = useCallback((id: string) => {
-    mutate((current) => ({
-      ...current,
-      addresses: current.addresses.map((entry) => ({ ...entry, isDefault: entry.id === id }))
-    }));
-  }, []);
-
-  const setDefaultPayment = useCallback((id: string) => {
-    mutate((current) => ({
-      ...current,
-      payments: current.payments.map((entry) => ({ ...entry, isDefault: entry.id === id }))
-    }));
-  }, []);
-
-  const removePayment = useCallback((id: string) => {
-    mutate((current) => {
-      const payments = current.payments.filter((entry) => entry.id !== id);
-      if (payments.length > 0 && !payments.some((entry) => entry.isDefault)) payments[0].isDefault = true;
-      return { ...current, payments };
-    });
-  }, []);
-
-  const addPayment = useCallback((payment: PaymentMethod) => {
-    mutate((current) => ({ ...current, payments: [...current.payments, payment] }));
-  }, []);
-
-  const setNotifications = useCallback((notifications: NotificationPreferences) => {
-    mutate((current) => ({ ...current, notifications }));
+    announce();
   }, []);
 
   return {
     ready,
-    profile: state.profile,
-    addresses: state.addresses,
-    payments: state.payments,
-    notifications: state.notifications,
+    failed,
+    refresh,
+    profile: data.profile,
+    addresses: data.addresses,
+    payments: data.payments,
+    notifications: data.notifications,
     saveProfile,
     saveAddress,
     removeAddress,
@@ -294,15 +339,41 @@ export function useAccount() {
   };
 }
 
+// --- combined --------------------------------------------------------------
+
 /**
- * The stored profile, with anything the signed-in account actually knows laid
- * over it.
+ * Everything at once, for the home screen.
  *
- * Name and email are real: they come from `/auth/me/`. Phone has no field on
- * the account yet, so it stays local. Without this merge the account hub would
- * greet the signed-in user by name while the profile screen underneath it
- * showed the seed data, which is the kind of split a demo gets away with and a
- * real build does not.
+ * A convenience over the hooks above rather than a store: it is only worth
+ * having where one screen genuinely needs all of it, which is the hub and
+ * nowhere else.
+ */
+export function usePatientState() {
+  const { prescriptions, ready: prescriptionsReady } = usePrescriptions();
+  const { orders, ready: ordersReady } = useOrders();
+  const { refills, ready: refillsReady } = useRefills();
+  const account = useAccount();
+
+  return {
+    state: {
+      profile: account.profile,
+      addresses: account.addresses,
+      payments: account.payments,
+      notifications: account.notifications,
+      prescriptions,
+      orders,
+      refills
+    },
+    ready: prescriptionsReady && ordersReady && refillsReady && account.ready
+  };
+}
+
+/**
+ * The stored profile, with anything the signed-in account knows laid over it.
+ *
+ * Retained now that the profile itself comes from `/auth/me/`, because the
+ * pages call it with the `useUser` record they already hold and it keeps them
+ * from having to know which of the two is fresher.
  */
 export function profileFor(
   profile: PatientProfile,

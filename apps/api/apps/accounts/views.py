@@ -11,11 +11,13 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from apps.accounts.authentication import is_token_expired
-from apps.accounts.models import User, UserRole
+from apps.accounts.models import NotificationPreferences, User, UserRole
 from apps.accounts.permissions import IsPharmacyOwner, IsPlatformAdmin
 from apps.accounts.serializers import (
     EmailVerificationConfirmSerializer,
     LoginSerializer,
+    NotificationPreferencesSerializer,
+    OwnProfileSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     ResendVerificationSerializer,
@@ -161,6 +163,29 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+    def patch(self, request):
+        """Name and contact number only - see OwnProfileSerializer for why."""
+        serializer = OwnProfileSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UserSerializer(request.user).data)
+
+
+class NotificationPreferencesView(APIView):
+    """The signed-in user's own notification settings. Created on first read."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(NotificationPreferencesSerializer(NotificationPreferences.for_user(request.user)).data)
+
+    def patch(self, request):
+        preferences = NotificationPreferences.for_user(request.user)
+        serializer = NotificationPreferencesSerializer(preferences, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class AdminUserViewSet(ModelViewSet):

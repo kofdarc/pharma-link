@@ -75,8 +75,10 @@ export default function AddressesPage() {
                 }}
                 onDelete={() => setDeleting(address)}
                 onSetDefault={() => {
-                  account.setDefaultAddress(address.id);
-                  notify(`${address.label} is now your default address`);
+                  account
+                    .setDefaultAddress(address.id)
+                    .then(() => notify(`${address.label} is now your default address`))
+                    .catch(() => notify("We couldn't change your default address", "alert"));
                 }}
               />
             ))}
@@ -93,8 +95,10 @@ export default function AddressesPage() {
             setEditing(null);
           }}
           onSave={(address) => {
-            account.saveAddress(address);
-            notify(editing ? "Address updated" : "Address added");
+            account
+              .saveAddress(address)
+              .then(() => notify(editing ? "Address updated" : "Address added"))
+              .catch(() => notify("We couldn't save that address", "alert"));
           }}
           makeDefaultByDefault={account.addresses.length === 0}
         />
@@ -114,8 +118,10 @@ export default function AddressesPage() {
           confirmLabel="Delete address"
           tone="danger"
           onConfirm={() => {
-            account.removeAddress(deleting.id);
-            notify(`${deleting.label} deleted`);
+            account
+              .removeAddress(deleting.id)
+              .then(() => notify(`${deleting.label} deleted`))
+              .catch(() => notify("We couldn't delete that address", "alert"));
           }}
         />
       ) : null}

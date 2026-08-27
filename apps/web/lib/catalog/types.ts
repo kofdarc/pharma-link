@@ -32,7 +32,7 @@ export interface MedicineSummary {
   /**
    * MoPH-regulated medicines are sold at one fixed nationwide price - every
    * pharmacy charges the same, so `fromPrice` isn't a range and shouldn't be
-   * labelled "from". Unset (mock data) is treated as unregulated.
+   * labelled "from". Unset is treated as unregulated.
    */
   isPriceRegulated?: boolean;
   /** How many connected pharmacies may be able to fulfil it. Never stock depth. */
