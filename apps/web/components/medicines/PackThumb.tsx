@@ -1,11 +1,8 @@
-/**
- * Product imagery stand-in.
- *
- * Most catalogue records have no photograph, and generic pill photos would be
- * both misleading and worse-looking than nothing. A typographic tile keyed to
- * the brand name is honest, consistent, and gives every result the same visual
- * weight. A real image is used whenever the record has one.
- */
+"use client";
+
+import { useState } from "react";
+
+/** Product photo with a deterministic fallback for missing bucket objects. */
 export function PackThumb({
   brand,
   image,
@@ -13,25 +10,34 @@ export function PackThumb({
 }: {
   brand: string;
   image?: string | null;
-  size?: "md" | "lg" | "xl";
+  size?: "md" | "result" | "lg" | "xl";
 }) {
-  const className = `hc-pack${size === "lg" ? " hc-pack-lg" : ""}${size === "xl" ? " hc-pack-xl" : ""}`;
+  const [failedImage, setFailedImage] = useState<string | null>(null);
+  const hasImage = Boolean(image && failedImage !== image);
+  const sizeClass = size === "md" ? "" : ` hc-pack-${size}`;
+  const stateClass = hasImage ? " hc-pack-image" : " hc-pack-fallback";
+  const className = `hc-pack${sizeClass}${stateClass}`;
 
-  if (image) {
+  if (image && hasImage) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <span className={className}>{<img src={image} alt="" loading="lazy" />}</span>;
+    return (
+      <span className={className}>
+        <img
+          src={image}
+          alt={`${brand} product packaging`}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailedImage(image)}
+        />
+      </span>
+    );
   }
 
-  const initials = brand
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
+  const firstLetter = brand.trim().charAt(0).toLocaleUpperCase() || "?";
 
   return (
-    <span className={className} aria-hidden="true">
-      {initials}
+    <span className={className} aria-label={`${brand} image unavailable`} role="img">
+      <span>{firstLetter}</span>
     </span>
   );
 }

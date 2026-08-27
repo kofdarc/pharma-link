@@ -39,6 +39,12 @@ function write(items: BasketItem[]) {
   window.dispatchEvent(new Event(CHANGED_EVENT));
 }
 
+/** Empty the basket entirely. Used when signing out. */
+export function clearBasket() {
+  window.localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new Event(CHANGED_EVENT));
+}
+
 /**
  * Basket state lives in localStorage rather than on the server.
  *

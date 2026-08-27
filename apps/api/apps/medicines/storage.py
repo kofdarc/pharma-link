@@ -21,5 +21,6 @@ class ProductImageStorage(_ProductImageBaseStorage):
             kwargs.setdefault("location", "product-images")
         else:
             kwargs.setdefault("location", str(settings.PUBLIC_MEDIA_ROOT))
-            kwargs.setdefault("base_url", settings.PUBLIC_MEDIA_URL)
+            remote_base_url = settings.PRODUCT_IMAGE_BASE_URL if settings.DEBUG else ""
+            kwargs.setdefault("base_url", remote_base_url or settings.PUBLIC_MEDIA_URL)
         super().__init__(**kwargs)

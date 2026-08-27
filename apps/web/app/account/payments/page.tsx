@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, PageHead } from "@/components/patient/Page";
 import { PaymentMethodCard } from "@/components/account/SettingsParts";
 import { ConfirmDialog, Dialog } from "@/components/patient/Dialog";
 import { useToast } from "@/components/patient/Toast";
 import { Icon } from "@/components/ui/Icon";
-import { useCurrentUser } from "@/lib/auth";
 import { useAccount } from "@/lib/patient/store";
 import type { PaymentMethod } from "@/lib/patient/types";
 
@@ -21,7 +20,6 @@ import type { PaymentMethod } from "@/lib/patient/types";
  * screen keeps its shape.
  */
 export default function PaymentsPage() {
-  const { user } = useCurrentUser();
   const account = useAccount();
   const { notify } = useToast();
 
@@ -29,7 +27,7 @@ export default function PaymentsPage() {
   const [removing, setRemoving] = useState<PaymentMethod | null>(null);
 
   return (
-    <PatientShell initials={initialsFor(user?.first_name ?? account.profile.firstName, user?.last_name)}>
+    <PatientShell>
       <div className="hc-wrap hc-page hc-wrap-narrow">
         <PageHead
           title="Payment methods"

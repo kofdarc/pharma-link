@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 from apps.accounts.models import UserRole
 from apps.inventory.models import StockMovement
 from apps.inventory.services.stock import create_inventory_batch
-from apps.medicines.models import Medicine
+from apps.medicines.models import MarketStatus, Medicine, PriceRegime
 from apps.pharmacies.models import Pharmacy
 from apps.prescriptions.models import PrescriptionRecord
 
@@ -18,7 +18,9 @@ class SaleCreationTests(APITestCase):
         User = get_user_model()
         self.pharmacy = Pharmacy.objects.create(name="Cedar Care", city="Beirut", area="Hamra", phone="111")
         self.staff = User.objects.create_user(email="staff@test.local", password="Password123!", role=UserRole.PHARMACY_STAFF, pharmacy=self.pharmacy)
-        self.medicine = Medicine.objects.create(brand_name="Panadol", generic_name="Paracetamol", strength="500mg", form="Tablet")
+        self.medicine = Medicine.objects.create(
+            brand_name="Panadol", generic_name="Paracetamol", strength="500mg", form="Tablet", price_regime=PriceRegime.FREE
+        )
         self.batch = create_inventory_batch(
             user=self.staff,
             pharmacy=self.pharmacy,
@@ -44,6 +46,19 @@ class SaleCreationTests(APITestCase):
             {"items": [{"medicine": str(self.medicine.id), "quantity": 99, "unit_price": "2.00"}]},
             format="json",
         )
+        self.assertEqual(response.status_code, 400)
+
+    def test_non_marketed_medicine_cannot_be_sold(self):
+        self.medicine.market_status = MarketStatus.NON_MARKETED
+        self.medicine.save(update_fields=["market_status"])
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.post(
+            "/api/pharmacy/sales/",
+            {"items": [{"medicine": str(self.medicine.id), "quantity": 1, "unit_price": "2.00"}], "payment_method": "CASH"},
+            format="json",
+        )
+
         self.assertEqual(response.status_code, 400)
 
     def test_prescription_required_medicine_cannot_be_sold_without_one(self):

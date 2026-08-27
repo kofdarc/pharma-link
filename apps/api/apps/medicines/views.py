@@ -54,6 +54,13 @@ class MedicineViewSet(ReadOnlyModelViewSet):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def medicine_search(request):
+    medicine_id = request.query_params.get("id")
+    if medicine_id:
+        medicine = Medicine.objects.filter(id=medicine_id, is_active=True).prefetch_related("aliases").first()
+        if not medicine:
+            return Response(status=404)
+        return Response(MedicineSerializer(medicine).data)
+
     query = request.query_params.get("q", "")
     serializer = MedicineSerializer(search_medicines(query, active_only=True), many=True)
     return Response(serializer.data)

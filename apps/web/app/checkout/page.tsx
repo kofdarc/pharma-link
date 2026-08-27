@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, EmptyPanel, PageHead } from "@/components/patient/Page";
 import { AddressFormDialog } from "@/components/account/AddressForm";
 import {
@@ -16,11 +16,9 @@ import {
   type DeliveryChoice
 } from "@/components/checkout/CheckoutParts";
 import { Icon } from "@/components/ui/Icon";
-import { useCurrentUser } from "@/lib/auth";
 import { useBasket } from "@/lib/basket";
 import { useCheckoutPlan } from "@/lib/patient/checkout";
 import { applyDispensing, useAccount, useOrders, usePrescriptions } from "@/lib/patient/store";
-import { MOCK_PROFILE } from "@/lib/patient/mock-patient";
 import { formatMoney, plural, todayIso } from "@/lib/patient/format";
 import type { Order } from "@/lib/patient/types";
 
@@ -39,7 +37,6 @@ type Phase = "editing" | "placing" | "placed" | "failed";
  */
 export default function CheckoutPage() {
   const router = useRouter();
-  const { user } = useCurrentUser();
   const basket = useBasket();
   const { plan, ready: planReady, clearPlan } = useCheckoutPlan();
   const account = useAccount();
@@ -63,16 +60,15 @@ export default function CheckoutPage() {
     setPaymentId((current) => current ?? account.payments.find((entry) => entry.isDefault)?.id ?? account.payments[0]?.id ?? null);
   }, [account.ready, account.addresses, account.payments]);
 
-  const initials = initialsFor(user?.first_name ?? MOCK_PROFILE.firstName, user?.last_name);
   const address = account.addresses.find((entry) => entry.id === addressId) ?? null;
   const payment = account.payments.find((entry) => entry.id === paymentId) ?? null;
   const loading = !planReady || !account.ready || !basket.ready;
 
-  if (placed) return <OrderPlaced order={placed} initials={initials} />;
+  if (placed) return <OrderPlaced order={placed} />;
 
   if (loading) {
     return (
-      <PatientShell initials={initials}>
+      <PatientShell>
         <div className="hc-wrap hc-page">
           <CardSkeletons count={3} lines={3} />
         </div>
@@ -84,7 +80,7 @@ export default function CheckoutPage() {
   // wrong turn, so the page sends the patient back to the step that produces one.
   if (!plan) {
     return (
-      <PatientShell initials={initials}>
+      <PatientShell>
         <div className="hc-wrap hc-page">
           <PageHead title="Checkout" back={{ href: "/cart", label: "Basket" }} />
           <EmptyPanel
@@ -153,7 +149,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <PatientShell initials={initials}>
+    <PatientShell>
       <div className="hc-wrap hc-page">
         <PageHead title="Checkout" back={{ href: "/cart/fulfillment", label: "Fulfilment options" }} />
 
@@ -290,9 +286,9 @@ function nowLabel(): string {
  * screen answers what happens next and gets out of the way; there is nothing to
  * celebrate here.
  */
-function OrderPlaced({ order, initials }: { order: Order; initials: string }) {
+function OrderPlaced({ order }: { order: Order }) {
   return (
-    <PatientShell initials={initials}>
+    <PatientShell>
       <div className="hc-wrap hc-page">
         <div className="hc-confirm">
           <span className="hc-confirm-mark" aria-hidden="true">

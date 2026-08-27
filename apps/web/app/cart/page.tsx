@@ -1,16 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, EmptyPanel, PageHead } from "@/components/patient/Page";
 import { CartLine, CartSummary } from "@/components/cart/CartParts";
 import { useToast } from "@/components/patient/Toast";
 import { Icon } from "@/components/ui/Icon";
-import { useCurrentUser } from "@/lib/auth";
 import { useBasket } from "@/lib/basket";
 import { usePrescriptions } from "@/lib/patient/store";
 import { useAutoPrescriptionMatch } from "@/lib/patient/checkout";
-import { MOCK_PROFILE } from "@/lib/patient/mock-patient";
 
 /**
  * The basket.
@@ -21,7 +19,6 @@ import { MOCK_PROFILE } from "@/lib/patient/mock-patient";
  * price to check out against.
  */
 export default function CartPage() {
-  const { user } = useCurrentUser();
   const basket = useBasket();
   const { prescriptions, ready: prescriptionsReady } = usePrescriptions();
   const { notify } = useToast();
@@ -29,12 +26,11 @@ export default function CartPage() {
   const { items, ready: basketReady, setPrescription } = basket;
   useAutoPrescriptionMatch(items, prescriptions, basketReady && prescriptionsReady, setPrescription);
 
-  const initials = initialsFor(user?.first_name ?? MOCK_PROFILE.firstName, user?.last_name);
   const loading = !basket.ready || !prescriptionsReady;
   const uncovered = basket.items.filter((item) => item.requires_prescription && !item.prescription_id);
 
   return (
-    <PatientShell initials={initials}>
+    <PatientShell>
       <div className="hc-wrap hc-page">
         <PageHead title="Your medications" lead="Review what you need before HealthConnect looks for a way to fill it." />
 

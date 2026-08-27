@@ -28,6 +28,25 @@ class PriceRegime(models.TextChoices):
     FREE = "FREE", "Free pricing"
 
 
+class MarketStatus(models.TextChoices):
+    """Whether MoPH currently lists the product as commercially marketed in Lebanon.
+
+    This is independent of pharmacy stock/inventory - a MARKETED product may still
+    be out of stock everywhere, and that must never be inferred as NON_MARKETED.
+    """
+
+    MARKETED = "MARKETED", "Marketed"
+    NON_MARKETED = "NON_MARKETED", "Registered, not currently marketed"
+
+
+class MophSource(models.TextChoices):
+    """Which MoPH source last supplied/confirmed a product's authoritative data."""
+
+    MOPH_ONLINE = "MOPH_ONLINE", "MoPH Lebanon National Drugs Database (online)"
+    MOPH_MARKETED_EXCEL = "MOPH_MARKETED_EXCEL", "MoPH WebMarketed price list (Excel)"
+    MOPH_NON_MARKETED_EXCEL = "MOPH_NON_MARKETED_EXCEL", "MoPH WebNonMarketed price list (Excel)"
+
+
 class DrugSchedule(models.TextChoices):
     """
     Not sourced from an official Lebanese controlled-substance list - every medicine defaults
@@ -69,6 +88,30 @@ class Medicine(UUIDTimeStampedModel):
     requires_prescription = models.BooleanField(default=False)
     drug_schedule = models.CharField(max_length=20, choices=DrugSchedule.choices, default=DrugSchedule.NONE, db_index=True)
 
+    # --- MoPH catalog sync fields ---
+    # `moph_code` is MoPH's own "Code" identifier: present, unique, and stable across
+    # the online Lebanon National Drugs Database and both WebMarketed/WebNonMarketed
+    # Excel files (verified against live data - never overlaps between the two Excel
+    # files, so it safely survives a product moving between MARKETED and NON_MARKETED).
+    # It is the canonical identity key for sync upserts; brand/strength/form text is
+    # only used as a one-time fallback match for rows synced before this field existed.
+    moph_code = models.PositiveIntegerField(null=True, blank=True, unique=True, db_index=True)
+    market_status = models.CharField(max_length=20, choices=MarketStatus.choices, default=MarketStatus.MARKETED, db_index=True)
+    registration_number = models.CharField(max_length=80, blank=True)
+    # Active-ingredient composition string (e.g. "Paracetamol - 500mg"), deliberately
+    # separate from `classification` (which holds the ATC code) - the two are queried
+    # independently and must never be conflated.
+    ingredients = models.TextField(blank=True)
+    route = models.CharField(max_length=80, blank=True)
+    moph_source = models.CharField(max_length=32, choices=MophSource.choices, blank=True)
+    moph_source_reference = models.CharField(max_length=255, blank=True, help_text="MoPH source URL/file this record was last synced from.")
+    moph_last_synced_at = models.DateTimeField(null=True, blank=True)
+    # Lower-value/reference-only MoPH fields that nothing in this app queries on yet,
+    # kept here instead of as dedicated columns. Keys used: presentation, agent,
+    # laboratory, country, pharmacist_margin, stratum, responsible_party_name,
+    # responsible_party_country, exch_date, subsidy_percent, brand_generic.
+    moph_extra = models.JSONField(default=dict, blank=True)
+
     @property
     def is_price_regulated(self) -> bool:
         return self.price_regime == PriceRegime.REGULATED and self.regulated_price is not None
@@ -76,6 +119,20 @@ class Medicine(UUIDTimeStampedModel):
     @property
     def is_controlled(self) -> bool:
         return self.drug_schedule == DrugSchedule.CONTROLLED
+
+    @property
+    def is_marketed(self) -> bool:
+        return self.market_status == MarketStatus.MARKETED
+
+    def validate_can_be_sold(self) -> None:
+        """MoPH's Non-Marketed registry means "registered, but not actively marketed
+        for sale in pharmacies" - by that definition a NON_MARKETED product cannot be
+        newly sold. This does not affect existing inventory/stock records, only new
+        sale/order transactions - see create_sale.py and orders/services/placement.py."""
+        if not self.is_marketed:
+            raise ValidationError(
+                {"medicine": f"{self} is registered with the Ministry of Public Health but not currently marketed in Lebanon, and cannot be sold."}
+            )
 
     def clean(self):
         if self.price_regime == PriceRegime.REGULATED and self.regulated_price is None:
@@ -103,7 +160,15 @@ class Medicine(UUIDTimeStampedModel):
                 Lower("form"),
                 condition=models.Q(is_active=True),
                 name="unique_active_medicine_variant",
-            )
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(is_active=False)
+                    | models.Q(price_regime=PriceRegime.FREE)
+                    | models.Q(regulated_price__isnull=False)
+                ),
+                name="active_regulated_medicine_has_price",
+            ),
         ]
 
     def __str__(self) -> str:

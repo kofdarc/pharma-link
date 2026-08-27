@@ -2,19 +2,16 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, EmptyPanel, PageHead, Segmented } from "@/components/patient/Page";
 import { OrderCard } from "@/components/orders/OrderParts";
 import { Icon } from "@/components/ui/Icon";
-import { useCurrentUser } from "@/lib/auth";
 import { useOrders } from "@/lib/patient/store";
-import { MOCK_PROFILE } from "@/lib/patient/mock-patient";
 import { isOrderActive } from "@/lib/patient/types";
 
 type Tab = "active" | "past";
 
 export default function OrdersPage() {
-  const { user } = useCurrentUser();
   const { orders, ready } = useOrders();
   const [tab, setTab] = useState<Tab>("active");
 
@@ -29,7 +26,7 @@ export default function OrdersPage() {
   const visible = tab === "active" ? active : past;
 
   return (
-    <PatientShell initials={initialsFor(user?.first_name ?? MOCK_PROFILE.firstName, user?.last_name)}>
+    <PatientShell>
       <div className="hc-wrap hc-page">
         <PageHead title="Orders" lead="Everything on its way to you, and everything that has already arrived." />
 

@@ -3,15 +3,13 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, EmptyPanel, PageHead } from "@/components/patient/Page";
 import { OrderStatusChip, OrderStatusTimeline, ReceiptDialog, ReviewDialog, stageLabel } from "@/components/orders/OrderParts";
 import { useToast } from "@/components/patient/Toast";
 import { Icon } from "@/components/ui/Icon";
-import { useCurrentUser } from "@/lib/auth";
 import { useBasket } from "@/lib/basket";
 import { useOrders } from "@/lib/patient/store";
-import { MOCK_PROFILE } from "@/lib/patient/mock-patient";
 import { formatDate, formatMoney, plural } from "@/lib/patient/format";
 import { orderPharmacies, orderTotal, type Order } from "@/lib/patient/types";
 import { MOCK_CATALOG } from "@/lib/catalog/mock-catalog";
@@ -29,7 +27,6 @@ function OrderDetailScreen() {
   const id = typeof params.id === "string" ? decodeURIComponent(params.id) : "";
   const router = useRouter();
   const search = useSearchParams();
-  const { user } = useCurrentUser();
   const { orders, ready, reviewOrder } = useOrders();
   const basket = useBasket();
   const { notify } = useToast();
@@ -38,7 +35,6 @@ function OrderDetailScreen() {
   const [receiptOpen, setReceiptOpen] = useState(false);
 
   const order = orders.find((entry) => entry.id === id);
-  const initials = initialsFor(user?.first_name ?? MOCK_PROFILE.firstName, user?.last_name);
 
   /**
    * "Order again" refills the basket and sends the patient through the normal
@@ -68,7 +64,7 @@ function OrderDetailScreen() {
 
   if (!ready) {
     return (
-      <PatientShell initials={initials}>
+      <PatientShell>
         <div className="hc-wrap hc-page">
           <CardSkeletons count={2} lines={5} />
         </div>
@@ -78,7 +74,7 @@ function OrderDetailScreen() {
 
   if (!order) {
     return (
-      <PatientShell initials={initials}>
+      <PatientShell>
         <div className="hc-wrap hc-page">
           <PageHead title="Order" back={{ href: "/orders", label: "Orders" }} />
           <EmptyPanel
@@ -99,7 +95,7 @@ function OrderDetailScreen() {
   const pharmacies = orderPharmacies(order);
 
   return (
-    <PatientShell initials={initials}>
+    <PatientShell>
       <div className="hc-wrap hc-page">
         <PageHead title={`Order ${order.id}`} back={{ href: "/orders", label: "Orders" }} />
 

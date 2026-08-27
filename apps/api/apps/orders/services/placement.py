@@ -86,6 +86,17 @@ def next_reference() -> str:
     return f"MO-{stamp}-{secrets.randbelow(100000):05d}"
 
 
+def _check_market_status(*, medicines_by_id: dict) -> None:
+    """MoPH's Non-Marketed registry means "registered, but not actively marketed for
+    sale in pharmacies" - a NON_MARKETED product cannot be newly ordered online. This
+    is the online-order counterpart to the same check in sales/services/create_sale.py."""
+    non_marketed = [medicine for medicine in medicines_by_id.values() if medicine is not None and not medicine.is_marketed]
+    if not non_marketed:
+        return
+    names = ", ".join(str(medicine) for medicine in non_marketed)
+    raise OrderError(_("Not currently marketed in Lebanon and cannot be ordered: %(names)s.") % {"names": names})
+
+
 def _check_prescription_requirements(*, items: list[dict], medicines_by_id: dict, prescription) -> None:
     """
     An item flagged requires_prescription must be covered by a currently-consumable
@@ -242,6 +253,7 @@ def place_order(
                 % {"cap": cap, "medicine": medicine or _("an item")}
             )
 
+    _check_market_status(medicines_by_id=medicines_by_id)
     _check_prescription_requirements(items=items, medicines_by_id=medicines_by_id, prescription=prescription)
 
     latitude = float(address.latitude) if address else None

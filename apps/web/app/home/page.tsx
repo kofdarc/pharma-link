@@ -3,16 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
+import { usePatientUser } from "@/components/site/PatientGuard";
 import { SearchLauncher } from "@/components/medicines/SearchLauncher";
 import { ArrowLink } from "@/components/site/Section";
 import { CardSkeletons } from "@/components/patient/Page";
 import { OrderStatusTimeline, stageLabel } from "@/components/orders/OrderParts";
 import { Icon } from "@/components/ui/Icon";
-import { useCurrentUser } from "@/lib/auth";
 import { useRecentSearches } from "@/lib/recent-searches";
 import { usePatientState } from "@/lib/patient/store";
-import { MOCK_PROFILE } from "@/lib/patient/mock-patient";
 import { daysUntil, formatDate, plural } from "@/lib/patient/format";
 import { isClaimable, isOrderActive } from "@/lib/patient/types";
 
@@ -32,12 +31,11 @@ function greeting(hour: number): string {
  */
 export default function PatientHomePage() {
   const router = useRouter();
-  const { user } = useCurrentUser();
+  const user = usePatientUser();
   const { recent } = useRecentSearches();
   const { state, ready } = usePatientState();
 
-  const firstName = user?.first_name || state.profile.firstName || MOCK_PROFILE.firstName;
-  const initials = initialsFor(firstName, user?.last_name ?? state.profile.lastName);
+  const firstName = user.first_name || state.profile.firstName;
 
   const currentOrder = state.orders.find(isOrderActive) ?? null;
   const activePrescription = state.prescriptions.find(isClaimable) ?? null;
@@ -46,7 +44,7 @@ export default function PatientHomePage() {
     .sort((a, b) => a.nextRefill.localeCompare(b.nextRefill))[0];
 
   return (
-    <PatientShell initials={initials}>
+    <PatientShell>
       <section className="hc-home-top">
         <div className="hc-wrap">
           <h1 className="hc-display">

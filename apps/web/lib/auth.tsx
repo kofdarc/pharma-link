@@ -4,7 +4,22 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AUTH_EXPIRED_EVENT, apiFetch, clearToken, getToken } from "./api-client";
 import { ROLE_HOME } from "./constants";
+import { clearBasket } from "./basket";
+import { clearPatientState } from "./patient/store";
 import type { User, UserRole } from "@/types/api";
+
+/**
+ * End the session and leave nothing of this patient behind on the device.
+ *
+ * Dropping the token alone is not enough: prescriptions, orders, addresses and
+ * the basket live in localStorage, so without this the next person to open the
+ * app on a shared device still sees the previous one's records.
+ */
+export function signOut() {
+  clearToken();
+  clearPatientState();
+  clearBasket();
+}
 
 export function useCurrentUser() {
   const [user, setUser] = useState<User | null>(null);

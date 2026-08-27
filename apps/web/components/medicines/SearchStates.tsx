@@ -46,7 +46,7 @@ export function ResultSkeletons({ count = 4 }: { count?: number }) {
     <div className="hc-results" aria-hidden="true">
       {Array.from({ length: count }, (_, index) => (
         <div className="hc-skel-row" key={index}>
-          <span className="hc-skel" style={{ width: 44, height: 44, borderRadius: 12 }} />
+          <span className="hc-skel" style={{ width: 76, height: 76, borderRadius: 16 }} />
           <span style={{ display: "grid", gap: 9 }}>
             <span className="hc-skel" style={{ width: `${44 + ((index * 13) % 26)}%`, height: 15 }} />
             <span className="hc-skel" style={{ width: `${32 + ((index * 17) % 22)}%`, height: 12 }} />

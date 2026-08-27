@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PatientShell, initialsFor } from "@/components/site/PatientShell";
+import { PatientShell } from "@/components/site/PatientShell";
+import { usePatientUser } from "@/components/site/PatientGuard";
 import { CardSkeletons, PageHead } from "@/components/patient/Page";
 import { TextField } from "@/components/site/FormField";
 import { useToast } from "@/components/patient/Toast";
 import { Icon } from "@/components/ui/Icon";
-import { useCurrentUser } from "@/lib/auth";
 import { profileFor, useAccount } from "@/lib/patient/store";
 import type { PatientProfile } from "@/lib/patient/types";
 
@@ -19,7 +19,7 @@ import type { PatientProfile } from "@/lib/patient/types";
  * platform has no business collecting a health profile it does not use.
  */
 export default function ProfilePage() {
-  const { user } = useCurrentUser();
+  const user = usePatientUser();
   const account = useAccount();
   const { notify } = useToast();
 
@@ -65,10 +65,9 @@ export default function ProfilePage() {
     notify("Profile updated");
   }
 
-  const initials = initialsFor(profile.firstName, profile.lastName);
 
   return (
-    <PatientShell initials={initials}>
+    <PatientShell>
       <div className="hc-wrap hc-page hc-wrap-narrow">
         <PageHead
           title="Profile"
