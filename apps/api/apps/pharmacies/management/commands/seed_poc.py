@@ -63,6 +63,21 @@ CATALOG = [
     ("Hydra Face Cream", "", "50ml", "Cream", ProductCategory.PARAPHARMACY, PriceRegime.FREE, None),
 ]
 
+# Arabic-script transliterations and common misspellings for the highest-traffic brands, so
+# search actually demonstrates alias/typo/multilingual matching instead of only exact names.
+# See docs/AI_FEATURES.md §1 (Search & catalog) - this is the "alias-coverage data pass".
+# brand -> [(alias, alias_type), ...]
+ALIASES = {
+    "Panadol": [("بانادول", MedicineAlias.AliasType.TRANSLITERATION), ("Panadal", MedicineAlias.AliasType.MISSPELLING)],
+    "Doliprane": [("دوليبران", MedicineAlias.AliasType.TRANSLITERATION)],
+    "Amoxil": [("اموكسيل", MedicineAlias.AliasType.TRANSLITERATION)],
+    "Augmentin": [("اوغمنتين", MedicineAlias.AliasType.TRANSLITERATION), ("Augmentine", MedicineAlias.AliasType.MISSPELLING)],
+    "Ventolin": [("فينتولين", MedicineAlias.AliasType.TRANSLITERATION)],
+    "Glucophage": [("غلوكوفاج", MedicineAlias.AliasType.TRANSLITERATION), ("Glucophag", MedicineAlias.AliasType.MISSPELLING)],
+    "Concor": [("كونكور", MedicineAlias.AliasType.TRANSLITERATION)],
+    "Nexium": [("نيكسيوم", MedicineAlias.AliasType.TRANSLITERATION)],
+}
+
 DOCTORS = [
     ("LB-MD-10421", "Rima Khalil", "Family medicine", "rima.khalil@doctors.test", "Clinique du Levant", "Achrafieh", True),
     ("LB-MD-20876", "Samir Aoun", "Cardiology", "samir.aoun@doctors.test", "Beirut Heart Center", "Hamra", False),
@@ -204,6 +219,8 @@ class Command(BaseCommand):
             medicines[brand] = medicine
             if generic:
                 MedicineAlias.objects.get_or_create(medicine=medicine, alias=generic, defaults={"alias_type": MedicineAlias.AliasType.GENERIC})
+            for alias, alias_type in ALIASES.get(brand, []):
+                MedicineAlias.objects.get_or_create(medicine=medicine, alias=alias, defaults={"alias_type": alias_type})
         MedicineAlias.objects.get_or_create(
             medicine=medicines["Panadol"], alias="Acetaminophen", defaults={"alias_type": MedicineAlias.AliasType.GENERIC}
         )

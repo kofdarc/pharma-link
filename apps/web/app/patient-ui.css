@@ -2379,6 +2379,76 @@
   }
 }
 
+/* --- reasons to use HealthConnect, by role --------------------------------- */
+
+.hc-reasons-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(16px, 2.4vw, 24px);
+}
+
+.hc-reason-card {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  padding: 24px 22px;
+  border: 1px solid var(--hc-line);
+  border-radius: var(--hc-r-lg);
+  background: var(--hc-canvas);
+}
+
+.hc-reason-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hc-reason-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--hc-brand-wash);
+  color: var(--hc-brand-deep);
+}
+
+.hc-reason-list {
+  display: grid;
+  gap: 11px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hc-reason-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 0.8906rem;
+  line-height: 1.5;
+  color: var(--hc-ink);
+}
+
+.hc-reason-list li svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--hc-brand);
+}
+
+@media (max-width: 980px) {
+  .hc-reasons-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .hc-reasons-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- how it works: alternating explainer rows ----------------------------- */
 
 .hc-explain {

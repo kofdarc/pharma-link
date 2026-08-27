@@ -51,7 +51,8 @@ export type IconName =
   | "pause"
   | "play"
   | "qr"
-  | "receipt";
+  | "receipt"
+  | "message";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   search: (
@@ -317,6 +318,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M5.4 3.6h13.2v17.2l-2.6-1.6-2.2 1.6-2.4-1.6-2.2 1.6-2.6-1.6z" />
       <path d="M9 8.4h6M9 12.4h6" />
+    </>
+  ),
+  message: (
+    <>
+      <path d="M3.5 5.8h17v10.4H9.4L5 20V16.2H3.5z" />
+      <path d="M7.6 9.6h8.8M7.6 12.8h5.6" />
     </>
   )
 };

@@ -85,6 +85,10 @@ Amplify branch auto-build remains enabled. Branch protection ensures only commit
 the web build reach `main`, then Amplify deploys the SSR application. Pull request previews
 are enabled on the `main` branch configuration.
 
+`NEXT_PUBLIC_ENABLE_DEMO_LOGIN=true` adds one-click "log in as" buttons for each seeded
+role on `/login`. Set it only on a demo deployment seeded via `seed_poc`, never on one holding
+real user data - every seeded account shares a single password.
+
 Pipeline-driven Amplify releases are intentionally not enabled. They would provide lockstep
 API-then-web ordering, but add duplicate release orchestration while the applications already
 maintain backward-compatible API changes. Reconsider this only when a release genuinely

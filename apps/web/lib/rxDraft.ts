@@ -15,6 +15,7 @@ export interface RxDraft {
   patient_name: string;
   patient_email: string;
   patient_phone: string;
+  patient_fax: string;
   items: RxDraftItem[];
 }
 
@@ -23,6 +24,7 @@ export function draftFromPrescription(prescription: Prescription): RxDraft {
     patient_name: prescription.patient_name,
     patient_email: prescription.patient_email || "",
     patient_phone: prescription.patient_phone || "",
+    patient_fax: prescription.patient_fax || "",
     items: prescription.items.map((item) => ({
       medicine: item.medicine || "",
       medicine_text: item.medicine_text,

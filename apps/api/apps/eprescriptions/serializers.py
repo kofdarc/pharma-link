@@ -125,6 +125,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             "patient_name",
             "patient_email",
             "patient_phone",
+            "patient_fax",
             "patient_date_of_birth",
             "diagnosis_note",
             "status",
@@ -133,6 +134,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             "cancelled_at",
             "cancellation_reason",
             "email_sent_at",
+            "fax_sent_at",
             "is_expired",
             "is_consumable",
             "items",
@@ -145,6 +147,9 @@ class PrescriptionCreateSerializer(serializers.Serializer):
     patient_name = serializers.CharField(max_length=255)
     patient_email = serializers.EmailField(required=False, allow_blank=True)
     patient_phone = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    patient_fax = serializers.CharField(
+        max_length=40, required=False, allow_blank=True, help_text="Delivery back-up used only if there's no email or the email send fails."
+    )
     patient_date_of_birth = serializers.DateField(required=False, allow_null=True)
     diagnosis_note = serializers.CharField(required=False, allow_blank=True)
     validity_days = serializers.IntegerField(required=False, min_value=1, max_value=365)

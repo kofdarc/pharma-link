@@ -1,7 +1,8 @@
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { CtaSection } from "@/components/site/Section";
+import { CtaSection, SectionHeading } from "@/components/site/Section";
 import { AvailabilityVisual, DeliveryVisual, RxCard, SearchVisual, SourcingVisual } from "@/components/product/Visuals";
+import { Icon, type IconName } from "@/components/ui/Icon";
 
 export const metadata = {
   title: "How it works",
@@ -51,6 +52,44 @@ const STEPS = [
   }
 ];
 
+const PRESCRIBING_FEATURES: { icon: IconName; title: string; body: string }[] = [
+  {
+    icon: "rx",
+    title: "Create Rx",
+    body: "Your physician writes the prescription in HealthConnect. Patient choice comes first: pick a pharmacy and it's sent straight to that pharmacy's queue, ready before you arrive. Haven't decided yet? The prescription is held in HealthConnect instead — you're handed a signed copy with a code and a QR barcode, and any connected pharmacy can pull it up by scanning that barcode or entering the code."
+  },
+  {
+    icon: "shield",
+    title: "Guaranteed delivery",
+    body: "Whichever way a prescription is sent, HealthConnect makes sure it reaches you. It's emailed first where an address is on file; if that can't go through, or none was given, it's faxed instead as a back-up. Either way, the signed copy your physician hands you is always the authoritative record — digital delivery is a convenience on top of it, never a condition for it."
+  },
+  {
+    icon: "refresh",
+    title: "Renew Rx",
+    body: "When a prescription is running low, a pharmacy can request a renewal directly from your physician. Once it's approved, the renewal comes back through HealthConnect as a new e-prescription."
+  },
+  {
+    icon: "trash",
+    title: "Prescription cancel",
+    body: "A prescription that's already been sent to a pharmacy can still be cancelled by the physician who issued it, whether it hasn't been touched yet or has already been partly dispensed."
+  },
+  {
+    icon: "checkCircle",
+    title: "Rx status",
+    body: "Your physician can see whether a prescription has been dispensed, partly filled, or cancelled — without having to call the pharmacy to ask."
+  },
+  {
+    icon: "message",
+    title: "Clinical communication",
+    body: "Physicians and pharmacies can message each other about a specific prescription, and that conversation stays attached to the record for later reference."
+  },
+  {
+    icon: "card",
+    title: "Formulary services",
+    body: "Before prescribing, your physician can check whether a medicine is covered under your insurance plan, so coverage isn't a surprise when you get to the pharmacy."
+  }
+];
+
 export default function HowItWorksPage() {
   return (
     <div className="hc">
@@ -83,6 +122,26 @@ export default function HowItWorksPage() {
                     ))}
                   </div>
                   <div className="hc-explain-visual">{step.visual}</div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="hc-section">
+          <div className="hc-wrap">
+            <SectionHeading
+              title="What your physician can do through HealthConnect."
+              lead="The prescribing side works the same way the pharmacy side does — connected, verifiable, and traceable."
+            />
+            <div className="hc-feature-grid">
+              {PRESCRIBING_FEATURES.map((feature) => (
+                <article className="hc-feature" key={feature.title}>
+                  <span className="hc-feature-icon">
+                    <Icon name={feature.icon} size={20} />
+                  </span>
+                  <h3 className="hc-h3">{feature.title}</h3>
+                  <p className="hc-body">{feature.body}</p>
                 </article>
               ))}
             </div>

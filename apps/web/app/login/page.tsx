@@ -7,6 +7,7 @@ import { apiFetch, setToken } from "@/lib/api-client";
 import { ROLE_HOME } from "@/lib/constants";
 import type { User } from "@/types/api";
 import { AuthLayout } from "@/components/site/AuthLayout";
+import { DevQuickLogin } from "@/components/site/DevQuickLogin";
 import { FormAlert, PasswordField, TextField } from "@/components/site/FormField";
 import { RxCard } from "@/components/product/Visuals";
 
@@ -84,6 +85,8 @@ function LoginForm() {
         Physicians can <Link href="/activate">activate an account</Link>, and pharmacies can{" "}
         <Link href="/pharmacy-signup">apply to join</Link>. Dispensing a prescription? <Link href="/rx">Start here</Link>.
       </p>
+
+      <DevQuickLogin />
     </AuthLayout>
   );
 }
