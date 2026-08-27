@@ -12,6 +12,13 @@ from apps.medicines.models import Medicine
 # Postgres trigram path (below) takes over, so an O(n) Python scan stays cheap.
 FUZZY_SCAN_LIMIT = 500
 FUZZY_MATCH_THRESHOLD = 0.68
+# pg_trgm similarity and SequenceMatcher.ratio() are different metrics on different scales,
+# so the Postgres path needs its own threshold - reusing FUZZY_MATCH_THRESHOLD made the
+# trigram path far stricter than the Python one and silently returned nothing for ordinary
+# typos. "Augmentn" vs "Augmentin" scores 0.94 by ratio() but only 0.58 by trigram, while
+# unrelated catalog entries sit at 0.00-0.04, so 0.45 clears real typos with a wide margin
+# over noise.
+TRIGRAM_MATCH_THRESHOLD = 0.45
 BEST_MATCH_SCAN_LIMIT = 1000
 BEST_MATCH_THRESHOLD = 0.78
 
@@ -50,14 +57,20 @@ def _trigram_search(qs, query: str, seen: set, limit: int):
     back to the caller's Python scan on any other backend.
     """
     from django.contrib.postgres.search import TrigramSimilarity
+    from django.db.models.functions import Greatest
 
+    # Greatest, not a sum: _fuzzy_scan scores a medicine by its *best* matching name, and
+    # summing lets two mediocre field matches add up past the threshold while pushing the
+    # score above 1.0.
     scored = (
         qs.exclude(id__in=seen)
         .annotate(
-            similarity=TrigramSimilarity("brand_name", query)
-            + TrigramSimilarity("generic_name", query)
+            similarity=Greatest(
+                TrigramSimilarity("brand_name", query),
+                TrigramSimilarity("generic_name", query),
+            )
         )
-        .filter(similarity__gte=FUZZY_MATCH_THRESHOLD)
+        .filter(similarity__gte=TRIGRAM_MATCH_THRESHOLD)
         .order_by("-similarity")
     )
     return list(scored[:limit])
@@ -110,10 +123,18 @@ def best_catalog_match(raw_name: str):
         # aggregate-across-related-rows trigram query is a known follow-up,
         # not silently solved here.
         from django.contrib.postgres.search import TrigramSimilarity
+        from django.db.models.functions import Greatest
 
+        # Greatest keeps the returned confidence a real 0-1 score; the previous sum could
+        # exceed 1.0, which callers treat as a confidence fraction.
         best = (
             Medicine.objects.filter(is_active=True)
-            .annotate(similarity=TrigramSimilarity("brand_name", raw_name) + TrigramSimilarity("generic_name", raw_name))
+            .annotate(
+                similarity=Greatest(
+                    TrigramSimilarity("brand_name", raw_name),
+                    TrigramSimilarity("generic_name", raw_name),
+                )
+            )
             .order_by("-similarity")
             .first()
         )
