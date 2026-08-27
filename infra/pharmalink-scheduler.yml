@@ -24,6 +24,12 @@ Parameters:
   TaskSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Default: sg-09239269d18019b99
+  LoadBalancerFullName:
+    Type: String
+    Description: Application Load Balancer FullName dimension used by CloudWatch
+  TargetGroupFullName:
+    Type: String
+    Description: Target group FullName dimension used by CloudWatch
 
 Resources:
   SchedulerLogGroup:
@@ -221,6 +227,59 @@ Resources:
       EvaluationPeriods: 2
       DatapointsToAlarm: 1
       Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  ApiLoadBalancer5xxRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: pharmalink-api-alb-5xx-rate
+      AlarmDescription: More than five percent of API requests returned a load-balancer or target 5xx response
+      Metrics:
+        - Id: requests
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApplicationELB
+              MetricName: RequestCount
+              Dimensions:
+                - Name: LoadBalancer
+                  Value: !Ref LoadBalancerFullName
+                - Name: TargetGroup
+                  Value: !Ref TargetGroupFullName
+            Period: 60
+            Stat: Sum
+        - Id: target5xx
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApplicationELB
+              MetricName: HTTPCode_Target_5XX_Count
+              Dimensions:
+                - Name: LoadBalancer
+                  Value: !Ref LoadBalancerFullName
+                - Name: TargetGroup
+                  Value: !Ref TargetGroupFullName
+            Period: 60
+            Stat: Sum
+        - Id: alb5xx
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApplicationELB
+              MetricName: HTTPCode_ELB_5XX_Count
+              Dimensions:
+                - Name: LoadBalancer
+                  Value: !Ref LoadBalancerFullName
+            Period: 60
+            Stat: Sum
+        - Id: errorrate
+          Label: API 5xx rate
+          Expression: IF(requests>0,100*(target5xx+alb5xx)/requests,IF(alb5xx>0,100,0))
+          ReturnData: true
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 5
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
