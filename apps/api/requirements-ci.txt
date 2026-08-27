@@ -7,6 +7,14 @@ openpyxl>=3.1,<4.0
 xlrd>=2.0,<3.0
 python-dotenv>=1.0,<2.0
 Pillow>=10.4,<12.0
+# OCR bindings for the default prescription provider. The CI workflow apt-installs the
+# tesseract and poppler-utils binaries, and apps/prescriptions/tests/test_ocr.py gates on
+# those binaries being present (shutil.which) - so without these two Python packages the
+# suite un-skips those tests and then dies on `import pytesseract`. easyocr is deliberately
+# left out: its guard checks the package itself (importlib.util.find_spec), so those tests
+# skip cleanly and CI avoids a multi-GB torch install it has no use for.
+pytesseract>=0.3,<0.4
+pdf2image>=1.17,<2.0
 
 cryptography>=42.0,<48.0
 qrcode>=7.4,<9.0
