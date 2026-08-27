@@ -1,0 +1,22 @@
+# Optional extras for PRESCRIPTION_OCR_PROVIDER="easyocr". Install on top of
+# requirements.txt; nothing here is needed for the default "tesseract" provider or for the
+# "anthropic" one, and together they add several GB, which is why they are not in the base
+# file or the default image.
+#
+# torch and torchvision MUST be installed together from PyTorch's CPU index, in one command,
+# BEFORE this file. Two failure modes otherwise, both hit in practice:
+#   - PyPI's default index serves a CUDA/GPU torch build (multiple GB) that is useless here,
+#     since apps.prescriptions.services.ocr.easyocr_provider always runs with gpu=False.
+#   - Installing torch alone from the CPU index lets easyocr resolve torchvision from the
+#     default index afterwards; the mismatched pair fails at import with
+#     "operator torchvision::nms does not exist".
+#
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements-easyocr.txt
+#
+# EasyOCR also needs opencv's shared libraries at runtime, which slim images lack:
+#   apt-get install -y --no-install-recommends libgl1 libglib2.0-0
+#
+# See docs/AI_FEATURES.md and the Dockerfile for the image-level equivalent.
+
+easyocr>=1.7,<2.0

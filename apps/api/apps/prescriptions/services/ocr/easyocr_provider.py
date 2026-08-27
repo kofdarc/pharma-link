@@ -30,7 +30,17 @@ def _get_reader(languages: list[str]):
     """
     key = tuple(languages)
     if key not in _readers:
-        import easyocr
+        try:
+            import easyocr
+        except ImportError as exc:
+            # The default image ships without easyocr/torch (several GB for a provider that is
+            # off by default), so a bare ModuleNotFoundError here is a deployment question, not
+            # a bug - say so rather than leaking the import error to the caller.
+            raise OcrProviderError(
+                "PRESCRIPTION_OCR_PROVIDER is set to 'easyocr' but the easyocr package is not "
+                "installed. Install requirements-easyocr.txt (see the Dockerfile), or set "
+                "PRESCRIPTION_OCR_PROVIDER back to 'tesseract'."
+            ) from exc
 
         try:
             _readers[key] = easyocr.Reader(languages, gpu=False)

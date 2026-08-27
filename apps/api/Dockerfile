@@ -10,24 +10,21 @@ WORKDIR /app
 # apps.prescriptions.services.ocr.tesseract, PRESCRIPTION_OCR_PROVIDER) - self-hosted, so no
 # external account is needed for OCR intake to work at all. French/Arabic language data cover
 # the scripts real Lebanese prescriptions are written in (English-only data silently produced
-# garbage on those). poppler-utils backs pdf2image for PDF prescription uploads (both the
-# Tesseract and EasyOCR providers render PDF pages through it). libgl1/libglib2.0-0 satisfy
-# opencv (an EasyOCR dependency), which this slim base image otherwise lacks.
+# garbage on those). poppler-utils backs pdf2image for PDF prescription uploads (every provider
+# that renders PDF pages goes through it).
+#
+# EasyOCR is deliberately NOT in this image. It needs torch + torchvision + opencv, which add
+# several GB to an image that pulls on every task start, for a provider that is off unless
+# PRESCRIPTION_OCR_PROVIDER=easyocr. To build a variant that includes it, add
+# `libgl1 libglib2.0-0` below and, after the pip install:
+#   RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   RUN pip install --no-cache-dir -r requirements-easyocr.txt
+# Both torch lines matter: see requirements-easyocr.txt for why they must run together.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        tesseract-ocr tesseract-ocr-fra tesseract-ocr-ara poppler-utils libgl1 libglib2.0-0 \
+        tesseract-ocr tesseract-ocr-fra tesseract-ocr-ara poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-# torch and torchvision (EasyOCR dependencies, PRESCRIPTION_OCR_PROVIDER=easyocr) install from
-# PyPI by default with a bundled CUDA toolkit meant for GPU inference - several GB nobody asked
-# for, since apps.prescriptions.services.ocr.easyocr_provider always runs with gpu=False.
-# Installing both together from PyTorch's own CPU index first means the later `pip install -r
-# requirements.txt` finds them already satisfied and never reaches for the CUDA variant.
-# Installing torch alone here and letting easyocr pull in torchvision separately (from PyPI's
-# default index) was tried and breaks: PyPI's torchvision build doesn't match this exact torch
-# build, and easyocr fails to import with "operator torchvision::nms does not exist" - a
-# classic torch/torchvision ABI mismatch. Both must come from the same index together.
-RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .

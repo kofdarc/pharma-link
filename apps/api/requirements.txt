@@ -9,14 +9,9 @@ python-dotenv>=1.0,<2.0
 Pillow>=10.4,<12.0
 pytesseract>=0.3,<0.4
 pdf2image>=1.17,<2.0
-# easyocr pulls in torch + torchvision. Installing straight from this file gets PyPI's
-# default GPU/CUDA build of torch (several GB, unneeded - PRESCRIPTION_OCR_PROVIDER=easyocr
-# always runs with gpu=False) and can pair it with a mismatched torchvision, which fails at
-# import with "operator torchvision::nms does not exist". Run this first, in one command so
-# pip resolves a matched pair from the same index (see the Dockerfile for the production
-# equivalent):
-#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-easyocr>=1.7,<2.0
+# PRESCRIPTION_OCR_PROVIDER="easyocr" needs easyocr + torch, which are NOT installed here:
+# they add multiple GB to every image for a provider that is off by default. Install
+# requirements-easyocr.txt on top of this file when you actually want that provider.
 
 cryptography>=42.0,<48.0
 qrcode>=7.4,<9.0
