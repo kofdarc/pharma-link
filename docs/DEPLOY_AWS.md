@@ -51,8 +51,8 @@ The workflow then:
 2. Captures the currently deployed digest for rollback.
 3. Builds `apps/api` with a registry-backed BuildKit cache, pushes the commit and `latest`
    tags, and keeps the resulting immutable digest.
-4. Registers a `pharmalink-oneoff` task definition with `entryPoint: []` and the command
-   `python manage.py migrate --noinput`.
+4. Registers a `pharmalink-oneoff` task definition with `entryPoint: ["python"]` and the
+   command `manage.py migrate --noinput`, bypassing the image's Docker entrypoint.
 5. Runs that task in the production VPC, waits for it to stop, and requires exit code 0.
 6. Registers the next `pharmalink-scheduler` revision on the same digest.
 7. Updates ECS Express Mode to the new digest, waits for the new revision to become active,
@@ -83,7 +83,7 @@ requires coordinated cutover.
 
 ## Scheduler operations
 
-The scheduler task runs one pass only:
+The scheduler task bypasses the image's Docker entrypoint and runs one pass only:
 
 ```text
 python manage.py run_scheduler --plan

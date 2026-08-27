@@ -34,8 +34,8 @@ jq -n \
       name: "Main",
       image: $image,
       essential: true,
-      entryPoint: [],
-      command: ["python", "manage.py", "migrate", "--noinput"],
+      entryPoint: ["python"],
+      command: ["manage.py", "migrate", "--noinput"],
       environment: $environment,
       secrets: $secrets,
       logConfiguration: {
@@ -75,8 +75,8 @@ jq -n \
       name: "scheduler",
       image: $image,
       essential: true,
-      entryPoint: [],
-      command: ["python", "manage.py", "run_scheduler", "--plan"],
+      entryPoint: ["python"],
+      command: ["manage.py", "run_scheduler", "--plan"],
       environment: $environment,
       secrets: $secrets,
       logConfiguration: {
