@@ -146,6 +146,84 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
+  ApiTaskStopEventsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/events/pharmalink-api-unexpected-task-stops
+      RetentionInDays: 30
+
+  ApiTaskStopEventsLogPolicy:
+    Type: AWS::Logs::ResourcePolicy
+    Properties:
+      PolicyName: pharmalink-api-task-stop-events
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowEventBridgeTaskStopEvents
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub ${ApiTaskStopEventsLogGroup.Arn}:*
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnEquals:
+                aws:SourceArn: !GetAtt ApiUnexpectedTaskStopRule.Arn
+
+  ApiUnexpectedTaskStopRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: pharmalink-api-unexpected-task-stops
+      Description: Captures API task replacements that are not normal service deployments
+      State: ENABLED
+      EventPattern:
+        source:
+          - aws.ecs
+        detail-type:
+          - ECS Task State Change
+        detail:
+          clusterArn:
+            - !Ref ClusterArn
+          group:
+            - service:pharmalink-api
+          lastStatus:
+            - STOPPED
+          stopCode:
+            - anything-but: ServiceSchedulerInitiated
+      Targets:
+        - Id: api-task-stop-log
+          Arn: !GetAtt ApiTaskStopEventsLogGroup.Arn
+
+  ApiUnexpectedTaskStopMetric:
+    Type: AWS::Logs::MetricFilter
+    DependsOn: ApiTaskStopEventsLogPolicy
+    Properties:
+      LogGroupName: !Ref ApiTaskStopEventsLogGroup
+      FilterPattern: '{ $.detail.lastStatus = "STOPPED" }'
+      MetricTransformations:
+        - MetricNamespace: PharmaLink/Operations
+          MetricName: ApiUnexpectedTaskStopCount
+          MetricValue: '1'
+          DefaultValue: 0
+
+  ApiUnexpectedTaskStopAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: pharmalink-api-task-restarts
+      AlarmDescription: An API task stopped unexpectedly and ECS replaced it
+      Namespace: PharmaLink/Operations
+      MetricName: ApiUnexpectedTaskStopCount
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
 Outputs:
   ScheduleArn:
     Value: !GetAtt Scheduler.Arn

@@ -9,15 +9,10 @@ service_json="$(aws ecs describe-express-gateway-service \
   --region "$AWS_REGION" \
   --service-arn "$SERVICE_ARN")"
 
-active_task_definition="$(jq -er '.service.activeConfigurations[0].taskDefinitionArn' <<<"$service_json")"
-task_json="$(aws ecs describe-task-definition \
-  --region "$AWS_REGION" \
-  --task-definition "$active_task_definition")"
-
-task_role="$(jq -er '.taskDefinition.taskRoleArn' <<<"$task_json")"
-execution_role="$(jq -er '.taskDefinition.executionRoleArn' <<<"$task_json")"
-environment="$(jq -c '.taskDefinition.containerDefinitions[] | select(.name == "Main") | .environment // []' <<<"$task_json")"
-secrets="$(jq -c '.taskDefinition.containerDefinitions[] | select(.name == "Main") | .secrets // []' <<<"$task_json")"
+task_role="$(jq -er '.service.activeConfigurations[0].taskRoleArn' <<<"$service_json")"
+execution_role="$(jq -er '.service.activeConfigurations[0].executionRoleArn' <<<"$service_json")"
+environment="$(jq -c '.service.activeConfigurations[0].primaryContainer.environment // []' <<<"$service_json")"
+secrets="$(jq -c '.service.activeConfigurations[0].primaryContainer.secrets // []' <<<"$service_json")"
 
 jq -n \
   --arg image "$IMAGE" \

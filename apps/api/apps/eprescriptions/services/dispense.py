@@ -37,7 +37,12 @@ def dispense_prescription(*, prescription: Prescription, lines: list[dict], phar
     if not requested:
         raise DispenseError(_("Enter at least one quantity to dispense."))
 
-    items = {str(item.id): item for item in PrescriptionItem.objects.select_related("medicine").select_for_update().filter(prescription=prescription)}
+    items = {
+        str(item.id): item
+        for item in PrescriptionItem.objects.select_related("medicine")
+        .select_for_update(of=("self",))
+        .filter(prescription=prescription)
+    }
     unknown = set(requested) - set(items)
     if unknown:
         raise DispenseError(_("One or more items do not belong to this prescription."))

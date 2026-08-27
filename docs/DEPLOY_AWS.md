@@ -28,7 +28,7 @@ customers on 2026-04-30; ECS Express Mode is the supported deployment target her
 `.github/workflows/ci.yml` runs four required jobs in parallel:
 
 1. `api-tests` runs the Django suite on SQLite.
-2. `api-tests-postgres` runs the same suite against PostgreSQL 16 so PostgreSQL-only
+2. `api-tests-postgres` runs the same suite against PostgreSQL 18, matching production, so PostgreSQL-only
    migrations and indexes are exercised.
 3. `migrations` checks for missing migration files, runs Django deployment checks, and
    publishes a `migration-safety-<sha>` artifact. Newly added migrations containing
