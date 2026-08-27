@@ -35,7 +35,7 @@ def drop_trigram_indexes(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("medicines", "0005_alias_transliteration_type"),
+        ("medicines", "0007_alias_transliteration_type"),
     ]
 
     operations = [

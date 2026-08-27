@@ -5,7 +5,7 @@ Search & catalog matching - typo tolerance, brand<->generic aliasing, and multil
 These tests run against sqlite (this repo's dev/test DB, per DJANGO_TEST_SQLITE), so they
 exercise the Python fuzzy-scan fallback in apps/medicines/services/search.py, not the
 Postgres trigram fast path - that path is exercised implicitly by staying behind the same
-public functions and is safe by construction (see migration 0006_trigram_search_indexes,
+public functions and is safe by construction (see migration 0008_trigram_search_indexes,
 which no-ops on any non-Postgres backend).
 """
 

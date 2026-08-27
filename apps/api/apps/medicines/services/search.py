@@ -46,7 +46,7 @@ def _fuzzy_scan(normalized: str, candidates, threshold: float):
 def _trigram_search(qs, query: str, seen: set, limit: int):
     """
     Postgres-only fast path: trigram similarity over indexed columns instead
-    of an in-Python scan (see migration 0006_trigram_search_indexes). Falls
+    of an in-Python scan (see migration 0008_trigram_search_indexes). Falls
     back to the caller's Python scan on any other backend.
     """
     from django.contrib.postgres.search import TrigramSimilarity
