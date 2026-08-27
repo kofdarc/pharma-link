@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 
 from apps.accounts.models import UserRole
 from apps.inventory.services.stock import create_inventory_batch
-from apps.medicines.models import Medicine, MedicineAlias
+from apps.medicines.models import Medicine, MedicineAlias, PriceRegime
 from apps.pharmacies.models import Pharmacy
 
 
@@ -17,7 +17,13 @@ class PublicAvailabilityTests(APITestCase):
         pharmacy = Pharmacy.objects.create(name="Cedar Care", city="Beirut", area="Hamra", phone="111", is_public=True, is_active=True)
         self.pharmacy = pharmacy
         user = User.objects.create_user(email="staff@test.local", password="Password123!", role=UserRole.PHARMACY_STAFF, pharmacy=pharmacy)
-        medicine = Medicine.objects.create(brand_name="Panadol", generic_name="Paracetamol", strength="500mg", form="Tablet")
+        medicine = Medicine.objects.create(
+            brand_name="Panadol",
+            generic_name="Paracetamol",
+            strength="500mg",
+            form="Tablet",
+            price_regime=PriceRegime.FREE,
+        )
         MedicineAlias.objects.create(medicine=medicine, alias="Acetaminophen")
         create_inventory_batch(
             user=user,
@@ -92,4 +98,3 @@ class PublicAvailabilityTests(APITestCase):
         signal = UnmetDemandSignal.objects.get()
         self.assertEqual(signal.query_text, "nothing-like-this-exists")
         self.assertEqual(signal.area, "Hamra")
-

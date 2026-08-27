@@ -1,0 +1,157 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: PharmaLink EventBridge Scheduler, invoke role, logs, and dead-letter queue
+
+Parameters:
+  ScheduleState:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+  ClusterArn:
+    Type: String
+    Default: arn:aws:ecs:eu-central-1:423401347463:cluster/default
+  SchedulerTaskDefinitionFamilyArn:
+    Type: String
+    Default: arn:aws:ecs:eu-central-1:423401347463:task-definition/pharmalink-scheduler
+  TaskRoleArn:
+    Type: String
+    Default: arn:aws:iam::423401347463:role/pharmalink-ecs-task-role
+  SubnetA:
+    Type: AWS::EC2::Subnet::Id
+    Default: subnet-0fb1407cfa6c4767e
+  SubnetB:
+    Type: AWS::EC2::Subnet::Id
+    Default: subnet-095d07bde4fb4d8d6
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Default: sg-09239269d18019b99
+
+Resources:
+  SchedulerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/pharmalink-scheduler
+      RetentionInDays: 30
+
+  SchedulerDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: pharmalink-scheduler-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  SchedulerInvokeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pharmalink-scheduler-invoke
+      Description: Allows the PharmaLink EventBridge schedule to run its ECS task
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnEquals:
+                aws:SourceArn: !Sub arn:${AWS::Partition}:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/default/pharmalink-scheduler
+      Policies:
+        - PolicyName: run-pharmalink-scheduler
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: RunSchedulerTask
+                Effect: Allow
+                Action: ecs:RunTask
+                Resource: !Sub ${SchedulerTaskDefinitionFamilyArn}:*
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !Ref ClusterArn
+              - Sid: PassSchedulerTaskRole
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !Ref TaskRoleArn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: ecs-tasks.amazonaws.com
+
+  SchedulerDeadLetterQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref SchedulerDeadLetterQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowPharmaLinkSchedulerFailures
+            Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt SchedulerDeadLetterQueue.Arn
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnEquals:
+                aws:SourceArn: !Sub arn:${AWS::Partition}:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/default/pharmalink-scheduler
+
+  Scheduler:
+    Type: AWS::Scheduler::Schedule
+    DependsOn: SchedulerDeadLetterQueuePolicy
+    Properties:
+      Name: pharmalink-scheduler
+      Description: Runs one PharmaLink scheduler pass every five minutes
+      ScheduleExpression: rate(5 minutes)
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      State: !Ref ScheduleState
+      Target:
+        Arn: !Ref ClusterArn
+        RoleArn: !GetAtt SchedulerInvokeRole.Arn
+        DeadLetterConfig:
+          Arn: !GetAtt SchedulerDeadLetterQueue.Arn
+        RetryPolicy:
+          MaximumEventAgeInSeconds: 3600
+          MaximumRetryAttempts: 3
+        EcsParameters:
+          TaskDefinitionArn: !Ref SchedulerTaskDefinitionFamilyArn
+          LaunchType: FARGATE
+          PlatformVersion: LATEST
+          TaskCount: 1
+          NetworkConfiguration:
+            AwsVpcConfiguration:
+              AssignPublicIp: ENABLED
+              SecurityGroups:
+                - !Ref TaskSecurityGroup
+              Subnets:
+                - !Ref SubnetA
+                - !Ref SubnetB
+
+  SchedulerDeadLetterAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: pharmalink-scheduler-dead-letter-messages
+      AlarmDescription: The PharmaLink scheduler could not invoke its ECS target
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt SchedulerDeadLetterQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+Outputs:
+  ScheduleArn:
+    Value: !GetAtt Scheduler.Arn
+  InvokeRoleArn:
+    Value: !GetAtt SchedulerInvokeRole.Arn
+  DeadLetterQueueArn:
+    Value: !GetAtt SchedulerDeadLetterQueue.Arn
+  SchedulerLogGroupName:
+    Value: !Ref SchedulerLogGroup

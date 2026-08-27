@@ -1,0 +1,146 @@
+name: Deploy PharmaLink API
+description: Build, migrate, deploy by digest, smoke test, and roll back on failure
+
+inputs:
+  role-arn:
+    required: true
+  aws-region:
+    required: true
+  account-id:
+    required: true
+  repository:
+    required: true
+  service-arn:
+    required: true
+  cluster:
+    required: true
+  subnets:
+    required: true
+  security-groups:
+    required: true
+  health-url:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.role-arn }}
+        aws-region: ${{ inputs.aws-region }}
+
+    - name: Capture current deployed digest
+      id: current
+      shell: bash
+      env:
+        SERVICE_ARN: ${{ inputs.service-arn }}
+      run: |
+        set -euo pipefail
+        current_image="$(aws ecs describe-express-gateway-service \
+          --region "${{ inputs.aws-region }}" \
+          --service-arn "$SERVICE_ARN" \
+          --query 'service.activeConfigurations[0].primaryContainer.image' \
+          --output text)"
+        current_digest="${current_image##*@}"
+        if [[ "$current_digest" != sha256:* ]]; then
+          echo "Currently deployed image is not digest-pinned: $current_image" >&2
+          exit 1
+        fi
+        echo "image=$current_image" >> "$GITHUB_OUTPUT"
+        echo "digest=$current_digest" >> "$GITHUB_OUTPUT"
+
+    - uses: aws-actions/amazon-ecr-login@v2
+      id: login-ecr
+
+    - uses: docker/setup-buildx-action@v3
+
+    - name: Build and push API image
+      id: build
+      uses: docker/build-push-action@v6
+      with:
+        context: apps/api
+        push: true
+        tags: |
+          ${{ steps.login-ecr.outputs.registry }}/${{ inputs.repository }}:${{ github.sha }}
+          ${{ steps.login-ecr.outputs.registry }}/${{ inputs.repository }}:latest
+        cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/${{ inputs.repository }}:buildcache
+        cache-to: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/${{ inputs.repository }}:buildcache,mode=max
+
+    - name: Register release task definitions
+      id: taskdefs
+      shell: bash
+      env:
+        AWS_REGION: ${{ inputs.aws-region }}
+        SERVICE_ARN: ${{ inputs.service-arn }}
+        IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.repository }}@${{ steps.build.outputs.digest }}
+      run: .github/scripts/register-release-task-definitions.sh
+
+    - name: Run database migrations
+      shell: bash
+      env:
+        AWS_REGION: ${{ inputs.aws-region }}
+        CLUSTER: ${{ inputs.cluster }}
+        TASK_DEFINITION: ${{ steps.taskdefs.outputs.oneoff }}
+        SUBNETS: ${{ inputs.subnets }}
+        SECURITY_GROUPS: ${{ inputs.security-groups }}
+      run: .github/scripts/run-migration-task.sh
+
+    - name: Mark deployment started
+      id: deploy-state
+      shell: bash
+      run: echo 'started=true' >> "$GITHUB_OUTPUT"
+
+    - name: Update ECS Express service
+      shell: bash
+      env:
+        AWS_REGION: ${{ inputs.aws-region }}
+        SERVICE_ARN: ${{ inputs.service-arn }}
+        IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.repository }}@${{ steps.build.outputs.digest }}
+      run: .github/scripts/update-express-service.sh
+
+    - name: Smoke test API
+      shell: bash
+      env:
+        HEALTH_URL: ${{ inputs.health-url }}
+      run: |
+        set -euo pipefail
+        for attempt in {1..24}; do
+          if body="$(curl --silent --show-error --fail --max-time 15 "$HEALTH_URL")" \
+            && jq -e '.status == "ok"' <<<"$body" >/dev/null; then
+            echo "API smoke test passed"
+            exit 0
+          fi
+          sleep 10
+        done
+        echo "API smoke test failed after 24 attempts" >&2
+        exit 1
+
+    - name: Roll back failed service update
+      if: failure() && steps.deploy-state.outputs.started == 'true'
+      shell: bash
+      env:
+        AWS_REGION: ${{ inputs.aws-region }}
+        SERVICE_ARN: ${{ inputs.service-arn }}
+        IMAGE: ${{ steps.current.outputs.image }}
+      run: |
+        set -euo pipefail
+        echo "Deployment failed; rolling back to $IMAGE" >&2
+        .github/scripts/update-express-service.sh
+        {
+          echo '## API deployment rolled back'
+          echo "The service was restored to \`$IMAGE\`."
+          echo
+          echo '**Database migrations are not reverted by image rollback.** Review any migration that completed before the failure.'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Record successful deployment
+      if: success()
+      shell: bash
+      run: |
+        {
+          echo '## API deployment succeeded'
+          echo "Deployed digest: \`${{ steps.build.outputs.digest }}\`"
+          echo "Previous digest: \`${{ steps.current.outputs.digest }}\`"
+          echo "Migration task definition: \`${{ steps.taskdefs.outputs.oneoff }}\`"
+          echo "Scheduler task definition: \`${{ steps.taskdefs.outputs.scheduler }}\`"
+        } >> "$GITHUB_STEP_SUMMARY"

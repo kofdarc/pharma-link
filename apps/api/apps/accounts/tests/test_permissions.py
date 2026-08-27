@@ -5,7 +5,7 @@ from rest_framework.test import APITestCase
 
 from apps.accounts.models import UserRole
 from apps.inventory.services.stock import create_inventory_batch
-from apps.medicines.models import Medicine
+from apps.medicines.models import Medicine, PriceRegime
 from apps.pharmacies.models import Pharmacy
 
 
@@ -17,7 +17,13 @@ class PermissionBoundaryTests(APITestCase):
         self.admin = User.objects.create_user(email="admin@test.local", password="Password123!", role=UserRole.PLATFORM_ADMIN)
         self.staff_a = User.objects.create_user(email="staff-a@test.local", password="Password123!", role=UserRole.PHARMACY_STAFF, pharmacy=self.pharmacy_a)
         self.staff_b = User.objects.create_user(email="staff-b@test.local", password="Password123!", role=UserRole.PHARMACY_STAFF, pharmacy=self.pharmacy_b)
-        self.medicine = Medicine.objects.create(brand_name="Panadol", generic_name="Paracetamol", strength="500mg", form="Tablet")
+        self.medicine = Medicine.objects.create(
+            brand_name="Panadol",
+            generic_name="Paracetamol",
+            strength="500mg",
+            form="Tablet",
+            price_regime=PriceRegime.FREE,
+        )
         self.batch_b = create_inventory_batch(
             user=self.staff_b,
             pharmacy=self.pharmacy_b,
@@ -38,4 +44,3 @@ class PermissionBoundaryTests(APITestCase):
         self.client.force_authenticate(self.staff_a)
         response = self.client.get(f"/api/pharmacy/inventory/{self.batch_b.id}/")
         self.assertEqual(response.status_code, 404)
-
