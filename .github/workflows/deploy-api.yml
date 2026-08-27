@@ -80,7 +80,10 @@ jobs:
 
   deploy-automatic:
     name: deploy-api
-    if: github.ref == 'refs/heads/main' && needs.await-ci.outputs.destructive != 'true'
+    # Keep this repository variable false for the initial merge. GitHub only allows
+    # workflow_dispatch after the workflow exists on the default branch, so the first
+    # production run must be dispatched and verified before automatic delivery is enabled.
+    if: github.ref == 'refs/heads/main' && needs.await-ci.outputs.destructive != 'true' && vars.API_AUTO_DEPLOY_ENABLED == 'true'
     needs: await-ci
     runs-on: ubuntu-latest
     steps:

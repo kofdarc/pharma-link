@@ -9,8 +9,9 @@ PharmaLink runs in AWS account `423401347463`, region `eu-central-1`. Always pas
   `https://ph-dfe6101ee62a4136ab991c2944576b6d.ecs.eu-central-1.on.aws`.
 - **API image:** private ECR repository `pharmalink-api`. ECS always receives an image
   URI pinned by `sha256` digest.
-- **Database:** RDS PostgreSQL `database-1`, reachable only inside its VPC. Its security
-  group accepts PostgreSQL from `sg-09239269d18019b99`.
+- **Database:** RDS PostgreSQL `database-1` is publicly addressable, but its security
+  group restricts PostgreSQL to `sg-09239269d18019b99` and the approved `/32`
+  operator address. Never allow `0.0.0.0/0` on port 5432.
 - **Web:** Amplify SSR app `d11grhcyzvk01x`, branch `main`, serving
   `https://healthconnect.dev` and `https://www.healthconnect.dev`.
 - **Scheduler:** EventBridge Scheduler runs the `pharmalink-scheduler` Fargate task every
@@ -67,8 +68,16 @@ the GitHub `production` environment and waits for its required reviewer. Manual 
 from non-`main` branches also use that environment so their OIDC identity remains tightly
 scoped.
 
-`apps/api/docker-entrypoint.sh` starts Gunicorn only. Migrations must remain a distinct ECS
-one-off task; adding migrations back to container startup recreates a multi-task boot race.
+Automatic deployment also requires the repository variable
+`API_AUTO_DEPLOY_ENABLED=true`. Keep it `false` for the initial pipeline merge because
+GitHub cannot dispatch a workflow until its file exists on the default branch. After the
+first manual end-to-end run succeeds, set it to `true`.
+
+The release pipeline bypasses `apps/api/docker-entrypoint.sh` for the migration and
+scheduler tasks. The entrypoint still performs a compatibility migration during API boot;
+remove that command only in the required follow-up commit after the first green end-to-end
+deployment. Afterward migrations must remain a distinct ECS one-off task so concurrent API
+boots cannot recreate the migration race.
 
 ### Web deployment
 

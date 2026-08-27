@@ -4,7 +4,7 @@ Description: PharmaLink EventBridge Scheduler, invoke role, logs, and dead-lette
 Parameters:
   ScheduleState:
     Type: String
-    Default: DISABLED
+    Default: ENABLED
     AllowedValues: [ENABLED, DISABLED]
   ClusterArn:
     Type: String
