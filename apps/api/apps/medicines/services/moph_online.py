@@ -91,7 +91,7 @@ def _clean_cell_text(raw: str) -> str:
 
 
 def _parse_last_page(html: str) -> int:
-    page_numbers = [int(n) for n in re.findall(r"/page:(\d+)/", html)]
+    page_numbers = [int(n) for n in re.findall(r"page:(\d+)", html)]
     return max(page_numbers) if page_numbers else 1
 
 
