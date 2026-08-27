@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { useTranslations } from "@/lib/i18n/context";
 import type {
+  AnalyticsInsights,
   AnalyticsOverview,
   DemandSignals,
+  Insight,
+  InsightSeverity,
   MovementClassification,
   ReplenishmentPlan,
   StockSnapshot,
@@ -18,7 +21,7 @@ import { Table } from "@/components/ui/Table";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { BarMeter } from "@/components/charts/BarMeter";
 
-type Tab = "overview" | "inventory" | "replenishment" | "demand";
+type Tab = "overview" | "inventory" | "replenishment" | "demand" | "insights";
 
 export default function PharmacyAnalyticsPage() {
   const t = useTranslations();
@@ -26,13 +29,15 @@ export default function PharmacyAnalyticsPage() {
     ["overview", t("pharmacyAnalytics.tabOverview")],
     ["inventory", t("pharmacyAnalytics.tabInventory")],
     ["replenishment", t("pharmacyAnalytics.tabReplenishment")],
-    ["demand", t("pharmacyAnalytics.tabDemand")]
+    ["demand", t("pharmacyAnalytics.tabDemand")],
+    ["insights", t("pharmacyAnalytics.tabInsights")]
   ];
   const [tab, setTab] = useState<Tab>("overview");
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [inventory, setInventory] = useState<{ stock: StockSnapshot; turnover: TurnoverMetrics; movement: MovementClassification } | null>(null);
   const [replenishment, setReplenishment] = useState<ReplenishmentPlan | null>(null);
   const [demand, setDemand] = useState<DemandSignals | null>(null);
+  const [insights, setInsights] = useState<AnalyticsInsights | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -54,8 +59,11 @@ export default function PharmacyAnalyticsPage() {
     if (tab === "demand" && !demand) {
       apiFetch<DemandSignals>("/pharmacy/analytics/demand/").then(setDemand).catch(() => setError(t("pharmacyAnalytics.loadDemandError")));
     }
+    if (tab === "insights" && !insights) {
+      apiFetch<AnalyticsInsights>("/pharmacy/analytics/insights/").then(setInsights).catch(() => setError(t("pharmacyAnalytics.loadInsightsError")));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, inventory, replenishment, demand]);
+  }, [tab, inventory, replenishment, demand, insights]);
 
   return (
     <>
@@ -84,6 +92,7 @@ export default function PharmacyAnalyticsPage() {
       {tab === "inventory" ? <InventoryTab data={inventory} /> : null}
       {tab === "replenishment" ? <ReplenishmentTab data={replenishment} /> : null}
       {tab === "demand" ? <DemandTab data={demand} /> : null}
+      {tab === "insights" ? <InsightsTab data={insights} /> : null}
     </>
   );
 }
@@ -466,6 +475,42 @@ function DemandTab({ data }: { data: DemandSignals | null }) {
             </tbody>
           </table>
         </Table>
+      )}
+    </section>
+  );
+}
+
+const INSIGHT_TONE: Record<InsightSeverity, "danger" | "warning" | "success" | "neutral"> = {
+  critical: "danger",
+  warning: "warning",
+  opportunity: "success",
+  info: "neutral"
+};
+
+function InsightsTab({ data }: { data: AnalyticsInsights | null }) {
+  const t = useTranslations();
+  if (!data) return <div className="skeleton-card" />;
+  const severityLabel = (severity: InsightSeverity) =>
+    t(`pharmacyAnalytics.severity${severity.charAt(0).toUpperCase()}${severity.slice(1)}`);
+
+  return (
+    <section className="panel">
+      <h3>{t("pharmacyAnalytics.insightsTitle")}</h3>
+      <p className="muted small">{t("pharmacyAnalytics.insightsDescription")}</p>
+      {data.insights.length === 0 ? (
+        <EmptyState title={t("pharmacyAnalytics.noInsights")} />
+      ) : (
+        <ul className="insight-list">
+          {data.insights.map((insight: Insight) => (
+            <li key={insight.id} className="insight-card">
+              <div className="section-header">
+                <strong>{insight.title}</strong>
+                <Badge tone={INSIGHT_TONE[insight.severity]}>{severityLabel(insight.severity)}</Badge>
+              </div>
+              {insight.detail ? <p className="muted small">{insight.detail}</p> : null}
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

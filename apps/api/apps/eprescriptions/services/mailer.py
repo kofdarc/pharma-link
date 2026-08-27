@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import logging
+
 from django.conf import settings
 from django.utils.html import escape
 
 from apps.common.mailer import send_email
+from apps.eprescriptions.services import fax
 from apps.eprescriptions.services.qr import prescription_qr_svg, prescription_url
+
+logger = logging.getLogger(__name__)
 
 
 def _html_body(prescription, url: str, pin: str) -> str:
@@ -34,20 +39,57 @@ def _html_body(prescription, url: str, pin: str) -> str:
     """
 
 
-def send_prescription_email(prescription, *, secret: str, pin: str) -> None:
+def send_prescription_email(prescription, *, secret: str, pin: str) -> bool:
     """
     Sends the prescription as a QR code. In the POC the console email backend prints it;
-    point EMAIL_* settings at a real SMTP host and nothing else changes.
+    point EMAIL_* settings at a real SMTP host and nothing else changes. Returns whether the
+    send succeeded so the caller can fall back to the fax back-up (see send_prescription_fax)
+    on failure, per PrescribeIT's guaranteed-delivery model.
     """
     url = prescription_url(prescription.code, secret)
-    send_email(
-        to=[prescription.patient_email],
-        subject=f"Prescription {prescription.code} from Dr. {prescription.doctor.full_name}",
-        text_body=(
-            f"Prescription {prescription.code} for {prescription.patient_name}.\n"
-            f"Open: {url}\nOr enter code {prescription.code} with PIN {pin} at {settings.PUBLIC_WEB_BASE_URL}/rx\n"
-            f"Valid until {prescription.valid_until:%d %b %Y %H:%M}.\n"
-        ),
-        html_body=_html_body(prescription, url, pin),
-        attachments=[(f"prescription-{prescription.code}.svg", prescription_qr_svg(prescription.code, secret), "image/svg+xml")],
+    try:
+        send_email(
+            to=[prescription.patient_email],
+            subject=f"Prescription {prescription.code} from Dr. {prescription.doctor.full_name}",
+            text_body=(
+                f"Prescription {prescription.code} for {prescription.patient_name}.\n"
+                f"Open: {url}\nOr enter code {prescription.code} with PIN {pin} at {settings.PUBLIC_WEB_BASE_URL}/rx\n"
+                f"Valid until {prescription.valid_until:%d %b %Y %H:%M}.\n"
+            ),
+            html_body=_html_body(prescription, url, pin),
+            attachments=[(f"prescription-{prescription.code}.svg", prescription_qr_svg(prescription.code, secret), "image/svg+xml")],
+        )
+    except Exception:
+        logger.exception("Failed to email prescription %s to %s", prescription.code, prescription.patient_email)
+        return False
+    return True
+
+
+def send_prescription_fax(prescription, *, pin: str) -> bool:
+    """
+    Back-up delivery channel used when the prescription has no email on file, or the email
+    send failed - PrescribeIT documents this as its guaranteed-delivery path. Fax is a
+    plain-text medium (no QR rendering), so the pharmacy on the other end falls back to the
+    code+PIN manual-entry flow rather than scanning.
+    """
+    text_body = (
+        f"Prescription {prescription.code} from Dr. {prescription.doctor.full_name}, "
+        f"for {prescription.patient_name}.\n\n"
+        + "\n".join(
+            f"- {item.medicine_text}: {item.quantity_prescribed} {item.unit} ({item.dosage_instructions or 'as directed'})"
+            for item in prescription.items.all()
+        )
+        + f"\n\nEnter code {prescription.code} with PIN {pin} at {settings.PUBLIC_WEB_BASE_URL}/rx to dispense.\n"
+        f"Valid until {prescription.valid_until:%d %b %Y %H:%M}.\n"
     )
+    try:
+        provider = fax.get_provider(settings.FAX_PROVIDER)
+        result = provider.send_fax(
+            to=prescription.patient_fax,
+            subject=f"Prescription {prescription.code}",
+            text_body=text_body,
+        )
+    except Exception:
+        logger.exception("Failed to fax prescription %s to %s", prescription.code, prescription.patient_fax)
+        return False
+    return result.status == "SENT"

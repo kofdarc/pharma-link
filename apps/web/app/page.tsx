@@ -166,7 +166,7 @@ export default function LandingPage() {
         <section className="hc-section hc-band">
           <div className="hc-wrap hc-explain-row">
             <div className="hc-explain-copy">
-              <h2 className="hc-h2">A prescription that can't be lost, copied or reused.</h2>
+              <h2 className="hc-h2">A prescription that can&apos;t be lost, copied or reused.</h2>
               <p className="hc-body">
                 When your physician prescribes through HealthConnect you receive a prescription you can keep on your phone. The
                 pharmacy scans it, dispenses what you need, and anything left stays claimable — once, and only once.

@@ -46,6 +46,9 @@ class PrescriptionRecord(UUIDTimeStampedModel):
     file_original_name = models.CharField(max_length=255, blank=True)
     file_mime_type = models.CharField(max_length=120, blank=True)
     file_size = models.PositiveIntegerField(null=True, blank=True)
+    ocr_text = models.TextField(
+        blank=True, help_text="Cached raw OCR transcription of `file`, populated on first request to extract candidate drug lines."
+    )
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="prescription_records")
 

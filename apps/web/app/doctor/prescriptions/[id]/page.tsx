@@ -70,6 +70,7 @@ export default function DoctorPrescriptionDetailPage() {
             {prescription.patient_name}
             {prescription.patient_email ? ` · ${prescription.patient_email}` : ""}
             {prescription.patient_phone ? ` · ${prescription.patient_phone}` : ""}
+            {prescription.patient_fax ? ` · ${prescription.patient_fax}` : ""}
           </p>
           {prescription.renewed_from_code ? (
             <p className="muted small">{t("doctorPrescriptionDetail.renewalOf", { code: prescription.renewed_from_code })}</p>
@@ -127,6 +128,12 @@ export default function DoctorPrescriptionDetailPage() {
             {prescription.email_sent_at ? t("doctorPrescriptionDetail.yes") : t("doctorPrescriptionDetail.no")}
           </strong>
         </div>
+        {prescription.fax_sent_at ? (
+          <div className="metric-card">
+            <span>{t("doctorPrescriptionDetail.faxedToPatient")}</span>
+            <strong style={{ fontSize: "1.1rem" }}>{t("doctorPrescriptionDetail.yes")}</strong>
+          </div>
+        ) : null}
       </section>
 
       {prescription.diagnosis_note ? (

@@ -247,6 +247,21 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "HealthConnect <no-reply@pharmalink.test>")
 
+# --- Prescription OCR -------------------------------------------------------------------
+# Self-hosted Tesseract is the default so OCR intake needs no external account - it handles
+# printed prescriptions well but poorly on doctor handwriting (docs/AI_FEATURES.md §2).
+# PRESCRIPTION_OCR_PROVIDER="easyocr" is a free, still self-hosted step up (a real
+# detection+recognition model instead of classical glyph matching) at the cost of a much
+# heavier dependency (PyTorch) and slower requests - see apps.prescriptions.services.ocr.
+# PRESCRIPTION_OCR_PROVIDER="anthropic" (+ ANTHROPIC_API_KEY) reads handwriting far better
+# than either free option, since it's a real vision-language model with drug-name world
+# knowledge - but that path sends the prescription image (which can carry patient/doctor
+# names) to Anthropic's API: don't switch it on without checking your data-handling/
+# compliance posture first.
+PRESCRIPTION_OCR_PROVIDER = os.getenv("PRESCRIPTION_OCR_PROVIDER", "tesseract")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_OCR_MODEL = os.getenv("ANTHROPIC_OCR_MODEL", "claude-sonnet-5")
+
 # --- WhatsApp ----------------------------------------------------------------------------
 # The console provider logs messages instead of calling Meta's API, so dev/test needs no
 # WhatsApp Business account. Point WHATSAPP_PROVIDER at "meta_cloud" and supply the token/
@@ -256,3 +271,9 @@ WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
 WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN", "")
 WHATSAPP_APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")  # signs inbound webhook payloads (X-Hub-Signature-256)
+
+# --- Prescription fax back-up -------------------------------------------------------------
+# PrescribeIT-style guaranteed delivery: when a prescription can't be emailed to the patient
+# (no address on file, or the send fails), it's faxed instead. Console logs instead of
+# calling a real fax gateway (see apps.eprescriptions.services.fax).
+FAX_PROVIDER = os.getenv("FAX_PROVIDER", "console")

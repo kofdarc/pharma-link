@@ -19,6 +19,7 @@ from apps.accounts.views import (
 )
 from apps.analytics.views import (
     AnalyticsDemandView,
+    AnalyticsInsightsView,
     AnalyticsInventoryView,
     AnalyticsOverviewView,
     AnalyticsReplenishmentView,
@@ -240,6 +241,7 @@ urlpatterns = [
     path("pharmacy/analytics/sales/", AnalyticsSalesView.as_view()),
     path("pharmacy/analytics/replenishment/", AnalyticsReplenishmentView.as_view()),
     path("pharmacy/analytics/demand/", AnalyticsDemandView.as_view()),
+    path("pharmacy/analytics/insights/", AnalyticsInsightsView.as_view()),
     # Platform revenue
     path("admin/revenue/overview/", PlatformRevenueOverviewView.as_view()),
     # Dispatch (platform operations)

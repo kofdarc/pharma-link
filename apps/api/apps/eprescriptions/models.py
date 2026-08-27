@@ -74,6 +74,9 @@ class Prescription(UUIDTimeStampedModel):
     patient_name = models.CharField(max_length=255)
     patient_email = models.EmailField(blank=True)
     patient_phone = models.CharField(max_length=40, blank=True)
+    patient_fax = models.CharField(
+        max_length=40, blank=True, help_text="Used only as a delivery back-up when the digital (email) send fails or no email is on file."
+    )
     patient_date_of_birth = models.DateField(null=True, blank=True)
     diagnosis_note = models.TextField(blank=True, help_text="Free note for the dispensing pharmacist. Not a diagnosis service.")
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.ISSUED, db_index=True)
@@ -82,6 +85,9 @@ class Prescription(UUIDTimeStampedModel):
     cancelled_at = models.DateTimeField(null=True, blank=True)
     cancellation_reason = models.CharField(max_length=255, blank=True)
     email_sent_at = models.DateTimeField(null=True, blank=True)
+    fax_sent_at = models.DateTimeField(
+        null=True, blank=True, help_text="Set when the fax back-up delivered this prescription because the digital send failed or had no email to use."
+    )
     failed_auth_count = models.PositiveIntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True, help_text="Set after repeated failed PIN attempts.")
 

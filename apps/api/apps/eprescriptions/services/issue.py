@@ -59,6 +59,7 @@ def issue_prescription(
                     patient_name=patient["patient_name"],
                     patient_email=patient.get("patient_email", ""),
                     patient_phone=patient.get("patient_phone", ""),
+                    patient_fax=patient.get("patient_fax", ""),
                     patient_date_of_birth=patient.get("patient_date_of_birth"),
                     diagnosis_note=diagnosis_note,
                     valid_until=timezone.now() + timedelta(days=validity_days),
@@ -94,10 +95,19 @@ def issue_prescription(
         after_data={"code": prescription.code, "items": len(items), "valid_until": prescription.valid_until.isoformat(), "target_pharmacy": str(target_pharmacy.id) if target_pharmacy else None},
     )
 
+    delivered_digitally = False
     if prescription.patient_email:
-        mailer.send_prescription_email(prescription, secret=secret, pin=pin)
-        prescription.email_sent_at = timezone.now()
-        prescription.save(update_fields=["email_sent_at", "updated_at"])
+        delivered_digitally = mailer.send_prescription_email(prescription, secret=secret, pin=pin)
+        if delivered_digitally:
+            prescription.email_sent_at = timezone.now()
+            prescription.save(update_fields=["email_sent_at", "updated_at"])
+
+    # PrescribeIT's guaranteed-delivery back-up: fax fills in when there's no email on file,
+    # or the digital send failed, and a fax number was captured.
+    if not delivered_digitally and prescription.patient_fax:
+        if mailer.send_prescription_fax(prescription, pin=pin):
+            prescription.fax_sent_at = timezone.now()
+            prescription.save(update_fields=["fax_sent_at", "updated_at"])
 
     return prescription, secret, pin
 

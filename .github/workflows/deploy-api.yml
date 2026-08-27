@@ -1,0 +1,121 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: deploy-api-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: eu-central-1
+  AWS_ACCOUNT_ID: '423401347463'
+  ECR_REPOSITORY: pharmalink-api
+  ECS_CLUSTER: default
+  ECS_SERVICE_ARN: arn:aws:ecs:eu-central-1:423401347463:service/default/pharmalink-api
+  ECS_SUBNETS: subnet-0fb1407cfa6c4767e,subnet-095d07bde4fb4d8d6
+  ECS_SECURITY_GROUPS: sg-09239269d18019b99,sg-0e42684ae52970a3e
+  API_HEALTH_URL: https://ph-dfe6101ee62a4136ab991c2944576b6d.ecs.eu-central-1.on.aws/api/health/
+  DEPLOY_ROLE_ARN: arn:aws:iam::423401347463:role/pharmalink-gha-deploy
+
+jobs:
+  await-ci:
+    name: await-ci
+    runs-on: ubuntu-latest
+    outputs:
+      run-id: ${{ steps.ci.outputs.run_id }}
+      destructive: ${{ steps.safety.outputs.destructive }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for matching CI run
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..120}; do
+            runs="$(gh api "/repos/$REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$HEAD_SHA&per_page=20")"
+            run="$(jq -c '[.workflow_runs[] | select(.head_sha == env.HEAD_SHA)] | sort_by(.created_at) | reverse | .[0] // empty' <<<"$runs")"
+            if [[ -n "$run" ]]; then
+              status="$(jq -r '.status' <<<"$run")"
+              conclusion="$(jq -r '.conclusion // ""' <<<"$run")"
+              if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then
+                run_id="$(jq -r '.id' <<<"$run")"
+                echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              if [[ "$status" == "completed" && "$conclusion" != "success" ]]; then
+                echo "Matching CI run concluded $conclusion" >&2
+                exit 1
+              fi
+            fi
+            sleep 15
+          done
+          echo "Timed out waiting for CI on $HEAD_SHA" >&2
+          exit 1
+      - uses: actions/download-artifact@v4
+        with:
+          name: migration-safety-${{ github.sha }}
+          path: /tmp/migration-safety
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.ci.outputs.run_id }}
+      - name: Read migration safety result
+        id: safety
+        run: |
+          destructive="$(jq -r '.destructive' /tmp/migration-safety/migration-safety.json)"
+          [[ "$destructive" == "true" || "$destructive" == "false" ]]
+          echo "destructive=$destructive" >> "$GITHUB_OUTPUT"
+          echo "Destructive migration detected: $destructive" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-automatic:
+    name: deploy-api
+    # Keep this repository variable false for the initial merge. GitHub only allows
+    # workflow_dispatch after the workflow exists on the default branch, so the first
+    # production run must be dispatched and verified before automatic delivery is enabled.
+    if: github.ref == 'refs/heads/main' && needs.await-ci.outputs.destructive != 'true' && vars.API_AUTO_DEPLOY_ENABLED == 'true'
+    needs: await-ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy-api
+        with:
+          role-arn: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          account-id: ${{ env.AWS_ACCOUNT_ID }}
+          repository: ${{ env.ECR_REPOSITORY }}
+          service-arn: ${{ env.ECS_SERVICE_ARN }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          subnets: ${{ env.ECS_SUBNETS }}
+          security-groups: ${{ env.ECS_SECURITY_GROUPS }}
+          health-url: ${{ env.API_HEALTH_URL }}
+
+  deploy-approved:
+    name: deploy-api-production-approved
+    if: github.ref != 'refs/heads/main' || needs.await-ci.outputs.destructive == 'true'
+    needs: await-ci
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy-api
+        with:
+          role-arn: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          account-id: ${{ env.AWS_ACCOUNT_ID }}
+          repository: ${{ env.ECR_REPOSITORY }}
+          service-arn: ${{ env.ECS_SERVICE_ARN }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          subnets: ${{ env.ECS_SUBNETS }}
+          security-groups: ${{ env.ECS_SECURITY_GROUPS }}
+          health-url: ${{ env.API_HEALTH_URL }}

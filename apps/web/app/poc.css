@@ -61,6 +61,14 @@
 .kpi-list li:last-child { border-bottom: none; }
 .text-danger { color: var(--red); }
 
+.insight-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.insight-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 16px;
+}
+.insight-card .section-header { margin-bottom: 0; align-items: baseline; }
+.insight-card p { margin: 6px 0 0; }
+
 /* --- tabs --------------------------------------------------------------- */
 .tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; flex-wrap: wrap; }
 .tab {

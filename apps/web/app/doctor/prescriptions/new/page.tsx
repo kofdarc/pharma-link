@@ -53,6 +53,7 @@ export default function NewPrescriptionPage() {
   const [patientName, setPatientName] = useState("");
   const [patientEmail, setPatientEmail] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
+  const [patientFax, setPatientFax] = useState("");
   const [validityDays, setValidityDays] = useState(30);
   const [note, setNote] = useState("");
   const [pharmacyQuery, setPharmacyQuery] = useState("");
@@ -96,6 +97,7 @@ export default function NewPrescriptionPage() {
     setPatientName(draft.patient_name);
     setPatientEmail(draft.patient_email);
     setPatientPhone(draft.patient_phone);
+    setPatientFax(draft.patient_fax);
     setItems(
       draft.items.length
         ? draft.items.map((entry) => ({
@@ -131,9 +133,10 @@ export default function NewPrescriptionPage() {
       (patientName.trim() !== "" ||
         patientEmail.trim() !== "" ||
         patientPhone.trim() !== "" ||
+        patientFax.trim() !== "" ||
         note.trim() !== "" ||
         items.some((item) => item.medicine_text.trim() !== "" || item.catalog_query.trim() !== "" || item.dosage_instructions.trim() !== "")),
-    [issued, patientName, patientEmail, patientPhone, note, items]
+    [issued, patientName, patientEmail, patientPhone, patientFax, note, items]
   );
 
   useEffect(() => {
@@ -156,6 +159,7 @@ export default function NewPrescriptionPage() {
     if (!match) return;
     if (!patientEmail.trim() && match.email) setPatientEmail(match.email);
     if (!patientPhone.trim() && match.phone) setPatientPhone(match.phone);
+    if (!patientFax.trim() && match.fax) setPatientFax(match.fax);
   }
 
   function selectCatalogEntry(key: string, value: string) {
@@ -193,6 +197,7 @@ export default function NewPrescriptionPage() {
           patient_name: patientName,
           patient_email: patientEmail,
           patient_phone: patientPhone,
+          patient_fax: patientFax,
           diagnosis_note: note,
           validity_days: validityDays,
           target_pharmacy: targetPharmacy || null,
@@ -217,7 +222,9 @@ export default function NewPrescriptionPage() {
             <p className="muted">
               {issued.email_sent_at
                 ? t("doctorPrescriptionsNew.emailedTo", { email: issued.patient_email || "" })
-                : t("doctorPrescriptionsNew.noEmailGiven")}
+                : issued.fax_sent_at
+                  ? t("doctorPrescriptionsNew.faxedTo", { fax: issued.patient_fax || "" })
+                  : t("doctorPrescriptionsNew.noEmailGiven")}
             </p>
           </div>
           <div className="toolbar no-print">
@@ -318,6 +325,9 @@ export default function NewPrescriptionPage() {
             </Field>
             <Field label={t("doctorPrescriptionsNew.phone")}>
               <input value={patientPhone} onChange={(event) => setPatientPhone(event.target.value)} />
+            </Field>
+            <Field label={t("doctorPrescriptionsNew.fax")} hint={t("doctorPrescriptionsNew.faxHint")}>
+              <input value={patientFax} onChange={(event) => setPatientFax(event.target.value)} />
             </Field>
             <Field label={t("doctorPrescriptionsNew.validForDays")}>
               <input

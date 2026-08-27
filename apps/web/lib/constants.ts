@@ -1,5 +1,9 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
+/** sessionStorage key used to hand OCR-derived sale lines from the prescriptions page to the
+ *  new-sale form (see app/pharmacy/prescriptions/page.tsx and app/pharmacy/sales/new/page.tsx). */
+export const PRESCRIPTION_PREFILL_KEY = "pharmalink_prescription_prefill";
+
 export const PHARMACY_NAV = [
   ["Dashboard", "/pharmacy/dashboard"],
   ["Analytics", "/pharmacy/analytics"],

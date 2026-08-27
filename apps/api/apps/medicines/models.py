@@ -182,6 +182,7 @@ class MedicineAlias(UUIDTimeStampedModel):
         GENERIC = "GENERIC", "Generic"
         MISSPELLING = "MISSPELLING", "Misspelling"
         IMPORT_NAME = "IMPORT_NAME", "Import name"
+        TRANSLITERATION = "TRANSLITERATION", "Transliteration (e.g. Arabic script)"
         OTHER = "OTHER", "Other"
 
     medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name="aliases")
