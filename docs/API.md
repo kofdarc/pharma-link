@@ -96,6 +96,8 @@ pharmacy.
 | `GET /pharmacy/analytics/sales/?days=` | Sales snapshot, daily series, top movers |
 | `GET /pharmacy/analytics/replenishment/?days=&lead_time_days=` | Reorder points with safety stock |
 | `GET /pharmacy/analytics/demand/?days=` | Unmet demand in the pharmacy's area |
+| `GET /pharmacy/analytics/insights/` | Rule-based Smart Insights cards, severity-ranked |
+| `GET /pharmacy/analytics/digest/` | AI-narrated prose over the same numbers (falls back to the Insights cards if no provider is configured or the call fails - see `docs/AI_FEATURES.md` §5) |
 
 ### Integration setup
 

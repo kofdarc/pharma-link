@@ -1,8 +1,9 @@
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsPharmacyUserWithActivePharmacy
-from apps.analytics.services import insights, kpis
+from apps.analytics.services import insights, kpis, narrative
 
 
 def _int_param(request, name: str, default: int, *, maximum: int = 365) -> int:
@@ -74,3 +75,22 @@ class AnalyticsInsightsView(APIView):
 
     def get(self, request):
         return Response({"insights": insights.generate_insights(request.user.pharmacy)})
+
+
+class AnalyticsDigestThrottle(UserRateThrottle):
+    scope = "analytics_digest"
+
+
+class AnalyticsDigestView(APIView):
+    """
+    Narrative prose over the same numbers AnalyticsInsightsView already returns - see
+    apps.analytics.services.narrative. Unlike every other view in this module, this one can
+    call an external provider, hence the dedicated throttle: the rest are pure DB reads with
+    no per-request cost.
+    """
+
+    permission_classes = [IsPharmacyUserWithActivePharmacy]
+    throttle_classes = [AnalyticsDigestThrottle]
+
+    def get(self, request):
+        return Response(narrative.generate_digest(request.user.pharmacy, locale=request.LANGUAGE_CODE))
