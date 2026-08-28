@@ -780,6 +780,21 @@ export interface AnalyticsInsights {
   insights: Insight[];
 }
 
+export interface AnalyticsDigest {
+  headline: string;
+  paragraphs: string[];
+  // Insight ids (see Insight.id) the digest was written from - every number an AI-narrated
+  // digest mentions traces back to one of these, same idea as `tools_used` on an assistant
+  // message.
+  grounded_on: string[];
+  provider: string;
+  // True when no AI provider is configured, or the provider call failed - the digest then
+  // falls back to the same rule-based Smart Insights cards AnalyticsInsights renders.
+  stale: boolean;
+  generated_at: string;
+  fallback_reason?: string;
+}
+
 /* --- Integrations ----------------------------------------------------------------- */
 
 export interface IntegrationKey {
@@ -973,3 +988,23 @@ export interface OrderOffer {
   shares_a_pickup: boolean;
 }
 
+
+/* --- In-app assistant -------------------------------------------------------------- */
+
+export interface AssistantSession {
+  persona: "guest" | "customer" | "doctor" | "pharmacy" | "admin" | "driver";
+  label: string;
+  greeting: string;
+  suggestions: string[];
+  signed_in: boolean;
+}
+
+export interface AssistantReply {
+  conversation_id: string;
+  reply: string;
+  intent: string;
+  persona: AssistantSession["persona"];
+  source: string;
+  suggestions: string[];
+  tools_used: string[];
+}

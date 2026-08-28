@@ -20,12 +20,14 @@ from apps.accounts.views import (
 )
 from apps.analytics.views import (
     AnalyticsDemandView,
+    AnalyticsDigestView,
     AnalyticsInsightsView,
     AnalyticsInventoryView,
     AnalyticsOverviewView,
     AnalyticsReplenishmentView,
     AnalyticsSalesView,
 )
+from apps.assistant.views import AssistantChatView, AssistantSessionView
 from apps.audit.views import AdminAuditLogViewSet, PharmacyAuditLogViewSet
 from apps.billing.views import (
     AdminPharmacySubscriptionViewSet,
@@ -214,6 +216,9 @@ urlpatterns = [
     path("auth/verify-email/", VerifyEmailView.as_view()),
     path("auth/verify-email/resend/", ResendVerificationView.as_view()),
     path("auth/notification-preferences/", NotificationPreferencesView.as_view()),
+    # In-app assistant (role-scoped; anonymous callers get the guest persona)
+    path("assistant/session/", AssistantSessionView.as_view()),
+    path("assistant/chat/", AssistantChatView.as_view()),
     # Public
     path("public/search/", public_search),
     path("public/pharmacy-directory/", public_pharmacy_directory),
@@ -250,6 +255,7 @@ urlpatterns = [
     path("pharmacy/analytics/replenishment/", AnalyticsReplenishmentView.as_view()),
     path("pharmacy/analytics/demand/", AnalyticsDemandView.as_view()),
     path("pharmacy/analytics/insights/", AnalyticsInsightsView.as_view()),
+    path("pharmacy/analytics/digest/", AnalyticsDigestView.as_view()),
     # Platform revenue
     path("admin/revenue/overview/", PlatformRevenueOverviewView.as_view()),
     # Dispatch (platform operations)

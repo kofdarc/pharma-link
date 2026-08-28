@@ -8,6 +8,7 @@ import "./patient-app.css";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { I18nProvider } from "@/lib/i18n/context";
+import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 
 // Inter carries the whole product; Fraunces is display-only (hero and section
 // headlines on the patient-facing pages). Two families, one job each.
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <I18nProvider>
           {children}
+          <AssistantWidget />
           <RegisterServiceWorker />
           <InstallPrompt />
         </I18nProvider>
