@@ -488,7 +488,12 @@ def sync_products(rows: list[MophProductRow]) -> dict:
 
             is_new = medicine is None
             if is_new:
-                medicine = Medicine(is_active=True, category=ProductCategory.MEDICINE)
+                # New catalog entries default to prescription-required: the MoPH
+                # feed carries no Rx flag, and an unclassified drug must not be
+                # orderable/sellable as OTC. An admin downgrades genuine OTC items.
+                medicine = Medicine(
+                    is_active=True, category=ProductCategory.MEDICINE, requires_prescription=True
+                )
 
             changed = False
 
@@ -626,7 +631,9 @@ def sync_prices(rows: list[MophRow], *, reference: str) -> dict:
                 regulated_price=row.price_usd,
                 regulated_price_reference=reference,
                 regulated_price_updated_at=now,
-                requires_prescription=False,
+                # New entries default to prescription-required (see sync_products);
+                # an admin downgrades genuine OTC items.
+                requires_prescription=True,
                 is_active=True,
             )
             existing_by_key[key] = medicine

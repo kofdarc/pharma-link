@@ -174,6 +174,22 @@ class SyncProductsTests(TestCase):
         self.assertEqual(medicine.price_regime, PriceRegime.REGULATED)
         self.assertEqual(medicine.regulated_price, Decimal("4.50"))
 
+    def test_new_medicine_defaults_to_prescription_required(self):
+        sync_products([make_row()])
+
+        self.assertTrue(Medicine.objects.get(moph_code=1001).requires_prescription)
+
+    def test_sync_does_not_touch_prescription_flag_on_existing_medicine(self):
+        Medicine.objects.create(
+            brand_name="Example Brand", strength="500mg", form="Tablet", moph_code=1001,
+            price_regime=PriceRegime.REGULATED, regulated_price=Decimal("1.00"),
+            market_status=MarketStatus.MARKETED, requires_prescription=False,
+        )
+
+        sync_products([make_row(manufacturer="Updated Labs")])
+
+        self.assertFalse(Medicine.objects.get(moph_code=1001).requires_prescription)
+
     def test_creates_new_non_marketed_product(self):
         result = sync_products([make_row(
             market_status=MarketStatus.NON_MARKETED, source=MophSource.MOPH_NON_MARKETED_EXCEL, price_usd=None,
