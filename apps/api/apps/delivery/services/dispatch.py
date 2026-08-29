@@ -72,6 +72,14 @@ def build_jobs(*, anchor: datetime | None = None, fulfillments=None) -> tuple[li
             ready_at = fulfillment.ready_at or (fulfillment.accepted_at or anchor) + timedelta(minutes=pharmacy.order_preparation_minutes)
             open_today = timezone.localtime(anchor).replace(hour=pharmacy.opens_at.hour, minute=pharmacy.opens_at.minute, second=0, microsecond=0)
             close_today = timezone.localtime(anchor).replace(hour=pharmacy.closes_at.hour, minute=pharmacy.closes_at.minute, second=0, microsecond=0)
+            if close_today <= anchor:
+                # Already past today's closing time (planning run at night, or a pharmacy
+                # that closed early) - "today's" window is otherwise stamped onto a time
+                # that has already passed, which collapses `latest` below to `earliest` (a
+                # zero-width pickup window the solver can never satisfy) instead of correctly
+                # reading as "reachable again once the pharmacy reopens tomorrow".
+                open_today += timedelta(days=1)
+                close_today += timedelta(days=1)
             earliest = max(_minutes_between(anchor, ready_at), _minutes_between(anchor, open_today), 0.0)
             latest = max(earliest, _minutes_between(anchor, close_today))
             pickups.append(
