@@ -35,19 +35,47 @@ function toAvailability(status: PublicAvailability["availability_status"]): Avai
 }
 
 /**
- * Brand vs generic is not a field the API carries, so it is inferred: a product
- * whose brand name starts with its own active ingredient is a generic listing
- * ("Atorvastatin Sandoz"), anything else is a brand ("Lipitor").
+ * Fallback brand-vs-generic guess for the rare product missing MoPH's own
+ * classification: a brand name that starts with its own active ingredient reads as
+ * a generic listing ("Atorvastatin Sandoz"), anything else as a brand ("Lipitor").
  */
 function inferProductType(brand: string, generic: string): ProductType {
   const firstIngredient = generic.split(/[/,]/)[0].trim().toLowerCase();
   return firstIngredient && brand.toLowerCase().startsWith(firstIngredient) ? "generic" : "brand";
 }
 
+/**
+ * Brand vs generic, preferring MoPH's own `brand_generic` classification (G / B /
+ * BioTech / BioHuman) over the name-matching heuristic below. This matters in
+ * practice: `generic_name` (what the heuristic keys off) is populated on well
+ * under 1% of the production catalogue, so `inferProductType` alone silently
+ * classifies almost everything as "brand".
+ */
+function classifyProductType(brand: string, generic: string, brandGeneric?: string): ProductType {
+  const code = (brandGeneric || "").trim().toUpperCase();
+  if (code === "G" || code === "BIOTECH") return "generic";
+  if (code === "B" || code === "BIOHUMAN") return "brand";
+  return inferProductType(brand, generic);
+}
+
 function parsePrice(value: string | null): number | null {
   if (!value) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * MoPH's `presentation` field is inconsistent: some rows already carry a unit
+ * ("100ml", "5ml"), others are a bare count ("30") that only reads as a pack size
+ * once paired with the dosage form. `form` is populated on effectively every
+ * product, so it's a reliable unit source for the bare-count case.
+ */
+function packSizeLabel(presentation: string | undefined, form: string): string | undefined {
+  const value = (presentation || "").trim();
+  if (!value) return undefined;
+  if (/[a-zA-Z]/.test(value) || !form) return value;
+  const unit = form.toLowerCase();
+  return value === "1" ? `${value} ${unit}` : `${value} ${unit.endsWith("s") ? unit : `${unit}s`}`;
 }
 
 /** Fold per-pharmacy availability rows into one entry per medicine. */
@@ -67,10 +95,18 @@ function groupByMedicine(rows: PublicAvailability[]): MedicineSummary[] {
         brand: medicine.brand_name,
         strength: medicine.strength || "",
         generic: medicine.generic_name || "",
+        activeIngredient: medicine.ingredients || medicine.generic_name || "",
         form: medicine.form || "",
+        route: medicine.route || undefined,
+        manufacturer: medicine.manufacturer || undefined,
+        country: medicine.country || undefined,
+        agent: medicine.agent || undefined,
+        registrationNumber: medicine.registration_number || undefined,
+        atcCode: medicine.classification || undefined,
+        packSize: packSizeLabel(medicine.presentation, medicine.form || ""),
         image: medicine.image,
         requiresPrescription: Boolean(medicine.requires_prescription),
-        productType: inferProductType(medicine.brand_name, medicine.generic_name || ""),
+        productType: classifyProductType(medicine.brand_name, medicine.generic_name || "", medicine.brand_generic),
         availability,
         fromPrice: price,
         isPriceRegulated: row.is_price_regulated,
@@ -118,7 +154,7 @@ export async function suggestMedicines(query: string, signal?: AbortSignal): Pro
       id: medicine.id,
       brand: medicine.brand_name,
       strength: medicine.strength || "",
-      generic: medicine.generic_name || "",
+      generic: medicine.ingredients || medicine.generic_name || "",
       form: medicine.form || "",
       requiresPrescription: Boolean(medicine.requires_prescription)
     }));
@@ -129,7 +165,7 @@ export async function suggestMedicines(query: string, signal?: AbortSignal): Pro
 }
 
 /**
- * One medicine, with the other products listing the same active ingredient.
+ * One medicine, with other products of the same composition (see `relatedTo`).
  *
  * Resolves to `null` only when the id genuinely is not in the catalogue. A
  * failed request rejects, so the page can tell "no such medicine" apart from
@@ -177,10 +213,18 @@ async function fromCatalogueOnly(id: string, signal?: AbortSignal): Promise<Medi
     brand: record.brand_name,
     strength: record.strength || "",
     generic: record.generic_name || "",
+    activeIngredient: record.ingredients || record.generic_name || "",
     form: record.form || "",
+    route: record.route || undefined,
+    manufacturer: record.manufacturer || undefined,
+    country: record.country || undefined,
+    agent: record.agent || undefined,
+    registrationNumber: record.registration_number || undefined,
+    atcCode: record.classification || undefined,
+    packSize: packSizeLabel(record.presentation, record.form || ""),
     image: record.image,
     requiresPrescription: Boolean(record.requires_prescription),
-    productType: inferProductType(record.brand_name, record.generic_name || ""),
+    productType: classifyProductType(record.brand_name, record.generic_name || "", record.brand_generic),
     availability: "unavailable",
     fromPrice,
     isPriceRegulated: Boolean(record.is_price_regulated),
@@ -192,18 +236,35 @@ async function fromCatalogueOnly(id: string, signal?: AbortSignal): Promise<Medi
 }
 
 /**
- * Other products with the same listed active ingredient.
+ * Other MARKETED products whose full composition text (active ingredient(s) + strength,
+ * as one string) matches this one exactly - resolved server-side via
+ * `same_composition_as` (see `apps.inventory.services.availability`), which is also
+ * where the MARKETED-only filter and the exact-string match live.
  *
- * One extra query against the ingredient text, and it is the only way to offer
- * this without a dedicated endpoint. Supporting information rather than the
- * answer to the page, so a failure here empties the section instead of failing
- * the whole medicine.
+ * This is a *candidate list*, built the way WHO/Lebanese-MoPH guidance says candidates
+ * should be generated (same complete active-ingredient set + strength), not a claim of
+ * equivalence: there is no MoPH substitution-list or bioequivalence data behind it, so
+ * the page must present it as "same composition, not verified interchangeable" - see
+ * `medicine.related` on `MedicineDetail` and the section that renders it.
+ *
+ * Matching on the full `ingredients` string (rather than `generic`/`generic_name`, which
+ * is populated on well under 1% of the production catalogue) is also what makes this
+ * section render at all in production. A combination product's `ingredients` string
+ * encodes every active plus its strength, so this can't collapse "amoxicillin" and
+ * "amoxicillin + clavulanate" into the same group the way matching on a single "main
+ * ingredient" would.
+ *
+ * A failure here empties the section instead of failing the whole medicine page -
+ * supporting information, not the answer to the page.
  */
 async function relatedTo(medicine: MedicineSummary, signal?: AbortSignal): Promise<MedicineSummary[]> {
-  if (!medicine.generic) return [];
+  if (!medicine.activeIngredient) return [];
   let pool: MedicineSummary[];
   try {
-    const siblings = await apiFetch<PublicAvailability[]>(`/public/search/?q=${encodeURIComponent(medicine.generic)}`, { signal });
+    const siblings = await apiFetch<PublicAvailability[]>(
+      `/public/search/?same_composition_as=${encodeURIComponent(medicine.id)}`,
+      { signal }
+    );
     pool = groupByMedicine(siblings);
   } catch (error) {
     if (signal?.aborted) throw error;
@@ -211,7 +272,7 @@ async function relatedTo(medicine: MedicineSummary, signal?: AbortSignal): Promi
   }
 
   return pool
-    .filter((entry) => entry.id !== medicine.id && entry.generic.toLowerCase() === medicine.generic.toLowerCase())
+    .filter((entry) => entry.id !== medicine.id)
     .sort((a, b) => AVAILABILITY_RANK[a.availability] - AVAILABILITY_RANK[b.availability])
     .slice(0, 4);
 }

@@ -139,6 +139,7 @@ def public_search(request):
             query=request.query_params.get("q", ""),
             area=request.query_params.get("area", ""),
             medicine_id=request.query_params.get("medicine_id") or None,
+            same_composition_as=request.query_params.get("same_composition_as") or None,
             latitude=float(latitude) if latitude else None,
             longitude=float(longitude) if longitude else None,
             sort=request.query_params.get("sort", "best"),
