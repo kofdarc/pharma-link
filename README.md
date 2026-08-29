@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="apps/web/public/logo-mark.png" alt="HealthConnect" width="104">
+<img src="apps/web/public/brand/mark-primary.webp" alt="HealthConnect" width="104">
 
 # HealthConnect
 
