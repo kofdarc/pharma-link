@@ -107,7 +107,7 @@ export default function DoctorPatientsPage() {
                       <td>{patient.prescriptions.length}</td>
                       <td className="muted small">{new Date(patient.prescriptions[0].issued_at).toLocaleDateString()}</td>
                       <td>
-                        <Badge tone={tone(patient.prescriptions[0].status)}>{patient.prescriptions[0].status.replace(/_/g, " ")}</Badge>
+                        <Badge status tone={tone(patient.prescriptions[0].status)}>{patient.prescriptions[0].status.replace(/_/g, " ")}</Badge>
                       </td>
                       <td>
                         <Button type="button" variant="secondary" onClick={() => setSelectedKey(patient.key)}>
@@ -159,7 +159,7 @@ export default function DoctorPatientsPage() {
                     </span>
                   </div>
                   <div className="toolbar">
-                    <Badge tone={tone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
+                    <Badge status tone={tone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
                     <Button type="button" variant="secondary" onClick={() => prescribeAgain(prescription)}>
                       {t("doctorPatients.prescribeAgain")}
                     </Button>

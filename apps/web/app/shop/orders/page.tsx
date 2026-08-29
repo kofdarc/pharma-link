@@ -111,7 +111,7 @@ function OrdersView() {
                   {order.source === "RECURRING" ? ` · ${t("orders.fromRepeatSchedule")}` : ""}
                 </p>
               </div>
-              <Badge tone={orderTone(order.status)}>{ORDER_STATUS_LABELS[order.status] || order.status}</Badge>
+              <Badge status tone={orderTone(order.status)}>{ORDER_STATUS_LABELS[order.status] || order.status}</Badge>
             </div>
 
             {order.fulfillments.length > 1 ? (
@@ -167,7 +167,7 @@ function OrdersView() {
               {order.payment ? (
                 <div>
                   <span className="muted">{t("orders.payment")}</span>
-                  <Badge tone={paymentTone(order.payment.status)}>{t(`orders.paymentStatus.${order.payment.status}`)}</Badge>
+                  <Badge status tone={paymentTone(order.payment.status)}>{t(`orders.paymentStatus.${order.payment.status}`)}</Badge>
                 </div>
               ) : null}
               {order.payment && order.payment.provider !== "COD" && order.payment.status === "FAILED" ? (

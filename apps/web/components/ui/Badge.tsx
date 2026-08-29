@@ -1,5 +1,5 @@
-export function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "success" | "warning" | "danger" | "info" }) {
-  return <span className={`badge badge-${tone}`}>{children}</span>;
+export function Badge({ children, tone = "neutral", status = false }: { children: React.ReactNode; tone?: "neutral" | "success" | "warning" | "danger" | "info"; status?: boolean }) {
+  return <span className={`badge badge-${tone}${status ? " badge-status" : ""}`}>{children}</span>;
 }
 
 export function statusTone(status: string): "neutral" | "success" | "warning" | "danger" | "info" {
@@ -9,4 +9,3 @@ export function statusTone(status: string): "neutral" | "success" | "warning" | 
   if (normalized.includes("expired") || normalized.includes("failed") || normalized.includes("inactive") || normalized.includes("invalid")) return "danger";
   return "neutral";
 }
-

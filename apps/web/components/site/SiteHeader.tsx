@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
+import { BrandLogo } from "@/components/ui/BrandMark";
 import { useOptionalUser } from "@/lib/auth";
 
 const LINKS = [
@@ -29,9 +30,7 @@ export function SiteHeader() {
     <header className="hc-header">
       <div className="hc-wrap hc-header-inner">
         <Link href="/" className="hc-brand">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mark.png" alt="" />
-          <span>HealthConnect</span>
+          <BrandLogo />
         </Link>
 
         <nav className="hc-nav" aria-label="Main">

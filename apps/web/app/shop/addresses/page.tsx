@@ -89,7 +89,7 @@ export default function AddressesPage() {
           <article className="result-card" key={entry.id}>
             <div className="section-header">
               <h3>{entry.label}</h3>
-              {entry.is_default ? <Badge tone="success">{t("addresses.default")}</Badge> : null}
+              {entry.is_default ? <Badge status tone="success">{t("addresses.default")}</Badge> : null}
             </div>
             <p>{entry.address}</p>
             <p className="muted small">

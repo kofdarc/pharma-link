@@ -265,7 +265,7 @@ function UnavailableNotice({ items }: { items: { medicineId: string; name: strin
         {items.map((item) => (
           <li key={item.medicineId}>
             <strong>{item.name}</strong>
-            <span className="hc-chip hc-chip-off">
+            <span className="hc-chip hc-chip-off hc-status">
               <span className="hc-dot" />
               Currently unavailable
             </span>

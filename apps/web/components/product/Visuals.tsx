@@ -24,7 +24,7 @@ export function SearchVisual() {
             <strong>Augmentin 1g</strong>
             <span>Amoxicillin · Tablet</span>
           </span>
-          <span className="hc-chip hc-chip-ok">
+          <span className="hc-chip hc-chip-ok hc-status">
             <span className="hc-dot" />
             Available
           </span>
@@ -36,7 +36,7 @@ export function SearchVisual() {
             <strong>Amoclav 1g</strong>
             <span>Amoxicillin · Tablet</span>
           </span>
-          <span className="hc-chip hc-chip-limited">
+          <span className="hc-chip hc-chip-limited hc-status">
             <span className="hc-dot" />
             Limited
           </span>
@@ -62,7 +62,7 @@ export function RxCard() {
           <p className="hc-card-label">Prescription</p>
           <strong>HC-RX-38292</strong>
         </div>
-        <span className="hc-rx-verified">
+        <span className="hc-rx-verified hc-status">
           <Icon name="shield" size={14} />
           Verified
         </span>
@@ -115,7 +115,7 @@ export function AvailabilityVisual() {
               <strong>{row.name}</strong>
               <span>{row.area}</span>
             </span>
-            <span className={`hc-chip hc-chip-${row.state}`}>
+            <span className={`hc-chip hc-chip-${row.state} hc-status`}>
               <span className="hc-dot" />
               {row.label}
             </span>

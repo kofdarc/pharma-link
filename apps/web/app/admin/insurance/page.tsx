@@ -124,7 +124,7 @@ export default function AdminInsurancePage() {
                     <td>{provider.name}</td>
                     <td className="muted">{provider.phone || "—"}</td>
                     <td>
-                      <Badge tone={provider.is_active ? "success" : "neutral"}>{provider.is_active ? "Active" : "Inactive"}</Badge>
+                      <Badge status tone={provider.is_active ? "success" : "neutral"}>{provider.is_active ? "Active" : "Inactive"}</Badge>
                     </td>
                   </tr>
                 ))}
@@ -214,7 +214,7 @@ export default function AdminInsurancePage() {
                     <td>${claim.covered_amount}</td>
                     <td>${claim.patient_copay}</td>
                     <td>
-                      <Badge tone={claimTone(claim.status)}>{claim.status}</Badge>
+                      <Badge status tone={claimTone(claim.status)}>{claim.status}</Badge>
                     </td>
                   </tr>
                 ))}

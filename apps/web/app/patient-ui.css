@@ -437,6 +437,12 @@
   font-weight: 600;
 }
 
+.hc-rx-verified.hc-status {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .hc-rx-body {
   padding: 20px;
   display: grid;
@@ -2129,105 +2135,6 @@
   margin-bottom: 14px;
 }
 
-/* --- product spec list -----------------------------------------------------
-   A dedicated layout for the medication detail page's "Product details", kept
-   separate from the shared `.hc-kv` (used for short 2-4 item fact lists
-   elsewhere) because this list has grown to seven fields of wildly uneven
-   length - a full ingredient composition string next to "Tablet" - which
-   `.hc-kv`'s auto-fit column grid handles badly. Full-width rows with a fixed
-   label column read cleanly regardless of value length or how many rows there
-   are, and let real values (ink, medium weight) visually outrank "Not listed"
-   placeholders (muted, italic) instead of competing with them. */
-
-.hc-spec {
-  margin: 0;
-  border-top: 1px solid var(--hc-line);
-}
-
-.hc-spec-row {
-  display: flex;
-  gap: 20px;
-  padding: 13px 0;
-  border-bottom: 1px solid var(--hc-line);
-}
-
-.hc-spec-row:last-child {
-  border-bottom: none;
-}
-
-.hc-spec-row dt {
-  flex: 0 0 172px;
-  font-size: 0.8125rem;
-  font-weight: 560;
-  color: var(--hc-muted);
-}
-
-.hc-spec-row dd {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 540;
-  color: var(--hc-ink);
-  overflow-wrap: anywhere;
-}
-
-.hc-spec-empty {
-  color: var(--hc-muted);
-  font-weight: 500;
-  font-style: italic;
-}
-
-/* Secondary fields (sourcing/regulatory) collapse into a `<details>` accordion,
-   closed by default - they're provenance detail, not what most shoppers open
-   the page for, and `<details>` gets the closed-by-default + keyboard/screen
-   reader behaviour for free without any component state. */
-
-.hc-spec-accordion {
-  margin-top: 4px;
-}
-
-.hc-spec-accordion summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 13px 0;
-  border-top: 1px solid var(--hc-line);
-  font-size: 0.8438rem;
-  font-weight: 600;
-  color: var(--hc-ink-2);
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-}
-
-.hc-spec-accordion summary::-webkit-details-marker {
-  display: none;
-}
-
-.hc-spec-accordion summary:hover {
-  color: var(--hc-ink);
-}
-
-.hc-spec-accordion-icon {
-  flex: none;
-  color: var(--hc-muted);
-  transition: transform 160ms ease;
-}
-
-.hc-spec-accordion[open] summary {
-  border-bottom: 1px solid var(--hc-line);
-}
-
-.hc-spec-accordion[open] .hc-spec-accordion-icon {
-  transform: rotate(180deg);
-}
-
-.hc-spec-nested {
-  border-top: none;
-}
-
 .hc-related {
   display: grid;
   gap: 10px;
@@ -2404,17 +2311,6 @@
 
   .hc-pack-xl.hc-pack-image {
     width: min(140px, 100%);
-  }
-
-  /* A 172px label column plus a long ingredient string has no room on a
-     phone - stack label above value instead of squeezing them side by side. */
-  .hc-spec-row {
-    flex-direction: column;
-    gap: 3px;
-  }
-
-  .hc-spec-row dt {
-    flex: none;
   }
 }
 

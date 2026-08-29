@@ -30,7 +30,7 @@ export default function DoctorProfilePage() {
             {doctor.specialty || t("doctorProfile.generalPractice")} · {t("doctorProfile.licence", { number: doctor.license_number })}
           </p>
         </div>
-        <Badge tone={doctor.is_active ? "success" : "danger"}>
+        <Badge status tone={doctor.is_active ? "success" : "danger"}>
           {doctor.is_active ? t("doctorProfile.active") : t("doctorProfile.suspended")}
         </Badge>
       </div>

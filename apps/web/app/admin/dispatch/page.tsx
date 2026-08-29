@@ -238,7 +238,7 @@ export default function DispatchBoardPage() {
                 </p>
               </div>
               <div className="actions">
-                <Badge tone={route.status === "ACTIVE" ? "success" : route.status === "COMPLETED" ? "neutral" : "info"}>{route.status}</Badge>
+                <Badge status tone={route.status === "ACTIVE" ? "success" : route.status === "COMPLETED" ? "neutral" : "info"}>{route.status}</Badge>
                 {route.status === "ACTIVE" ? (
                   <Button
                     type="button"
@@ -268,7 +268,7 @@ export default function DispatchBoardPage() {
                       {stop.planned_arrival ? ` · ~${new Date(stop.planned_arrival).toLocaleTimeString()}` : ""}
                     </p>
                   </div>
-                  <Badge tone={stop.status === "DONE" ? "success" : stop.status === "FAILED" ? "danger" : "neutral"}>{stop.status}</Badge>
+                  <Badge status tone={stop.status === "DONE" ? "success" : stop.status === "FAILED" ? "danger" : "neutral"}>{stop.status}</Badge>
                 </li>
               ))}
             </ol>

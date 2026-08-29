@@ -130,9 +130,7 @@ export default function MedicationDetailPage() {
               <h1 className="hc-med-title">
                 {medicine.brand} {medicine.strength ? <span>{medicine.strength}</span> : null}
               </h1>
-              {medicine.activeIngredient || medicine.generic ? (
-                <p className="hc-med-generic">{medicine.activeIngredient || medicine.generic}</p>
-              ) : null}
+              {medicine.generic ? <p className="hc-med-generic">{medicine.generic}</p> : null}
               <div className="hc-med-chips">
                 <AvailabilityBadge state={medicine.availability} />
                 <PrescriptionBadge required={medicine.requiresPrescription} />
@@ -148,56 +146,26 @@ export default function MedicationDetailPage() {
           <div>
             <section>
               <h2 className="hc-h3">Product details</h2>
-              <dl className="hc-spec" style={{ marginTop: 14 }}>
-                <div className="hc-spec-row">
+              <dl className="hc-kv" style={{ marginTop: 14 }}>
+                <div>
                   <dt>Active ingredient</dt>
-                  <dd>
-                    {medicine.activeIngredient || medicine.generic || <span className="hc-spec-empty">Not listed</span>}
-                  </dd>
+                  <dd>{medicine.generic || "Not listed"}</dd>
                 </div>
-                <div className="hc-spec-row">
+                <div>
                   <dt>Form</dt>
-                  <dd>{medicine.form || <span className="hc-spec-empty">Not listed</span>}</dd>
+                  <dd>{medicine.form || "Not listed"}</dd>
                 </div>
-                <div className="hc-spec-row">
+                <div>
                   <dt>Pack size</dt>
-                  <dd>{medicine.packSize || <span className="hc-spec-empty">Varies by pharmacy</span>}</dd>
+                  <dd>{medicine.packSize || "Varies by pharmacy"}</dd>
                 </div>
-                <div className="hc-spec-row">
+                <div>
                   <dt>Manufacturer</dt>
-                  <dd>{medicine.manufacturer || <span className="hc-spec-empty">Not listed</span>}</dd>
+                  <dd>{medicine.manufacturer || "Not listed"}</dd>
                 </div>
               </dl>
-
-              <details className="hc-spec-accordion">
-                <summary>
-                  <span>Sourcing &amp; regulatory details</span>
-                  <Icon name="chevronDown" className="hc-spec-accordion-icon" size={16} />
-                </summary>
-                <dl className="hc-spec hc-spec-nested">
-                  <div className="hc-spec-row">
-                    <dt>Country of origin</dt>
-                    <dd>{medicine.country || <span className="hc-spec-empty">Not listed</span>}</dd>
-                  </div>
-                  <div className="hc-spec-row">
-                    <dt>Local agent</dt>
-                    <dd>{medicine.agent || <span className="hc-spec-empty">Not listed</span>}</dd>
-                  </div>
-                  <div className="hc-spec-row">
-                    <dt>MoPH registration</dt>
-                    <dd>{medicine.registrationNumber || <span className="hc-spec-empty">Not listed</span>}</dd>
-                  </div>
-                  {medicine.atcCode ? (
-                    <div className="hc-spec-row">
-                      <dt>WHO classification (ATC)</dt>
-                      <dd>{medicine.atcCode}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-              </details>
-
               <p className="hc-small" style={{ marginTop: 18 }}>
-                Product pricing and details are sourced from the <a href="https://moph.gov.lb/en/Drugs/index/3/3974/lebanon-national-drugs-database" target="_blank" rel="noopener noreferrer">Lebanon National Drugs Database</a> maintained by the Ministry of Public Health (MoPH).
+                Prices are set by the Ministry of Public Health (MoPH).
               </p>
             </section>
 
@@ -219,12 +187,10 @@ export default function MedicationDetailPage() {
 
             {medicine.related.length > 0 ? (
               <section className="hc-med-section">
-                <h2 className="hc-h3">Same composition — interchangeability not verified</h2>
+                <h2 className="hc-h3">Other products with the same listed active ingredient</h2>
                 <p className="hc-small" style={{ margin: "6px 0 14px" }}>
-                  These list the same active ingredient(s) and strength as {medicine.brand}. Same composition is not the same
-                  as interchangeable: MoPH substitution-list status and bioequivalence haven&apos;t been checked for these
-                  products, and formulation or manufacturing differences can still matter. This is not a recommendation to
-                  switch — only your physician or pharmacist can advise on substitution.
+                  Listed for reference. Whether one product can be used in place of another is a decision for your physician or
+                  pharmacist.
                 </p>
                 <div className="hc-related">
                   {medicine.related.map((option) => (
@@ -235,9 +201,6 @@ export default function MedicationDetailPage() {
                         <span className="hc-related-sub">
                           {option.form}
                           {option.fromPrice !== null ? ` · from ${formatPrice(option.fromPrice)}` : ""}
-                        </span>
-                        <span className="hc-related-sub">
-                          {[option.manufacturer, option.country].filter(Boolean).join(" · ") || "Manufacturer not listed"}
                         </span>
                       </span>
                       <AvailabilityBadge state={option.availability} />

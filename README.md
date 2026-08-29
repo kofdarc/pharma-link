@@ -4,11 +4,11 @@
 
 # HealthConnect
 
-**Healthcare, finally connected.**
+**Healthcare, *finally* connected.**
 
-One search across every connected pharmacy in Lebanon — with QR prescriptions doctors can
-issue in a minute, stock and invoicing pharmacies actually want to use, and a delivery
-router that stops sending three drivers to do one trip.
+HealthConnect lets patients search connected pharmacies across Lebanon. It also gives
+doctors a quick way to issue QR prescriptions, helps pharmacies manage stock and
+invoicing, and combines deliveries into efficient routes.
 
 ### [**healthconnect.dev →**](https://healthconnect.dev)
 
@@ -32,12 +32,12 @@ router that stops sending three drivers to do one trip.
 
 ## The problem
 
-Finding one medicine in Beirut takes five phone calls. Pharmacies can't tell you what the
-pharmacy down the street has. Patients carry paper scripts that only one shop can read.
-And when an order does span three pharmacies, three drivers make three trips.
+Finding a medicine in Beirut can take several phone calls. Pharmacies cannot see what
+nearby pharmacies have in stock, and patients still rely on paper prescriptions. Orders
+that span several pharmacies can also result in separate delivery trips.
 
-HealthConnect connects all four sides — patients, pharmacies, physicians, and drivers —
-without asking any pharmacy to throw away the software it already runs.
+HealthConnect brings patients, pharmacies, physicians, and drivers together. Pharmacies
+can continue using their existing software.
 
 <br>
 
@@ -48,7 +48,8 @@ pharmacies, ranked by distance, other shoppers' experience, reliability, and pri
 across several pharmacies at once, track it to the door, or schedule repeat refills for
 chronic medication.
 
-Pharmacies never expose their true stock depth — shoppers see an orderable ceiling only.
+Pharmacies do not expose their exact stock levels. Shoppers only see how much they can
+order.
 
 | Search across every pharmacy | Availability, pharmacy by pharmacy |
 |---|---|
@@ -56,16 +57,15 @@ Pharmacies never expose their true stock depth — shoppers see an orderable cei
 
 | Orders, tracked to the door | |
 |---|---|
-| <img src="docs/screenshots/shopper-orders.png" alt="Shopper order tracking"> | Multi-pharmacy orders arrive as **one** delivery, with a live status and an arrival window — not one parcel per shop. |
+| <img src="docs/screenshots/shopper-orders.png" alt="Shopper order tracking"> | Orders from multiple pharmacies arrive in **one** delivery, with live status updates and an arrival window. |
 
 <br>
 
 ## For pharmacies
 
-Batch-level stock with FEFO and expiry risk, invoicing, client records with an account
-ledger, CSV/Excel import, and analytics built on the metrics operators actually review —
-turnover, DIO, GMROI, ABC classification, dead stock, reorder points, and the demand they
-*missed*.
+Pharmacies can manage stock by batch using FEFO, monitor expiry risk, create invoices,
+maintain client ledgers, and import CSV or Excel files. Analytics cover turnover, DIO,
+GMROI, ABC classification, dead stock, reorder points, and unmet demand.
 
 | Dashboard | Analytics |
 |---|---|
@@ -75,16 +75,16 @@ turnover, DIO, GMROI, ABC classification, dead stock, reorder points, and the de
 
 ### Onboarding without migration
 
-Pharmacies keep their existing software and their own product codes. A stdlib-only
-connector reads whatever their POS can already export and pushes only what changed, over
-signed requests. Unknown codes are parked for a one-time mapping, never rejected.
+Pharmacies keep their existing software and product codes. A connector built with the
+Python standard library reads existing POS exports and sends only changed records through
+signed requests. Staff can map unknown codes once and reuse those mappings afterward.
 
 <br>
 
 ## For doctors
 
-The Order of Physicians roster is pre-loaded, so activation is a one-minute claim rather
-than an onboarding. Prescriptions are emailed to the patient as secure QR codes.
+The Order of Physicians roster is already loaded, which allows doctors to claim their
+account quickly. Prescriptions are emailed to patients as secure QR codes.
 
 | Write a prescription | Everything you have issued |
 |---|---|
@@ -94,26 +94,26 @@ than an onboarding. Prescriptions are emailed to the patient as secure QR codes.
 
 ## For any pharmacy, with no account
 
-Scan the patient's QR — or type the code and PIN — at `/rx`, see the items, and dispense in
-full or in part. The remainder stays claimable elsewhere, exactly once.
+At `/rx`, a pharmacist can scan the patient's QR code or enter the code and PIN. The
+prescription can be dispensed in full or in part, and any remaining items can be claimed
+once at another pharmacy.
 
 <img src="docs/screenshots/rx-dispense.png" alt="Dispense a prescription without an account">
 
 <br>
 
-## Delivery that isn't naive
+## Delivery routing
 
-An order sourced from three pharmacies does not mean one driver touring three shops for one
-customer. Orders are batched into routes that **share** pharmacy visits, under real
-precedence, capacity, and time-window constraints.
+Orders are grouped into routes that share pharmacy visits where possible. The routing
+logic accounts for visit order, driver capacity, and delivery time windows.
 
 | Dispatch board | Driver console |
 |---|---|
 | <img src="docs/screenshots/admin-dispatch.png" alt="Admin dispatch board"> | <img src="docs/screenshots/driver.png" alt="Driver route console"> |
 
-On the full `seed_poc` scenario: **6 orders, 1 driver, 13.7 km against a 38.9 km naive
-baseline — 65% less driving and 5 pharmacy visits avoided.** (The board above shows a
-smaller live batch, so its numbers differ.) See
+In the full `seed_poc` scenario, **6 orders require 1 driver and 13.7 km of travel, compared
+with a 38.9 km baseline. This reduces driving by 65% and avoids 5 pharmacy visits.** The
+board above shows a smaller live batch, so its numbers differ. See
 [the routing section](docs/ARCHITECTURE.md#3-delivery-routing--deliveryservicesroutingpy).
 
 Medicine prices set by the Ministry of Public Health are enforced everywhere a price can be
@@ -127,7 +127,7 @@ written; supplements and parapharmacy stay freely priced.
 |---|---|
 | **API** | Django 5 · Django REST Framework · PostgreSQL (SQLite for dev) |
 | **Web** | Next.js 14 (App Router) · TypeScript · React 18 · PWA |
-| **Connector** | Python standard library only — runs on whatever the pharmacy already has |
+| **Connector** | Python standard library only; runs on the pharmacy's existing system |
 | **i18n** | English · Arabic · French, with RTL |
 | **Deploy** | Docker Compose · AWS Amplify ([guide](docs/DEPLOY_AWS.md)) |
 
@@ -178,15 +178,15 @@ python -m venv .venv
 
 </details>
 
-`seed_poc` builds a full Beirut scenario — 5 pharmacies with deliberately fragmented stock,
-3 doctors, 6 shoppers with orders in every lifecycle state, refill schedules,
-e-prescriptions and saved payment methods, and 3 drivers — and prints every login plus a
-live prescription code and PIN.
+`seed_poc` builds a Beirut scenario with 5 pharmacies whose stock is deliberately
+fragmented, 3 doctors, 6 shoppers, refill schedules, electronic prescriptions, saved
+payment methods, and 3 drivers. The orders cover every lifecycle state. The command also
+prints each login and a working prescription code and PIN.
 
-The demo catalogue is **not invented**. `seed_poc` picks 20 real MoPH-registered products
-out of whatever `sync_moph_catalog` has loaded, one per active ingredient (see
-`SEED_INGREDIENTS`), at their real published prices. Run the catalog sync first — the seed
-refuses to guess and will tell you so.
+The demo catalogue uses real products registered by the MoPH. `seed_poc` selects 20 products
+loaded by `sync_moph_catalog`, with one product for each active ingredient listed in
+`SEED_INGREDIENTS`, and uses their published prices. Run the catalogue sync first. The seed
+command exits with an explanation if the required data is missing.
 
 ### Demo accounts
 
@@ -202,7 +202,7 @@ All use `Password123!`
 | Driver | `karim@pharmalink.test` |
 
 Two more physicians (`samir.aoun@doctors.test`, `lina.nassar@doctors.test`) are left
-unactivated on purpose, to demo the zero-onboarding claim flow.
+unactivated so the account claim flow can be demonstrated.
 
 <br>
 

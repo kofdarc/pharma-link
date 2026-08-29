@@ -29,7 +29,7 @@ from apps.delivery.services.routing import summarise
 from apps.orders.models import Order, OrderFulfillment
 from apps.orders.serializers import PharmacyOrderFulfillmentSerializer
 
-ROUTE_PREFETCH = ("stops__tasks__order_fulfillment__lines__medicine", "stops__tasks__order_fulfillment__pharmacy", "stops__tasks__order_fulfillment__order")
+ROUTE_PREFETCH = ("stops__tasks__order_fulfillment__pharmacy", "stops__tasks__order_fulfillment__order")
 
 
 class AdminDriverViewSet(ModelViewSet):

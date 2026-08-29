@@ -67,7 +67,7 @@ export default function RefillsPage() {
                 })}
               </p>
             </div>
-            <Badge tone={schedule.is_active ? "success" : "neutral"}>{schedule.is_active ? t("refills.active") : t("refills.paused")}</Badge>
+            <Badge status tone={schedule.is_active ? "success" : "neutral"}>{schedule.is_active ? t("refills.active") : t("refills.paused")}</Badge>
           </div>
           <p className="muted small">{t("refills.itemsPerCycle", { count: schedule.items.length })}</p>
           {schedule.last_error ? <Notice tone="danger">{t("refills.lastCycleError", { error: schedule.last_error })}</Notice> : null}

@@ -497,6 +497,34 @@
   color: var(--hc-ink-2);
 }
 
+/* Statuses read as compact metadata, not as filled controls. This modifier is
+   intentionally opt-in so Rx/OTC labels, identifiers and filters keep their
+   existing component treatment. */
+.hc-status {
+  gap: 6px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 0.8125rem;
+  font-weight: 620;
+}
+
+.hc-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: currentColor;
+  flex: none;
+}
+
+.hc-status > svg,
+.hc-status > .hc-dot {
+  display: none;
+}
+
 .hc-dot {
   width: 6px;
   height: 6px;
@@ -537,10 +565,15 @@
   flex: none;
 }
 
-.hc-brand img {
+.hc-brand .brand-mark {
   width: 26px;
   height: 30px;
   object-fit: contain;
+}
+
+.hc-brand .brand-logo-image {
+  width: auto;
+  height: 34px;
 }
 
 .hc-nav {

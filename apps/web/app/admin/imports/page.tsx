@@ -48,7 +48,7 @@ export default function AdminImportsPage() {
               <tr key={item.id}>
                 <td>{item.original_filename}</td>
                 <td>
-                  <Badge tone={statusTone(item.status)}>{item.status}</Badge>
+                  <Badge status tone={statusTone(item.status)}>{item.status}</Badge>
                 </td>
                 <td>{item.total_rows}</td>
                 <td>{item.unmatched_rows}</td>
@@ -62,4 +62,3 @@ export default function AdminImportsPage() {
     </>
   );
 }
-

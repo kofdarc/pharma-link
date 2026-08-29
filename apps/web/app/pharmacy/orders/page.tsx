@@ -86,7 +86,7 @@ export default function PharmacyOrdersPage() {
                 {order.is_shared_order ? t("pharmacyOrders.sharedOrderNote") : ""}
               </p>
             </div>
-            <Badge tone={tone(order.status)}>{order.status.replace(/_/g, " ")}</Badge>
+            <Badge status tone={tone(order.status)}>{order.status.replace(/_/g, " ")}</Badge>
           </div>
 
           {order.is_shared_order ? <Notice>{t("pharmacyOrders.sharedOrderNotice")}</Notice> : null}

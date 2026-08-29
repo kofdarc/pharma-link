@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { BrandLogo } from "@/components/ui/BrandMark";
 import { ToastProvider } from "@/components/patient/Toast";
 import { useMaybePatientUser } from "@/components/site/PatientGuard";
 import { useBasket } from "@/lib/basket";
@@ -46,9 +47,7 @@ export function PatientShell({ children, user }: { children: React.ReactNode; us
         <header className="hc-appnav">
           <div className="hc-wrap hc-appnav-inner">
             <Link href="/home" className="hc-brand">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-mark.png" alt="" />
-              <span>HealthConnect</span>
+              <BrandLogo />
             </Link>
 
             <nav className="hc-appnav-links" aria-label="Patient">

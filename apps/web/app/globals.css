@@ -76,6 +76,40 @@ textarea {
   object-fit: contain;
 }
 
+.brand-logo,
+.brand-wordmark {
+  display: inline-flex;
+  align-items: center;
+}
+
+.brand-logo-image {
+  display: block;
+  width: auto;
+  height: 36px;
+  object-fit: contain;
+}
+
+.brand-logo {
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.brand-wordmark {
+  gap: 0;
+  font-size: inherit;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.brand-wordmark-health-on-dark {
+  color: #ffffff;
+}
+
+.brand-wordmark-connect {
+  color: #00bf63;
+}
+
 .public-main {
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
@@ -500,6 +534,18 @@ tbody tr:hover {
 .badge-info {
   color: var(--blue);
   background: var(--blue-bg);
+}
+
+.badge-status {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.badge-status::before {
+  border-radius: 1px;
 }
 
 .notice {

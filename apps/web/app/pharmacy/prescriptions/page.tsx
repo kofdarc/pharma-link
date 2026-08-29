@@ -213,7 +213,7 @@ function OcrPanel({ recordId, result }: { recordId: string; result: Prescription
                       ) : (
                         <>
                           <span className="muted small">{candidate.raw_line}</span>{" "}
-                          <Badge tone="warning">{t("pharmacyPrescriptions.candidateNoMatch")}</Badge>
+                          <Badge status tone="warning">{t("pharmacyPrescriptions.candidateNoMatch")}</Badge>
                         </>
                       )}
                     </td>
@@ -248,4 +248,3 @@ function OcrPanel({ recordId, result }: { recordId: string; result: Prescription
     </div>
   );
 }
-

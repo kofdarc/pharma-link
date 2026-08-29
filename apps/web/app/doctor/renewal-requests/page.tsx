@@ -95,7 +95,7 @@ export default function DoctorRenewalRequestsPage() {
                   <td>{request.pharmacy_name}</td>
                   <td className="muted small">{request.note || "—"}</td>
                   <td>
-                    <Badge tone={tone(request.status)}>{request.status}</Badge>
+                    <Badge status tone={tone(request.status)}>{request.status}</Badge>
                   </td>
                   <td>
                     {request.status === "PENDING" ? (

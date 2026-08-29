@@ -118,7 +118,7 @@ export default function PharmacyIncomingPrescriptionsPage() {
               </p>
             </div>
             <div className="toolbar">
-              <Badge tone={tone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
+              <Badge status tone={tone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
               {prescription.renewed_from_code ? (
                 <span className="muted small">{t("pharmacyIncoming.renewalOf", { code: prescription.renewed_from_code })}</span>
               ) : null}

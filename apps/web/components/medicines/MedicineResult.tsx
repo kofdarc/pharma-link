@@ -28,9 +28,7 @@ export function MedicineResult({ medicine }: { medicine: MedicineSummary }) {
             {medicine.brand} {medicine.strength ? <span className="hc-result-strength">{medicine.strength}</span> : null}
           </Link>
         </h3>
-        {medicine.activeIngredient || medicine.generic ? (
-          <p className="hc-result-generic">{medicine.activeIngredient || medicine.generic}</p>
-        ) : null}
+        {medicine.generic ? <p className="hc-result-generic">{medicine.generic}</p> : null}
         <div className="hc-result-meta">
           <AvailabilityBadge state={medicine.availability} />
           <PrescriptionBadge required={medicine.requiresPrescription} />

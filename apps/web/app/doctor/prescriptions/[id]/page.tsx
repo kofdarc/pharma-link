@@ -77,7 +77,7 @@ export default function DoctorPrescriptionDetailPage() {
           ) : null}
         </div>
         <div className="toolbar">
-          <Badge tone={tone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
+          <Badge status tone={tone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
           <Link className="button button-secondary" href="/doctor/prescriptions">
             {t("doctorPrescriptionDetail.backToList")}
           </Link>

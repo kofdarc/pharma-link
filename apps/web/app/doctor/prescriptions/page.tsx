@@ -158,7 +158,7 @@ export default function DoctorPrescriptionsPage() {
                       <td className="muted small">{new Date(prescription.issued_at).toLocaleDateString()}</td>
                       <td className="muted small">{new Date(prescription.valid_until).toLocaleDateString()}</td>
                       <td>
-                        <Badge tone={tone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
+                        <Badge status tone={tone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
                       </td>
                     </tr>
                   );

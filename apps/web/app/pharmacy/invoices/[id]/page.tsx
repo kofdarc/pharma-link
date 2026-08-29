@@ -29,7 +29,7 @@ export default function InvoiceDetailPage() {
           <h1>{sale.invoice_number}</h1>
           <p>{t("pharmacyInvoiceDetail.byStaff", { when: new Date(sale.sale_datetime).toLocaleString(), staff: sale.staff_email })}</p>
         </div>
-        <Badge tone={statusTone(sale.status)}>{sale.status}</Badge>
+        <Badge status tone={statusTone(sale.status)}>{sale.status}</Badge>
       </div>
       <Table>
         <table>
@@ -74,4 +74,3 @@ export default function InvoiceDetailPage() {
     </section>
   );
 }
-

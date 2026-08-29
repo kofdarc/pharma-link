@@ -35,7 +35,7 @@ const AVAILABILITY_COPY: Record<AvailabilityState, { label: string; className: s
 export function AvailabilityBadge({ state }: { state: AvailabilityState }) {
   const { label, className } = AVAILABILITY_COPY[state];
   return (
-    <span className={`hc-chip ${className}`}>
+    <span className={`hc-chip hc-status ${className}`}>
       <span className="hc-dot" />
       {label}
     </span>

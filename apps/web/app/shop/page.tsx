@@ -141,7 +141,7 @@ export default function ShopSearchPage() {
                   </p>
                 </div>
               </div>
-              <Badge tone={statusTone(result.availability_status)}>{result.availability_status}</Badge>
+              <Badge status tone={statusTone(result.availability_status)}>{result.availability_status}</Badge>
             </div>
 
             <div className="price-row">

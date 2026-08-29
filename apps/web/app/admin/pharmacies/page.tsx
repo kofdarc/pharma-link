@@ -122,7 +122,7 @@ export default function AdminPharmaciesPage() {
                 </td>
                 <td>{item.phone}</td>
                 <td>
-                  <Badge tone={statusTone(item.is_active ? "Active" : "Inactive")}>
+                  <Badge status tone={statusTone(item.is_active ? "Active" : "Inactive")}>
                     {item.is_active ? t("adminPharmacies.active") : t("adminPharmacies.inactive")}
                   </Badge>
                 </td>
@@ -140,4 +140,3 @@ export default function AdminPharmaciesPage() {
     </>
   );
 }
-

@@ -139,7 +139,7 @@ export default function ConnectPage() {
         <section className="panel">
           <div className="section-header">
             <h3>{t("pharmacyConnect.setupProgress")}</h3>
-            <Badge tone={status.completed_steps === status.total_steps ? "success" : "warning"}>
+            <Badge status tone={status.completed_steps === status.total_steps ? "success" : "warning"}>
               {t("pharmacyConnect.doneOfTotal", { done: status.completed_steps, total: status.total_steps })}
             </Badge>
           </div>
@@ -220,7 +220,7 @@ export default function ConnectPage() {
                       {key.last_used_at ? new Date(key.last_used_at).toLocaleString() : t("pharmacyConnect.never")}
                     </td>
                     <td>
-                      <Badge tone={key.is_active ? "success" : "neutral"}>
+                      <Badge status tone={key.is_active ? "success" : "neutral"}>
                         {key.is_active ? t("pharmacyConnect.active") : t("pharmacyConnect.revoked")}
                       </Badge>
                     </td>
@@ -277,7 +277,7 @@ export default function ConnectPage() {
                     <td>{mapping.external_name || "—"}</td>
                     <td>{mapping.medicine_detail?.display_name || <span className="muted">{t("pharmacyConnect.unmapped")}</span>}</td>
                     <td>
-                      <Badge tone={mapping.match_method === "UNMATCHED" ? "danger" : mapping.match_method === "AUTO_FUZZY" ? "warning" : "success"}>
+                      <Badge status tone={mapping.match_method === "UNMATCHED" ? "danger" : mapping.match_method === "AUTO_FUZZY" ? "warning" : "success"}>
                         {mapping.match_method.replace(/_/g, " ").toLowerCase()}
                       </Badge>
                     </td>
@@ -323,7 +323,7 @@ export default function ConnectPage() {
                     <td className="muted small">{new Date(run.created_at).toLocaleString()}</td>
                     <td>{run.kind}</td>
                     <td>
-                      <Badge tone={run.status === "APPLIED" ? "success" : run.status === "PARTIAL" ? "warning" : "neutral"}>{run.status}</Badge>
+                      <Badge status tone={run.status === "APPLIED" ? "success" : run.status === "PARTIAL" ? "warning" : "neutral"}>{run.status}</Badge>
                     </td>
                     <td>{run.rows_received}</td>
                     <td>{run.rows_applied}</td>
@@ -377,7 +377,7 @@ export default function ConnectPage() {
                       <code>{webhook.url}</code>
                     </td>
                     <td>
-                      <Badge tone={webhook.is_active ? "success" : "neutral"}>
+                      <Badge status tone={webhook.is_active ? "success" : "neutral"}>
                         {webhook.is_active ? t("pharmacyConnect.active") : t("pharmacyConnect.disabled")}
                       </Badge>
                     </td>

@@ -168,7 +168,7 @@ export default function AdminMedicinesPage() {
                 </td>
                 <td>{item.aliases?.map((alias) => alias.alias).join(", ")}</td>
                 <td>
-                  <Badge tone={statusTone(item.is_active ? "Active" : "Inactive")}>
+                  <Badge status tone={statusTone(item.is_active ? "Active" : "Inactive")}>
                     {item.is_active ? t("adminMedicines.active") : t("adminMedicines.inactive")}
                   </Badge>
                 </td>
@@ -189,4 +189,3 @@ export default function AdminMedicinesPage() {
     </>
   );
 }
-

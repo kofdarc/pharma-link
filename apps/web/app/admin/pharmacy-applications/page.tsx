@@ -119,7 +119,7 @@ export default function PharmacyApplicationsPage() {
                     <td>{application.pharmacy_name}</td>
                     <td>{application.email}</td>
                     <td>
-                      <Badge tone={tone(application.status)}>{application.status}</Badge>
+                      <Badge status tone={tone(application.status)}>{application.status}</Badge>
                     </td>
                     <td className="muted small">{application.review_note || "—"}</td>
                   </tr>

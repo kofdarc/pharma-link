@@ -38,17 +38,7 @@ export interface Medicine {
   generic_name: string;
   strength: string;
   form: string;
-  route?: string;
   manufacturer?: string;
-  /** Active-ingredient composition, e.g. "Atorvastatin (calcium) - 10mg". The real
-   *  "active ingredient" text — `generic_name` is populated on a small fraction of
-   *  MoPH-synced products. */
-  ingredients?: string;
-  /** ATC classification code. Discovery/validation metadata only — never a basis for
-   *  treating two products as interchangeable. */
-  classification?: string;
-  registration_number?: string;
-  market_status?: "MARKETED" | "NON_MARKETED";
   image?: string | null;
   is_active: boolean;
   display_name: string;
@@ -58,16 +48,6 @@ export interface Medicine {
   regulated_price_reference?: string;
   requires_prescription?: boolean;
   is_price_regulated?: boolean;
-  /** Pack presentation from the MoPH source, e.g. "30" or "100ml" — count or volume
-   *  depending on the product; count-only values need a unit from `form` to read as a
-   *  pack size. */
-  presentation?: string;
-  country?: string;
-  /** Lebanese importer/distributor, distinct from `manufacturer`. */
-  agent?: string;
-  /** MoPH's own brand/generic classification (G / B / BioTech / BioHuman) — more
-   *  reliable than inferring brand-vs-generic from name/ingredient matching. */
-  brand_generic?: string;
   aliases?: { id: string; alias: string; alias_type: string }[];
 }
 
@@ -92,25 +72,7 @@ export interface InventoryBatch {
 }
 
 export interface PublicAvailability {
-  medicine: Pick<
-    Medicine,
-    | "id"
-    | "brand_name"
-    | "generic_name"
-    | "strength"
-    | "form"
-    | "route"
-    | "image"
-    | "manufacturer"
-    | "ingredients"
-    | "classification"
-    | "registration_number"
-    | "presentation"
-    | "country"
-    | "agent"
-    | "brand_generic"
-    | "market_status"
-  > & {
+  medicine: Pick<Medicine, "id" | "brand_name" | "generic_name" | "strength" | "form" | "image"> & {
     category?: ProductCategory;
     requires_prescription?: boolean;
   };
@@ -582,7 +544,6 @@ export interface RouteStopTask {
   fulfillment_status: string;
   units: number;
   is_done: boolean;
-  lines: { medicine: string; quantity: number }[];
 }
 
 export interface RouteStop {

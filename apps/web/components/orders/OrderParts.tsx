@@ -26,7 +26,7 @@ const STAGE_COPY: Record<OrderStage, { label: string; chip: string; icon: IconNa
 export function OrderStatusChip({ stage }: { stage: OrderStage }) {
   const { label, chip, icon } = STAGE_COPY[stage];
   return (
-    <span className={`hc-chip ${chip}`}>
+    <span className={`hc-chip hc-status ${chip}`}>
       <Icon name={icon} size={13} strokeWidth={2.1} />
       {label}
     </span>

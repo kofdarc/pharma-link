@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { useTranslations } from "@/lib/i18n/context";
 import type {
+  AnalyticsDigest,
   AnalyticsInsights,
   AnalyticsOverview,
   DemandSignals,
@@ -21,18 +22,20 @@ import { Table } from "@/components/ui/Table";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { BarMeter } from "@/components/charts/BarMeter";
 
-type Tab = "overview" | "inventory" | "replenishment" | "demand" | "insights";
+type Tab = "digest" | "overview" | "inventory" | "replenishment" | "demand" | "insights";
 
 export default function PharmacyAnalyticsPage() {
   const t = useTranslations();
   const TABS: [Tab, string][] = [
+    ["digest", t("pharmacyAnalytics.tabDigest")],
     ["overview", t("pharmacyAnalytics.tabOverview")],
     ["inventory", t("pharmacyAnalytics.tabInventory")],
     ["replenishment", t("pharmacyAnalytics.tabReplenishment")],
     ["demand", t("pharmacyAnalytics.tabDemand")],
     ["insights", t("pharmacyAnalytics.tabInsights")]
   ];
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>("digest");
+  const [digest, setDigest] = useState<AnalyticsDigest | null>(null);
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [inventory, setInventory] = useState<{ stock: StockSnapshot; turnover: TurnoverMetrics; movement: MovementClassification } | null>(null);
   const [replenishment, setReplenishment] = useState<ReplenishmentPlan | null>(null);
@@ -46,6 +49,9 @@ export default function PharmacyAnalyticsPage() {
   }, []);
 
   useEffect(() => {
+    if (tab === "digest" && !digest) {
+      apiFetch<AnalyticsDigest>("/pharmacy/analytics/digest/").then(setDigest).catch(() => setError(t("pharmacyAnalytics.loadDigestError")));
+    }
     if (tab === "inventory" && !inventory) {
       apiFetch<typeof inventory>("/pharmacy/analytics/inventory/")
         .then(setInventory)
@@ -63,7 +69,7 @@ export default function PharmacyAnalyticsPage() {
       apiFetch<AnalyticsInsights>("/pharmacy/analytics/insights/").then(setInsights).catch(() => setError(t("pharmacyAnalytics.loadInsightsError")));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, inventory, replenishment, demand, insights]);
+  }, [tab, digest, inventory, replenishment, demand, insights]);
 
   return (
     <>
@@ -88,12 +94,34 @@ export default function PharmacyAnalyticsPage() {
         ))}
       </nav>
 
+      {tab === "digest" ? <DigestTab data={digest} /> : null}
       {tab === "overview" ? <OverviewTab data={overview} /> : null}
       {tab === "inventory" ? <InventoryTab data={inventory} /> : null}
       {tab === "replenishment" ? <ReplenishmentTab data={replenishment} /> : null}
       {tab === "demand" ? <DemandTab data={demand} /> : null}
       {tab === "insights" ? <InsightsTab data={insights} /> : null}
     </>
+  );
+}
+
+function DigestTab({ data }: { data: AnalyticsDigest | null }) {
+  const t = useTranslations();
+  if (!data) return <div className="skeleton-card" />;
+  return (
+    <section className="panel">
+      <div className="section-header">
+        <h3>{data.headline}</h3>
+        {data.stale ? (
+          <Badge status tone="neutral">
+            {t("pharmacyAnalytics.digestStale")}
+          </Badge>
+        ) : null}
+      </div>
+      {data.paragraphs.map((paragraph, index) => (
+        <p key={index}>{paragraph}</p>
+      ))}
+      <p className="muted small">{t("pharmacyAnalytics.digestGeneratedAt", { when: new Date(data.generated_at).toLocaleString() })}</p>
+    </section>
   );
 }
 
@@ -465,9 +493,9 @@ function DemandTab({ data }: { data: DemandSignals | null }) {
                   <td className="muted">{row.source.toLowerCase()}</td>
                   <td>
                     {row.you_stock_it ? (
-                      <Badge tone="warning">{t("pharmacyAnalytics.inStockNote")}</Badge>
+                      <Badge status tone="warning">{t("pharmacyAnalytics.inStockNote")}</Badge>
                     ) : (
-                      <Badge tone="danger">{t("pharmacyAnalytics.notStocked")}</Badge>
+                      <Badge status tone="danger">{t("pharmacyAnalytics.notStocked")}</Badge>
                     )}
                   </td>
                 </tr>
@@ -505,7 +533,7 @@ function InsightsTab({ data }: { data: AnalyticsInsights | null }) {
             <li key={insight.id} className="insight-card">
               <div className="section-header">
                 <strong>{insight.title}</strong>
-                <Badge tone={INSIGHT_TONE[insight.severity]}>{severityLabel(insight.severity)}</Badge>
+                <Badge status tone={INSIGHT_TONE[insight.severity]}>{severityLabel(insight.severity)}</Badge>
               </div>
               {insight.detail ? <p className="muted small">{insight.detail}</p> : null}
             </li>

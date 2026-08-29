@@ -17,35 +17,12 @@ export interface MedicineSummary {
   brand: string;
   /** e.g. "1g". May be empty for products sold at a single strength. */
   strength: string;
-  /** Listed active ingredient(s), e.g. "Amoxicillin / Clavulanic Acid". Sourced from
-   *  `Medicine.generic_name` when present, otherwise derived from `activeIngredient`
-   *  (rarely both are set - `generic_name` is populated on a small fraction of the
-   *  MoPH-synced catalogue). */
+  /** Listed active ingredient(s), e.g. "Amoxicillin / Clavulanic Acid". */
   generic: string;
-  /** Full composition string from the MoPH source, e.g. "Atorvastatin (calcium) - 10mg"
-   *  or, for a combination product, each active and its strength. This is the reliable
-   *  active-ingredient field - prefer it over `generic` for display and for any
-   *  same-composition comparison. */
-  activeIngredient: string;
   /** Dosage form, e.g. "Tablet", "Inhaler". */
   form: string;
-  /** Route of administration, e.g. "Oral", "Intravenous". Distinct products sharing a
-   *  route can still differ in release profile (immediate vs. modified-release, etc.),
-   *  which isn't separately tracked - route is the closest available proxy. */
-  route?: string;
   packSize?: string;
   manufacturer?: string;
-  /** Country of origin/manufacture. */
-  country?: string;
-  /** Lebanese importer/distributor - distinct from `manufacturer`. */
-  agent?: string;
-  /** MoPH product registration number, when known. */
-  registrationNumber?: string;
-  /** ATC classification code (e.g. "C10AA05"). Discovery/validation metadata only -
-   *  never treat two products as the same medicine, or as substitutable, merely because
-   *  they share an ATC code: ATC can vary by route/strength/therapeutic use, and a
-   *  shared code groups a pharmacological class, not a single interchangeable product. */
-  atcCode?: string;
   image?: string | null;
   requiresPrescription: boolean;
   productType: ProductType;
@@ -65,14 +42,7 @@ export interface MedicineSummary {
 }
 
 export interface MedicineDetail extends MedicineSummary {
-  /**
-   * Other MARKETED products whose full active-ingredient-and-strength composition text
-   * matches this one exactly. This is a *candidate list*, not a clinical equivalence
-   * claim: nothing here has been checked against the MoPH substitution list or any
-   * bioequivalence evidence, so the UI must present it as "same composition, not
-   * verified interchangeable" rather than "alternative" or "substitute". See the
-   * disclaimer copy next to where this is rendered.
-   */
+  /** Other products listing the same active ingredient. */
   related: MedicineSummary[];
 }
 

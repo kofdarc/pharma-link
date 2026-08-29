@@ -56,7 +56,7 @@ export default function ShopPrescriptionsPage() {
                 {t("myPrescriptions.prescriber", { doctor: prescription.doctor_name, license: prescription.doctor_license })}
               </p>
             </div>
-            <Badge tone={prescriptionTone(prescription.status)}>{t(`myPrescriptions.status.${prescription.status}`)}</Badge>
+            <Badge status tone={prescriptionTone(prescription.status)}>{t(`myPrescriptions.status.${prescription.status}`)}</Badge>
           </div>
 
           <dl className="detail-grid">

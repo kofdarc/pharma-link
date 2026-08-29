@@ -114,7 +114,7 @@ export default function AdminUsersPage() {
                 <td>{roleLabels[user.role] || user.role}</td>
                 <td>{user.pharmacy_detail?.name || ""}</td>
                 <td>
-                  <Badge tone={statusTone(user.is_active ? "Active" : "Inactive")}>
+                  <Badge status tone={statusTone(user.is_active ? "Active" : "Inactive")}>
                     {user.is_active ? t("adminUsers.active") : t("adminUsers.inactive")}
                   </Badge>
                 </td>
@@ -126,4 +126,3 @@ export default function AdminUsersPage() {
     </>
   );
 }
-

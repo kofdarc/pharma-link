@@ -88,7 +88,7 @@ export function AddressCard({
           {address.notes ? <p className="hc-small hc-addresscard-note">{address.notes}</p> : null}
         </div>
         {address.isDefault ? (
-          <span className="hc-chip hc-chip-ok">
+          <span className="hc-chip hc-chip-ok hc-status">
             <Icon name="check" size={13} strokeWidth={2.1} />
             Default
           </span>
@@ -148,7 +148,7 @@ export function PaymentMethodCard({
 
       <div className="hc-paycard-side">
         {method.isDefault ? (
-          <span className="hc-chip hc-chip-ok">
+          <span className="hc-chip hc-chip-ok hc-status">
             <Icon name="check" size={13} strokeWidth={2.1} />
             Default
           </span>

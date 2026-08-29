@@ -18,12 +18,12 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.conf import settings
-from django.db.models import Min, Q, Sum
+from django.db.models import Min, Sum
 from django.utils import timezone
 
 from apps.common.geo import road_km
 from apps.inventory.models import InventoryBatch
-from apps.medicines.models import MarketStatus, Medicine
+from apps.medicines.models import Medicine
 from apps.medicines.services.search import search_medicines
 
 DISCLAIMER = (
@@ -51,20 +51,11 @@ def public_cap(pharmacy_cap) -> int:
     return pharmacy_cap or settings.PUBLIC_MAX_QUANTITY_PER_ITEM
 
 
-def _moph_extra(medicine: Medicine | None, key: str) -> str:
-    """A handful of MoPH source fields (presentation/country/agent/brand-generic) live in
-    the catch-all `moph_extra` JSON blob rather than dedicated columns - see Medicine.moph_extra."""
-    if not medicine:
-        return ""
-    return medicine.moph_extra.get(key) or ""
-
-
 def public_availability_search(
     *,
     query: str = "",
     area: str = "",
     medicine_id: str | None = None,
-    same_composition_as: str | None = None,
     latitude: float | None = None,
     longitude: float | None = None,
     sort: str = "best",
@@ -73,29 +64,6 @@ def public_availability_search(
     today = timezone.localdate()
     if medicine_id:
         medicines = Medicine.objects.filter(id=medicine_id, is_active=True)
-    elif same_composition_as:
-        # Candidate generation for "same composition" recommendations: the full
-        # `ingredients` string already encodes strength (e.g. "Atorvastatin (calcium) -
-        # 10mg"), so an exact match on it is a reasonable proxy for the same complete
-        # active-ingredient set + strength - the strongest deterministic key available
-        # without a structured per-ingredient/strength model (WHO pharmaceutical-equivalence
-        # principles; Lebanon's MoPH substitution framework matches on the same basis).
-        # Restricted to MARKETED products: a NON_MARKETED match cannot lawfully be sold.
-        reference = Medicine.objects.filter(id=same_composition_as, is_active=True).first()
-        if reference and reference.ingredients:
-            medicines = Medicine.objects.filter(
-                ingredients__iexact=reference.ingredients,
-                is_active=True,
-                market_status=MarketStatus.MARKETED,
-            ).exclude(id=reference.id)
-            if reference.route:
-                # A tablet and an injection can share an ingredients string at the same
-                # strength while being clinically nothing alike. Exclude a *known*
-                # differing route; a candidate with no recorded route isn't excluded,
-                # since missing data isn't evidence of a mismatch.
-                medicines = medicines.filter(Q(route="") | Q(route__iexact=reference.route))
-        else:
-            medicines = Medicine.objects.none()
     else:
         medicines = search_medicines(query, active_only=True, limit=20)
 
@@ -186,22 +154,9 @@ def public_availability_search(
                     "generic_name": medicine.generic_name if medicine else "",
                     "strength": medicine.strength if medicine else "",
                     "form": medicine.form if medicine else "",
-                    "route": medicine.route if medicine else "",
                     "category": medicine.category if medicine else "",
                     "requires_prescription": bool(medicine and medicine.requires_prescription),
                     "image": image_url,
-                    # Composition/manufacturer/registration fields are exposed alongside,
-                    # never instead of, structured ingredient matching - "brand/generic" and
-                    # "manufacturer" are transparency fields, not an equivalence signal.
-                    "manufacturer": medicine.manufacturer if medicine else "",
-                    "ingredients": medicine.ingredients if medicine else "",
-                    "classification": medicine.classification if medicine else "",
-                    "registration_number": medicine.registration_number if medicine else "",
-                    "presentation": _moph_extra(medicine, "presentation"),
-                    "country": _moph_extra(medicine, "country"),
-                    "agent": _moph_extra(medicine, "agent"),
-                    "brand_generic": _moph_extra(medicine, "brand_generic"),
-                    "market_status": medicine.market_status if medicine else "",
                 },
                 "pharmacy": {
                     "id": row["pharmacy_id"],

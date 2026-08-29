@@ -155,7 +155,7 @@ export default function PharmacyScanPage() {
                 })}
               </p>
             </div>
-            <Badge tone={prescription.is_consumable ? "success" : "danger"}>{prescription.status.replace(/_/g, " ")}</Badge>
+            <Badge status tone={prescription.is_consumable ? "success" : "danger"}>{prescription.status.replace(/_/g, " ")}</Badge>
           </div>
 
           {prescription.diagnosis_note ? (

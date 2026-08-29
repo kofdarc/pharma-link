@@ -8,7 +8,7 @@ import { ADMIN_NAV, DOCTOR_NAV, PHARMACY_NAV, SHOP_NAV } from "@/lib/constants";
 import { useTranslations } from "@/lib/i18n/context";
 import type { User } from "@/types/api";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
-import { BrandMark } from "@/components/ui/BrandMark";
+import { BrandLogo } from "@/components/ui/BrandMark";
 
 export type ShellMode = "pharmacy" | "admin" | "doctor" | "shop" | "driver";
 
@@ -97,8 +97,7 @@ export function AppShell({
       />
       <aside className="sidebar" data-open={navOpen}>
         <Link href="/" className="brand">
-          <BrandMark />
-          <span>HealthConnect</span>
+          <BrandLogo tone="on-dark" />
         </Link>
         <nav>
           {nav.map(([label, href]) => (

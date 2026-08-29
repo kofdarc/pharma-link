@@ -32,10 +32,11 @@ class RouteStopTaskSerializer(serializers.ModelSerializer):
     pharmacy_name = serializers.CharField(source="order_fulfillment.pharmacy.name", read_only=True)
     handover_code = serializers.CharField(source="order_fulfillment.handover_code", read_only=True)
     fulfillment_status = serializers.CharField(source="order_fulfillment.status", read_only=True)
-    lines = serializers.SerializerMethodField()
 
     class Meta:
         model = RouteStopTask
+        # Deliberately no per-line medicine breakdown: a driver only needs the unit
+        # count to verify a handoff, not what the patient was prescribed.
         fields = [
             "id",
             "order_fulfillment",
@@ -47,12 +48,8 @@ class RouteStopTaskSerializer(serializers.ModelSerializer):
             "fulfillment_status",
             "units",
             "is_done",
-            "lines",
         ]
         read_only_fields = fields
-
-    def get_lines(self, obj):
-        return [{"medicine": str(line.medicine), "quantity": line.quantity} for line in obj.order_fulfillment.lines.all()]
 
 
 class RouteStopSerializer(serializers.ModelSerializer):

@@ -109,7 +109,7 @@ export default function DriverConsolePage() {
           </p>
         </div>
         <div className="actions">
-          <Badge tone={driver?.is_online ? "success" : "neutral"}>{driver?.is_online ? t("driver.online") : t("driver.offline")}</Badge>
+          <Badge status tone={driver?.is_online ? "success" : "neutral"}>{driver?.is_online ? t("driver.online") : t("driver.offline")}</Badge>
           <Button type="button" variant="secondary" onClick={toggleOnline} disabled={busy}>
             {driver?.is_online ? t("driver.goOffline") : t("driver.goOnline")}
           </Button>
@@ -152,7 +152,7 @@ export default function DriverConsolePage() {
               <span className="muted">{t("driver.estDuration")}</span>
               <strong>{route.planned_duration_minutes} min</strong>
             </div>
-            <Badge tone={route.status === "ACTIVE" ? "success" : "info"}>{route.status}</Badge>
+            <Badge status tone={route.status === "ACTIVE" ? "success" : "info"}>{route.status}</Badge>
           </section>
 
           {route.planner_notes ? <Notice>{route.planner_notes}</Notice> : null}
@@ -214,13 +214,6 @@ export default function DriverConsolePage() {
                       </div>
                       <span className="muted small">{t("driver.unitsCount", { count: task.units })}</span>
                     </div>
-                    <ul className="clean-list">
-                      {task.lines.map((line, index) => (
-                        <li key={index}>
-                          {line.quantity} × {line.medicine}
-                        </li>
-                      ))}
-                    </ul>
                     {nextStop.kind === "PICKUP" ? (
                       <label className="field">
                         <span>{t("driver.handoverCodeLabel")}</span>
@@ -351,7 +344,7 @@ function StopRow({ stop, isNext, t }: { stop: RouteStop; isNext: boolean; t: Ret
         </p>
         {stop.failure_reason ? <p className="muted small">{t("driver.failedReason", { reason: stop.failure_reason })}</p> : null}
       </div>
-      <Badge tone={tone}>{stop.status}</Badge>
+      <Badge status tone={tone}>{stop.status}</Badge>
     </li>
   );
 }

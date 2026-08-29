@@ -217,7 +217,7 @@ export default function AdminBillingPage() {
                     <td>{subscription.pharmacy_name}</td>
                     <td>{subscription.plan_detail.name}</td>
                     <td>
-                      <Badge tone={subscription.status === "ACTIVE" ? "success" : subscription.status === "PAST_DUE" ? "warning" : "neutral"}>
+                      <Badge status tone={subscription.status === "ACTIVE" ? "success" : subscription.status === "PAST_DUE" ? "warning" : "neutral"}>
                         {subscription.status}
                       </Badge>
                     </td>
@@ -252,7 +252,7 @@ export default function AdminBillingPage() {
                     <td>{fee.order_reference}</td>
                     <td>${fee.amount}</td>
                     <td>
-                      <Badge tone={feeTone(fee.status)}>{fee.status}</Badge>
+                      <Badge status tone={feeTone(fee.status)}>{fee.status}</Badge>
                     </td>
                     <td>
                       {fee.status === "PENDING" ? (

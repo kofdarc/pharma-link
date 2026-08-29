@@ -96,12 +96,12 @@ export default function InventoryPage() {
                 </td>
                 <td>{item.batch_number || t("pharmacyInventory.notRecorded")}</td>
                 <td>
-                  <Badge tone={item.is_low_stock ? "warning" : item.current_quantity > 0 ? "success" : "danger"}>
+                  <Badge status tone={item.is_low_stock ? "warning" : item.current_quantity > 0 ? "success" : "danger"}>
                     {item.is_low_stock ? t("pharmacyInventory.lowStock") : item.current_quantity > 0 ? t("pharmacyInventory.available") : t("pharmacyInventory.unavailable")}
                   </Badge>
                 </td>
                 <td>
-                  <Badge tone={statusTone(item.is_expired ? "Expired" : item.is_expiring_soon ? "Expiring soon" : "Active")}>
+                  <Badge status tone={statusTone(item.is_expired ? "Expired" : item.is_expiring_soon ? "Expiring soon" : "Active")}>
                     {item.expiry_date || t("pharmacyInventory.notRecorded")}
                   </Badge>
                 </td>
@@ -115,4 +115,3 @@ export default function InventoryPage() {
     </>
   );
 }
-

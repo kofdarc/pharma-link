@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/ui/BrandMark";
 
 /**
  * Links that have no route yet render as plain text, not as links to nowhere.
@@ -44,9 +45,7 @@ export function SiteFooter() {
         <div className="hc-footer-grid">
           <div className="hc-footer-brandcol">
             <Link href="/" className="hc-brand">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-mark.png" alt="" />
-              <span>HealthConnect</span>
+              <BrandLogo />
             </Link>
             <p className="hc-small">
               Medication search, secure prescriptions and delivery across connected pharmacies in Lebanon.

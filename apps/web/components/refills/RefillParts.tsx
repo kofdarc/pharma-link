@@ -61,12 +61,12 @@ export function RefillCard({
           <p className="hc-small">{refill.generic}</p>
         </div>
         {paused ? (
-          <span className="hc-chip hc-chip-off">
+          <span className="hc-chip hc-chip-off hc-status">
             <Icon name="pause" size={13} strokeWidth={2.1} />
             Paused
           </span>
         ) : (
-          <span className="hc-chip hc-chip-ok">
+          <span className="hc-chip hc-chip-ok hc-status">
             <Icon name="refresh" size={13} strokeWidth={2.1} />
             Active
           </span>

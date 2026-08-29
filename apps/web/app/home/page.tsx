@@ -72,7 +72,7 @@ export default function PatientHomePage() {
                         Order {currentOrder.id}
                       </h2>
                     </div>
-                    <span className="hc-chip hc-chip-ok">
+                    <span className="hc-chip hc-chip-ok hc-status">
                       <span className="hc-dot" />
                       {stageLabel(currentOrder.stage)}
                     </span>

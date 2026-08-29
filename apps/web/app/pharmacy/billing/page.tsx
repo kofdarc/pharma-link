@@ -75,7 +75,7 @@ export default function PharmacyBillingPage() {
             <div>
               <dt>{t("pharmacyBilling.status")}</dt>
               <dd>
-                <Badge tone={subscription.status === "ACTIVE" ? "success" : subscription.status === "PAST_DUE" ? "warning" : "neutral"}>
+                <Badge status tone={subscription.status === "ACTIVE" ? "success" : subscription.status === "PAST_DUE" ? "warning" : "neutral"}>
                   {subscription.status}
                 </Badge>
               </dd>
@@ -111,7 +111,7 @@ export default function PharmacyBillingPage() {
                     <td>{fee.order_reference}</td>
                     <td>${fee.amount}</td>
                     <td>
-                      <Badge tone={feeTone(fee.status)}>{fee.status}</Badge>
+                      <Badge status tone={feeTone(fee.status)}>{fee.status}</Badge>
                     </td>
                     <td className="muted small">{new Date(fee.created_at).toLocaleString()}</td>
                   </tr>

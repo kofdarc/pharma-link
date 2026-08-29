@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
+import { BrandLogo } from "@/components/ui/BrandMark";
 
 /**
  * Split composition for the auth pages: form on one side, product on the other.
@@ -22,9 +23,7 @@ export function AuthLayout({
     <div className="hc hc-auth">
       <div className="hc-auth-main">
         <Link href="/" className="hc-brand">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mark.png" alt="" />
-          <span>HealthConnect</span>
+          <BrandLogo />
         </Link>
         <div className="hc-auth-body">
           <div className="hc-auth-card">{children}</div>

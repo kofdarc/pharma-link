@@ -26,7 +26,7 @@ const STATUS: Record<PrescriptionStatus, { label: string; chip: string; icon: Ic
 export function PrescriptionStatusChip({ status }: { status: PrescriptionStatus }) {
   const { label, chip, icon } = STATUS[status];
   return (
-    <span className={`hc-chip ${chip}`}>
+    <span className={`hc-chip hc-status ${chip}`}>
       <Icon name={icon} size={13} strokeWidth={2.1} />
       {label}
     </span>

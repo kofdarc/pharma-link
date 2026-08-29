@@ -50,7 +50,7 @@ export default function InventoryDetailPage() {
           <h1>{item.medicine_detail.display_name}</h1>
           <p>{t("pharmacyInventoryDetail.batchLabel", { batch: item.batch_number || t("pharmacyInventoryDetail.notRecorded") })}</p>
         </div>
-        <Badge tone={item.is_expired ? "danger" : item.is_low_stock ? "warning" : "success"}>
+        <Badge status tone={item.is_expired ? "danger" : item.is_low_stock ? "warning" : "success"}>
           {item.is_expired ? t("pharmacyInventoryDetail.expired") : item.is_low_stock ? t("pharmacyInventoryDetail.lowStock") : t("pharmacyInventoryDetail.available")}
         </Badge>
       </div>
@@ -86,4 +86,3 @@ export default function InventoryDetailPage() {
     </section>
   );
 }
-

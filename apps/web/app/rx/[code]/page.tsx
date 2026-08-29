@@ -204,7 +204,7 @@ function PrescriptionView() {
                     {prescription.patient_date_of_birth ? ` · born ${prescription.patient_date_of_birth}` : ""}
                   </p>
                 </div>
-                <Badge tone={statusTone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
+                <Badge status tone={statusTone(prescription.status)}>{prescription.status.replace(/_/g, " ")}</Badge>
               </div>
 
               <dl className="detail-grid">

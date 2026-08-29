@@ -101,7 +101,7 @@ export default function StaffPage() {
                 </td>
                 <td>{user.role}</td>
                 <td>
-                  <Badge tone={statusTone(user.is_active ? "Active" : "Inactive")}>
+                  <Badge status tone={statusTone(user.is_active ? "Active" : "Inactive")}>
                     {user.is_active ? t("pharmacyStaff.active") : t("pharmacyStaff.inactive")}
                   </Badge>
                 </td>
@@ -113,4 +113,3 @@ export default function StaffPage() {
     </>
   );
 }
-

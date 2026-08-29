@@ -70,7 +70,7 @@ export default function SalesPage() {
                 <td>{new Date(sale.sale_datetime).toLocaleString()}</td>
                 <td>{sale.staff_email}</td>
                 <td>
-                  <Badge tone={statusTone(sale.status)}>{sale.status}</Badge>
+                  <Badge status tone={statusTone(sale.status)}>{sale.status}</Badge>
                 </td>
                 <td>${sale.total}</td>
               </tr>
@@ -81,4 +81,3 @@ export default function SalesPage() {
     </>
   );
 }
-

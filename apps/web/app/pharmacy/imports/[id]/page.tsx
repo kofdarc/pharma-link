@@ -52,7 +52,7 @@ export default function ImportDetailPage() {
           </p>
         </div>
         <div className="actions">
-          <Badge tone={statusTone(item.status)}>{item.status}</Badge>
+          <Badge status tone={statusTone(item.status)}>{item.status}</Badge>
           {item.status === "PARSED" ? <Button onClick={confirm}>{t("pharmacyImportDetail.confirmImport")}</Button> : null}
         </div>
       </div>
@@ -78,7 +78,7 @@ export default function ImportDetailPage() {
                 <td>{row.matched_medicine_detail?.display_name || t("pharmacyImportDetail.manualMatchRequired")}</td>
                 <td>{row.quantity || ""}</td>
                 <td>
-                  <Badge tone={statusTone(row.status)}>{row.status}</Badge>
+                  <Badge status tone={statusTone(row.status)}>{row.status}</Badge>
                 </td>
                 <td>{row.error_message}</td>
               </tr>
@@ -89,4 +89,3 @@ export default function ImportDetailPage() {
     </section>
   );
 }
-

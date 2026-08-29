@@ -92,7 +92,7 @@ export default function PharmacyInsuranceClaimsPage() {
                   <td>${claim.covered_amount}</td>
                   <td>${claim.patient_copay}</td>
                   <td>
-                    <Badge tone={claimTone(claim.status)}>{claim.status}</Badge>
+                    <Badge status tone={claimTone(claim.status)}>{claim.status}</Badge>
                   </td>
                   <td>
                     {claim.status === "SUBMITTED" ? (
