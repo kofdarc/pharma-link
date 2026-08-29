@@ -15,6 +15,7 @@ from apps.accounts.views import (
     PasswordResetRequestView,
     PharmacyStaffViewSet,
     ResendVerificationView,
+    ShopperLocationView,
     ShopperRegisterView,
     VerifyEmailView,
 )
@@ -116,7 +117,7 @@ from apps.pharmacies.views import (
     PharmacyProfileView,
     PublicPharmacyViewSet,
 )
-from apps.prescriptions.views import PrescriptionRecordViewSet
+from apps.prescriptions.views import PrescriptionRecordViewSet, ShopPrescriptionUploadViewSet
 from apps.sales.views import SaleViewSet
 
 
@@ -154,6 +155,7 @@ router.register("shop/addresses", DeliveryAddressViewSet, basename="shop-address
 router.register("shop/orders", ShopperOrderViewSet, basename="shop-orders")
 router.register("shop/recurring-orders", RecurringOrderViewSet, basename="shop-recurring-orders")
 router.register("shop/insurance-policies", ShopInsurancePolicyViewSet, basename="shop-insurance-policies")
+router.register("shop/prescription-uploads", ShopPrescriptionUploadViewSet, basename="shop-prescription-uploads")
 # The shopper's own saved cards/cash, distinct from shop/payment-methods/ below
 # which lists the providers the platform supports.
 router.register("shop/saved-payment-methods", SavedPaymentMethodViewSet, basename="shop-saved-payment-methods")
@@ -215,6 +217,9 @@ urlpatterns = [
     path("auth/verify-email/", VerifyEmailView.as_view()),
     path("auth/verify-email/resend/", ResendVerificationView.as_view()),
     path("auth/notification-preferences/", NotificationPreferencesView.as_view()),
+    # Opt-in "near me" origin. Under shop/ rather than auth/ because it is shopping context,
+    # not credentials - see apps.common.location for how it is read.
+    path("shop/location/", ShopperLocationView.as_view()),
     # In-app assistant (role-scoped; anonymous callers get the guest persona)
     path("assistant/session/", AssistantSessionView.as_view()),
     path("assistant/chat/", AssistantChatView.as_view()),

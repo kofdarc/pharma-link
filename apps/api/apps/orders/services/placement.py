@@ -40,21 +40,30 @@ class OrderError(Exception):
 
 
 def _notify_order_placed(order: Order) -> None:
-    if not order.customer.email:
-        return
-    try:
-        send_email(
-            to=[order.customer.email],
-            subject=_("Order %(reference)s placed") % {"reference": order.reference},
-            text_body=_(
-                "Hi %(name)s,\n\n"
-                "We've received your order %(reference)s totalling %(total)s %(currency)s. "
-                "We'll email you again as soon as a pharmacy accepts it.\n"
+    if order.customer.email:
+        try:
+            send_email(
+                to=[order.customer.email],
+                subject=_("Order %(reference)s placed") % {"reference": order.reference},
+                text_body=_(
+                    "Hi %(name)s,\n\n"
+                    "We've received your order %(reference)s totalling %(total)s %(currency)s. "
+                    "We'll email you again as soon as a pharmacy accepts it.\n"
+                )
+                % {"name": order.contact_name, "reference": order.reference, "total": order.total, "currency": settings.PLATFORM_CURRENCY},
             )
-            % {"name": order.contact_name, "reference": order.reference, "total": order.total, "currency": settings.PLATFORM_CURRENCY},
-        )
-    except Exception:
-        logger.exception("Failed to send order-placed email for %s", order.reference)
+        except Exception:
+            logger.exception("Failed to send order-placed email for %s", order.reference)
+    from apps.messaging.notifications import notify_order_update
+
+    notify_order_update(order=order, event="placed", detail=_("Your order was received."))
+
+
+def _notify_pharmacies_order_placed(order: Order) -> None:
+    from apps.messaging.notifications import notify_pharmacy_new_order
+
+    for fulfillment in order.fulfillments.select_related("pharmacy"):
+        notify_pharmacy_new_order(fulfillment=fulfillment)
 
 
 def _notify_webhooks_order_placed(order: Order) -> None:
@@ -299,6 +308,7 @@ def place_order(
         after_data={"total": str(order.total), "pharmacies": len(plan["allocations"]), "scheduled_for": scheduled_for.isoformat() if scheduled_for else None},
     )
     _notify_order_placed(order)
+    _notify_pharmacies_order_placed(order)
     _notify_webhooks_order_placed(order)
     return order
 

@@ -95,6 +95,11 @@ def issue_prescription(
         after_data={"code": prescription.code, "items": len(items), "valid_until": prescription.valid_until.isoformat(), "target_pharmacy": str(target_pharmacy.id) if target_pharmacy else None},
     )
 
+    if target_pharmacy is not None:
+        from apps.messaging.notifications import notify_pharmacy_new_prescription
+
+        notify_pharmacy_new_prescription(prescription=prescription)
+
     delivered_digitally = False
     if prescription.patient_email:
         delivered_digitally = mailer.send_prescription_email(prescription, secret=secret, pin=pin)

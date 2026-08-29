@@ -191,6 +191,39 @@ def extract_slots(message: str, intent_name: str, tokens: list[str]) -> dict:
     return slots
 
 
+def _most_explained(scored: list[tuple[int, str]], best_score: int, meaningful: set[str]) -> str | None:
+    """
+    Break a tie by which reading accounts for more of what was actually said, or give up.
+
+    Scoring counts how many of an intent's keywords the message hit. It cannot see the
+    opposite - how much of the message the intent leaves unexplained - and that is exactly
+    where near-ties come from. "which is the closest pharmacy that has amoxicillin" hits one
+    required keyword plus two optional ones for both `find_pharmacies` ("pharmacy",
+    "closest", "which") and `search_availability` ("has", "closest", "pharmacy"), so they
+    tie, even though only one of them accounts for the word "has" - and "has <something>" is
+    the whole question.
+
+    So the tiebreak is coverage: of the meaningful words in the message, what fraction does
+    each reading claim? A reading that explains three of four words beats one that explains
+    two. Returns None unless exactly one contender is strictly ahead, so a real ambiguity
+    still reaches the clarify path rather than being resolved by a coin toss.
+
+    This only ever runs on messages already headed for "did you mean" - it can turn a shrug
+    into an answer, never a confident answer into a different one.
+    """
+    if not meaningful:
+        return None
+    contenders = [name for score, name in scored if best_score - score < CONFIDENT_MARGIN]
+    if len(contenders) < 2:
+        return None
+
+    claimed = {name: len(meaningful & (_REQUIRED[name] | _OPTIONAL[name])) for name in contenders}
+    ranked = sorted(claimed.items(), key=lambda item: -item[1])
+    if ranked[0][1] <= ranked[1][1]:
+        return None
+    return ranked[0][0]
+
+
 class KeywordIntentParser(IntentParser):
     code = "keyword"
 
@@ -223,10 +256,13 @@ class KeywordIntentParser(IntentParser):
         best_score, best_name = scored[0]
         runner_up = scored[1][0] if len(scored) > 1 else 0
         if best_score - runner_up < CONFIDENT_MARGIN:
-            # Two readings are genuinely close. Asking is cheaper than being wrong, and it
-            # gives the person the vocabulary the router actually recognises.
-            options = tuple(INTENTS[name].description.rstrip(".").lower() for _, name in scored[:2])
-            return ParseResult(intent="clarify", slots={"options": list(options)}, confidence=0.4, source=self.code, options=options)
+            settled = _most_explained(scored, best_score, meaningful)
+            if settled is None:
+                # Two readings are genuinely close. Asking is cheaper than being wrong, and it
+                # gives the person the vocabulary the router actually recognises.
+                options = tuple(INTENTS[name].description.rstrip(".").lower() for _, name in scored[:2])
+                return ParseResult(intent="clarify", slots={"options": list(options)}, confidence=0.4, source=self.code, options=options)
+            best_name = settled
 
         return ParseResult(
             intent=best_name,

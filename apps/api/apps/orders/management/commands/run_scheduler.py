@@ -24,7 +24,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.orders.services.placement import expire_stale_reservations
-from apps.orders.services.schedule import release_due_scheduled_orders, run_due_recurring_orders
+from apps.orders.services.schedule import release_due_scheduled_orders, run_due_recurring_orders, send_due_refill_reminders
 
 
 class Command(BaseCommand):
@@ -49,6 +49,16 @@ class Command(BaseCommand):
         released_holds = expire_stale_reservations()
         if released_holds:
             self.stdout.write(f"[{stamp}] released {released_holds} expired stock hold(s) back to the shelf")
+
+        refill_reminders = send_due_refill_reminders()
+        if refill_reminders:
+            self.stdout.write(f"[{stamp}] queued {refill_reminders} refill reminder(s)")
+
+        from apps.eprescriptions.services.reminders import send_prescription_expiry_reminders
+
+        prescription_reminders = send_prescription_expiry_reminders()
+        if prescription_reminders:
+            self.stdout.write(f"[{stamp}] queued {prescription_reminders} prescription expiry reminder(s)")
 
         recurring = run_due_recurring_orders()
         for reference in recurring["created"]:
@@ -76,5 +86,13 @@ class Command(BaseCommand):
         if delivered_webhooks:
             self.stdout.write(f"[{stamp}] attempted {delivered_webhooks} pending webhook delivery(ies)")
 
-        if not (released_holds or recurring["created"] or released_orders or plan or delivered_webhooks):
+        if not (
+            released_holds
+            or refill_reminders
+            or prescription_reminders
+            or recurring["created"]
+            or released_orders
+            or plan
+            or delivered_webhooks
+        ):
             self.stdout.write(f"[{stamp}] nothing to do")

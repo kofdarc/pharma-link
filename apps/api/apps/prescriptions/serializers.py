@@ -50,3 +50,53 @@ class PrescriptionRecordSerializer(serializers.ModelSerializer):
     def get_download_url(self, obj):
         return f"/api/pharmacy/prescriptions/{obj.id}/download/" if obj.file else None
 
+
+class ShopPrescriptionUploadSerializer(serializers.ModelSerializer):
+    """A patient's own upload of a paper prescription. No pharmacy/staff fields:
+    the record is unattached until a pharmacy claims it."""
+
+    file_name = serializers.CharField(source="file_original_name", read_only=True)
+    download_url = serializers.SerializerMethodField()
+    quality_warnings = serializers.SerializerMethodField()
+    is_expired = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = PrescriptionRecord
+        fields = [
+            "id",
+            "status",
+            "doctor_name",
+            "prescription_date",
+            "notes",
+            "rejection_reason",
+            "file",
+            "file_name",
+            "file_mime_type",
+            "file_size",
+            "is_expired",
+            "quality_warnings",
+            "download_url",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "status",
+            "rejection_reason",
+            "file_name",
+            "file_mime_type",
+            "file_size",
+            "is_expired",
+            "quality_warnings",
+            "download_url",
+            "created_at",
+            "updated_at",
+        ]
+        extra_kwargs = {"file": {"write_only": True, "required": True}}
+
+    def get_download_url(self, obj):
+        return f"/api/shop/prescription-uploads/{obj.id}/file/" if obj.file else None
+
+    def get_quality_warnings(self, obj):
+        return [f["message"] for f in (obj.quality_findings or []) if f.get("severity") == "warn"]
+

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { apiFetch, asList } from "@/lib/api-client";
 import { useBasket } from "@/lib/basket";
 import { useTranslations } from "@/lib/i18n/context";
+import { useShopperLocation } from "@/lib/location";
 import type { DeliveryAddress, Paginated, PublicAvailability } from "@/types/api";
 import { Badge, statusTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -25,6 +26,7 @@ type SortMode = "best" | "distance" | "price" | "rating";
 export default function ShopSearchPage() {
   const basket = useBasket();
   const t = useTranslations();
+  const location = useShopperLocation();
   const [addresses, setAddresses] = useState<DeliveryAddress[]>([]);
   const [addressId, setAddressId] = useState("");
   const [query, setQuery] = useState("");
@@ -47,6 +49,20 @@ export default function ShopSearchPage() {
 
   const address = addresses.find((entry) => entry.id === addressId);
 
+  /**
+   * Where to rank from: the device if the shopper has shared it, otherwise the address
+   * they picked to deliver to.
+   *
+   * The device wins because it answers a different question. The delivery address is where
+   * the order should end up; the device is where the shopper is standing, and "which of
+   * these can I walk to right now" is the question this page gets asked most.
+   */
+  const origin = location.position
+    ? { lat: String(location.position.latitude), lng: String(location.position.longitude) }
+    : address
+      ? { lat: address.latitude, lng: address.longitude }
+      : null;
+
   async function search(event?: FormEvent) {
     event?.preventDefault();
     if (!query.trim()) return;
@@ -54,9 +70,9 @@ export default function ShopSearchPage() {
     setError("");
     setSearched(true);
     const params = new URLSearchParams({ q: query.trim(), sort });
-    if (address) {
-      params.set("lat", address.latitude);
-      params.set("lng", address.longitude);
+    if (origin) {
+      params.set("lat", origin.lat);
+      params.set("lng", origin.lng);
     }
     try {
       setResults(await apiFetch<PublicAvailability[]>(`/public/search/?${params.toString()}`));
@@ -69,9 +85,10 @@ export default function ShopSearchPage() {
 
   useEffect(() => {
     if (searched && query.trim()) void search();
-    // Re-run when the sort or address changes so ranking updates immediately.
+    // Re-run when the sort or the point we measure from changes, so ranking updates
+    // immediately - including the moment a shared device location supersedes the address.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sort, addressId]);
+  }, [sort, addressId, origin?.lat, origin?.lng]);
 
   return (
     <>
@@ -114,6 +131,26 @@ export default function ShopSearchPage() {
           </Field>
           <Button type="submit">{t("common.search")}</Button>
         </form>
+
+        <p className="hc-locate" style={{ marginTop: 10 }}>
+          {location.position ? (
+            <>
+              <span>
+                {t("shop.usingMyLocation", { label: location.position.label ? ` (${location.position.label})` : "" })}
+              </span>
+              <button type="button" onClick={location.clear}>
+                {t("shop.locationOff")}
+              </button>
+            </>
+          ) : location.supported ? (
+            <>
+              <span>{location.error ? t("shop.locationFailed") : ""}</span>
+              <button type="button" onClick={location.request} disabled={location.pending}>
+                {location.pending ? t("pharmacySettings.locating") : t("shop.useMyLocation")}
+              </button>
+            </>
+          ) : null}
+        </p>
 
         {addresses.length === 0 ? (
           <Notice>

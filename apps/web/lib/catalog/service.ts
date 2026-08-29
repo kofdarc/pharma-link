@@ -44,6 +44,14 @@ function inferProductType(brand: string, generic: string): ProductType {
   return firstIngredient && brand.toLowerCase().startsWith(firstIngredient) ? "generic" : "brand";
 }
 
+/** The shopper's position, as much of it as any of these calls needs. */
+export type Near = { latitude: number; longitude: number };
+
+function nearParams(near?: Near | null): string {
+  if (!near) return "";
+  return `&lat=${encodeURIComponent(near.latitude)}&lng=${encodeURIComponent(near.longitude)}`;
+}
+
 function parsePrice(value: string | null): number | null {
   if (!value) return null;
   const parsed = Number(value);
@@ -61,6 +69,8 @@ function groupByMedicine(rows: PublicAvailability[]): MedicineSummary[] {
     const canFulfil = row.available_up_to > 0 && row.pharmacy.accepts_online_orders;
     const existing = grouped.get(medicine.id);
 
+    const distance = typeof row.distance_km === "number" ? row.distance_km : null;
+
     if (!existing) {
       grouped.set(medicine.id, {
         id: medicine.id,
@@ -75,6 +85,8 @@ function groupByMedicine(rows: PublicAvailability[]): MedicineSummary[] {
         fromPrice: price,
         isPriceRegulated: row.is_price_regulated,
         sourcingCount: canFulfil ? 1 : 0,
+        nearestKm: distance,
+        nearestPharmacy: distance === null ? "" : row.pharmacy.name,
         aliases: []
       });
       continue;
@@ -87,6 +99,10 @@ function groupByMedicine(rows: PublicAvailability[]): MedicineSummary[] {
       existing.fromPrice = price;
     }
     if (canFulfil) existing.sourcingCount += 1;
+    if (distance !== null && (existing.nearestKm === null || distance < existing.nearestKm)) {
+      existing.nearestKm = distance;
+      existing.nearestPharmacy = row.pharmacy.name;
+    }
   }
 
   return [...grouped.values()];
@@ -94,10 +110,16 @@ function groupByMedicine(rows: PublicAvailability[]): MedicineSummary[] {
 
 // --- public API ------------------------------------------------------------
 
-export async function searchMedicines(query: string, signal?: AbortSignal): Promise<MedicineSummary[]> {
+/**
+ * `near` is the shopper's position, when they have shared one. Passing it turns on the
+ * distance figures the API can only compute if it knows where to measure from - without it
+ * every row comes back with `distance_km: null` and the UI says nothing about how far,
+ * rather than guessing.
+ */
+export async function searchMedicines(query: string, signal?: AbortSignal, near?: Near | null): Promise<MedicineSummary[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
-  const rows = await apiFetch<PublicAvailability[]>(`/public/search/?q=${encodeURIComponent(trimmed)}`, { signal });
+  const rows = await apiFetch<PublicAvailability[]>(`/public/search/?q=${encodeURIComponent(trimmed)}${nearParams(near)}`, { signal });
   return groupByMedicine(rows);
 }
 
@@ -185,6 +207,10 @@ async function fromCatalogueOnly(id: string, signal?: AbortSignal): Promise<Medi
     fromPrice,
     isPriceRegulated: Boolean(record.is_price_regulated),
     sourcingCount: 0,
+    // No stocking pharmacy means nothing to measure a distance to, which is a
+    // different thing from a distance we failed to compute - both read as null here.
+    nearestKm: null,
+    nearestPharmacy: "",
     aliases: (record.aliases ?? []).map((entry) => entry.alias)
   };
 
@@ -235,7 +261,12 @@ export function applyFilters(results: MedicineSummary[], filters: SearchFilters)
 
 export function applySort(results: MedicineSummary[], sort: SortMode): MedicineSummary[] {
   const sorted = [...results];
-  if (sort === "price") {
+  if (sort === "nearest") {
+    // Rows with no distance sink rather than sorting as "here", the same way unpriced rows
+    // sink under "price". The shopper picked this sort because distance is what they care
+    // about; a row we cannot place is the least useful answer, not the best one.
+    sorted.sort((a, b) => (a.nearestKm ?? Infinity) - (b.nearestKm ?? Infinity));
+  } else if (sort === "price") {
     // Unpriced entries sink rather than sorting as free.
     sorted.sort((a, b) => (a.fromPrice ?? Infinity) - (b.fromPrice ?? Infinity));
   } else if (sort === "availability") {

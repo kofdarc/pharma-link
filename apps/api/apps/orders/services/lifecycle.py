@@ -45,17 +45,20 @@ def _notify_fulfillment_accepted(fulfillment: OrderFulfillment) -> None:
 
 
 def _notify_order_delivered(order: Order) -> None:
-    if not order.customer.email:
-        return
     verb = "is ready for collection" if order.status == Order.Status.COLLECTED else "has been delivered"
-    try:
-        send_email(
-            to=[order.customer.email],
-            subject=f"Order {order.reference} {verb}",
-            text_body=f"Hi {order.contact_name},\n\nYour order {order.reference} {verb}. Thanks for shopping with HealthConnect.\n",
-        )
-    except Exception:
-        logger.exception("Failed to send order-delivered email for %s", order.reference)
+    if order.customer.email:
+        try:
+            send_email(
+                to=[order.customer.email],
+                subject=f"Order {order.reference} {verb}",
+                text_body=f"Hi {order.contact_name},\n\nYour order {order.reference} {verb}. Thanks for shopping with HealthConnect.\n",
+            )
+        except Exception:
+            logger.exception("Failed to send order-delivered email for %s", order.reference)
+    from apps.messaging.notifications import notify_order_update
+
+    detail = _("Your order is ready for collection.") if order.status == Order.Status.COLLECTED else _("Your order was delivered.")
+    notify_order_update(order=order, event=order.status.lower(), detail=detail)
 
 
 TERMINAL_FULFILLMENT_STATES = {
@@ -127,6 +130,14 @@ def accept_fulfillment(*, fulfillment: OrderFulfillment, user) -> OrderFulfillme
         summary=f"Accepted {fulfillment.order.reference}",
     )
     _notify_fulfillment_accepted(fulfillment)
+    from apps.messaging.notifications import notify_order_update
+
+    notify_order_update(
+        order=fulfillment.order,
+        pharmacy=fulfillment.pharmacy,
+        event="accepted",
+        detail=_("%(pharmacy)s accepted its part of your order.") % {"pharmacy": fulfillment.pharmacy.name},
+    )
     return fulfillment
 
 
@@ -164,6 +175,14 @@ def reject_fulfillment(*, fulfillment: OrderFulfillment, user, reason: str = "")
         entity_id=fulfillment.id,
         summary=f"Rejected {order.reference}: {reason}",
     )
+    from apps.messaging.notifications import notify_order_update
+
+    notify_order_update(
+        order=order,
+        pharmacy=pharmacy,
+        event="rejected",
+        detail=_("%(pharmacy)s could not fulfill its part. Review the updated order.") % {"pharmacy": pharmacy.name},
+    )
     return fulfillment
 
 
@@ -176,6 +195,14 @@ def mark_ready(*, fulfillment: OrderFulfillment, user) -> OrderFulfillment:
     fulfillment.ready_at = timezone.now()
     fulfillment.save(update_fields=["status", "ready_at", "updated_at"])
     rollup_order_status(fulfillment.order)
+    from apps.messaging.notifications import notify_order_update
+
+    notify_order_update(
+        order=fulfillment.order,
+        pharmacy=fulfillment.pharmacy,
+        event="ready",
+        detail=_("%(pharmacy)s prepared its part of your order.") % {"pharmacy": fulfillment.pharmacy.name},
+    )
     return fulfillment
 
 

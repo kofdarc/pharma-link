@@ -28,6 +28,11 @@ _TOOLS: dict[str, ToolSpec] = {
         ToolSpec("my_orders", customer.my_orders, "The signed-in patient's own recent orders and their status."),
         ToolSpec("my_prescriptions_patient", customer.my_prescriptions, "The signed-in patient's own e-prescriptions, validity and remaining quantities."),
         ToolSpec("my_refills", customer.my_refills, "The signed-in patient's repeat orders and when the next one runs."),
+        ToolSpec(
+            "prescription_coverage",
+            customer.prescription_coverage,
+            "Which pharmacy near the patient can fill their whole current prescription in one visit.",
+        ),
         # Doctor - scoped to the signed-in prescriber.
         ToolSpec("catalogue_lookup", doctor.catalogue_lookup, "Registration facts for a product: form, strength, schedule, prescription status."),
         ToolSpec("my_prescriptions_doctor", doctor.my_prescriptions, "Prescriptions this doctor issued."),

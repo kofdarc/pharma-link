@@ -18,6 +18,7 @@ import type {
   OrderStatus,
   Payment,
   Prescription as ApiPrescription,
+  PrescriptionUpload as ApiPrescriptionUpload,
   RecurringOrder as ApiRecurringOrder,
   User
 } from "@/types/api";
@@ -33,6 +34,8 @@ import type {
   Prescription,
   PrescriptionItem,
   PrescriptionStatus,
+  PrescriptionUpload,
+  PrescriptionUploadStatus,
   Refill
 } from "./types";
 
@@ -192,6 +195,25 @@ export function toPrescription(record: ApiPrescription): Prescription {
     // Issued once, to the doctor, at creation time. It is never re-served, so
     // the patient sees it only if they saved it.
     accessPin: record.one_time_secrets?.pin ?? ""
+  };
+}
+
+const UPLOAD_STATUS: Record<string, PrescriptionUploadStatus> = {
+  PENDING_REVIEW: "pending",
+  ACCEPTED: "accepted",
+  REJECTED: "rejected"
+};
+
+export function toPrescriptionUpload(record: ApiPrescriptionUpload): PrescriptionUpload {
+  return {
+    id: record.id,
+    status: UPLOAD_STATUS[record.status] ?? "pending",
+    doctorName: record.doctor_name ?? "",
+    uploadedOn: isoDate(record.created_at),
+    fileName: record.file_name ?? "",
+    rejectionReason: record.rejection_reason ?? "",
+    qualityWarnings: record.quality_warnings ?? [],
+    filePath: (record.download_url ?? "").replace(/^\/api/, "")
   };
 }
 

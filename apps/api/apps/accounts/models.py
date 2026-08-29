@@ -1,6 +1,7 @@
 import uuid
 
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -97,3 +98,46 @@ class NotificationPreferences(models.Model):
 
     def __str__(self) -> str:
         return f"Notification preferences for {self.user.email}"
+
+
+class ShopperLocation(models.Model):
+    """
+    Where a shopper has told us they are, so "near me" means something.
+
+    A row per user rather than a pair of columns on `User`, for the same reason
+    `NotificationPreferences` is its own table: absence of a row is a meaningful state -
+    "never shared" - and it is distinguishable from "shared once and then cleared", which a
+    nullable column pair on the user record cannot express without a third flag.
+
+    This is opt-in and always overwritable by the person it describes. Nothing here is
+    required to use the product: every surface that reads a location falls back to the
+    shopper's default delivery address, and then to the centre of the area they named (see
+    `apps.common.geo.area_coordinates`), so a shopper who never shares a position still gets
+    ranked results - just coarser ones.
+
+    Only the latest position is kept. There is no history table on purpose: a trail of where
+    a patient has been over time is a materially different thing to hold than a single
+    "roughly here, now", and this product has no use for the former.
+    """
+
+    class Source(models.TextChoices):
+        DEVICE = "DEVICE", "Device location"
+        ADDRESS = "ADDRESS", "Picked from a saved address"
+        MANUAL = "MANUAL", "Entered by hand"
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="shopper_location")
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, validators=[MinValueValidator(-90), MaxValueValidator(90)])
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, validators=[MinValueValidator(-180), MaxValueValidator(180)])
+    accuracy_metres = models.PositiveIntegerField(
+        null=True, blank=True, help_text="What the device reported. A very loose fix is still usable for ranking pharmacies a few km apart."
+    )
+    source = models.CharField(max_length=20, choices=Source.choices, default=Source.DEVICE)
+    label = models.CharField(max_length=80, blank=True, help_text="Area name resolved at capture time, for showing the person what we think 'near me' means.")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"Location for {self.user.email}"
+
+    @property
+    def position(self) -> tuple[float, float]:
+        return float(self.latitude), float(self.longitude)

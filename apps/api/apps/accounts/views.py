@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from apps.accounts.authentication import is_token_expired
-from apps.accounts.models import NotificationPreferences, User, UserRole
+from apps.accounts.models import NotificationPreferences, ShopperLocation, User, UserRole
 from apps.accounts.permissions import IsPharmacyOwner, IsPlatformAdmin
 from apps.accounts.serializers import (
     EmailVerificationConfirmSerializer,
@@ -21,11 +21,13 @@ from apps.accounts.serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     ResendVerificationSerializer,
+    ShopperLocationSerializer,
     ShopperRegisterSerializer,
     UserSerializer,
 )
 from apps.accounts.services import send_password_reset_email, send_verification_email
 from apps.audit.services import write_audit_log
+from apps.common.geo import nearest_area
 
 
 def _user_from_uid(uid: str) -> User | None:
@@ -258,3 +260,52 @@ class PharmacyStaffViewSet(ModelViewSet):
                 after_data=after,
             )
 
+
+
+class ShopperLocationView(APIView):
+    """
+    Where the signed-in person has told us they are. Opt-in, overwritable, deletable.
+
+    PUT replaces it, DELETE forgets it, GET returns 204 when there is nothing on file rather
+    than an empty object - "never shared" and "shared, then cleared" are the same state here
+    and both mean the platform holds no position for this account.
+
+    Sharing a location is never a precondition for anything: every surface that reads this
+    falls back through `apps.common.location.resolve_origin`, so deleting it degrades the
+    ranking of search results and nothing else. That is what makes DELETE a real option
+    rather than a button that quietly breaks the product.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        location = getattr(request.user, "shopper_location", None)
+        if location is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(ShopperLocationSerializer(location).data)
+
+    def put(self, request):
+        serializer = ShopperLocationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        location, _created = ShopperLocation.objects.update_or_create(
+            user=request.user,
+            defaults={
+                "latitude": data["latitude"],
+                "longitude": data["longitude"],
+                # Spelled out rather than splatted from `data`, because an omitted optional
+                # field is simply absent from `validated_data` - and on an update that would
+                # leave the previous fix's accuracy attached to a new position. Every field
+                # is written on every PUT, so the row always describes one single fix.
+                "accuracy_metres": data.get("accuracy_metres"),
+                "source": data.get("source", ShopperLocation.Source.DEVICE),
+                # Resolved here, once, from the coordinates actually stored - see the
+                # serializer for why this is not a client-supplied field.
+                "label": nearest_area(float(data["latitude"]), float(data["longitude"])),
+            },
+        )
+        return Response(ShopperLocationSerializer(location).data)
+
+    def delete(self, request):
+        ShopperLocation.objects.filter(user=request.user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

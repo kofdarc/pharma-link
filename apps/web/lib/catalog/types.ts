@@ -37,6 +37,14 @@ export interface MedicineSummary {
   isPriceRegulated?: boolean;
   /** How many connected pharmacies may be able to fulfil it. Never stock depth. */
   sourcingCount: number;
+  /**
+   * Road distance to the closest pharmacy listing it, in km, or null when the
+   * shopper has shared no location. Null is meaningful and must stay
+   * distinguishable from zero: "we don't know how far" is not "it's right here".
+   */
+  nearestKm: number | null;
+  /** Which pharmacy that closest listing is at. Empty when distance is unknown. */
+  nearestPharmacy: string;
   /** Extra terms search should match: brand aliases, common misspellings. */
   aliases: string[];
 }
@@ -46,7 +54,7 @@ export interface MedicineDetail extends MedicineSummary {
   related: MedicineSummary[];
 }
 
-export type SortMode = "recommended" | "price" | "availability";
+export type SortMode = "recommended" | "nearest" | "price" | "availability";
 
 export interface SearchFilters {
   availability: "any" | "available";

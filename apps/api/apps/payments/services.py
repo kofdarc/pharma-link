@@ -20,21 +20,26 @@ class PaymentError(Exception):
 
 def _notify_payment_failed(payment: Payment) -> None:
     customer = payment.order.customer
-    if not customer.email:
-        return
+    if customer.email:
+        try:
+            send_email(
+                to=[customer.email],
+                subject=_("Payment failed for order %(reference)s") % {"reference": payment.order.reference},
+                text_body=_("Hi %(name)s,\n\nYour payment for order %(reference)s could not be processed%(reason)s\n")
+                % {
+                    "name": payment.order.contact_name,
+                    "reference": payment.order.reference,
+                    "reason": _(": %(reason)s") % {"reason": payment.failure_reason} if payment.failure_reason else ".",
+                },
+            )
+        except Exception:
+            logger.exception("Failed to send payment-failed email for %s", payment.order.reference)
     try:
-        send_email(
-            to=[customer.email],
-            subject=_("Payment failed for order %(reference)s") % {"reference": payment.order.reference},
-            text_body=_("Hi %(name)s,\n\nYour payment for order %(reference)s could not be processed%(reason)s\n")
-            % {
-                "name": payment.order.contact_name,
-                "reference": payment.order.reference,
-                "reason": _(": %(reason)s") % {"reason": payment.failure_reason} if payment.failure_reason else ".",
-            },
-        )
+        from apps.messaging.notifications import notify_payment_failure
+
+        notify_payment_failure(payment=payment)
     except Exception:
-        logger.exception("Failed to send payment-failed email for %s", payment.order.reference)
+        logger.exception("Failed to send payment-failed WhatsApp notification for %s", payment.order.reference)
 
 
 @transaction.atomic

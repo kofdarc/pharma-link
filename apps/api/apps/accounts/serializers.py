@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from apps.accounts.models import NotificationPreferences, User, UserRole
+from apps.accounts.models import NotificationPreferences, ShopperLocation, User, UserRole
 from apps.pharmacies.serializers import PharmacySerializer
 
 
@@ -146,6 +146,22 @@ class OwnProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["first_name", "last_name", "phone"]
+
+
+class ShopperLocationSerializer(serializers.ModelSerializer):
+    """
+    What a shopper shares, and what they get back.
+
+    `label` is read-only and derived server-side from the coordinates rather than accepted
+    from the client, because it is what the product later shows the person as "we think you
+    are near X". A client-supplied label could disagree with the coordinates it arrived with,
+    and the shopper would have no way to tell which of the two the ranking actually used.
+    """
+
+    class Meta:
+        model = ShopperLocation
+        fields = ["latitude", "longitude", "accuracy_metres", "source", "label", "updated_at"]
+        read_only_fields = ["label", "updated_at"]
 
 
 class NotificationPreferencesSerializer(serializers.ModelSerializer):

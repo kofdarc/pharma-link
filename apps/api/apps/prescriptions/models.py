@@ -15,7 +15,10 @@ ALLOWED_PRESCRIPTION_MIME_TYPES = {"application/pdf", "image/jpeg", "image/png"}
 
 def prescription_upload_path(instance, filename: str) -> str:
     safe_suffix = Path(filename).suffix.lower()
-    return f"prescriptions/{instance.pharmacy_id}/{instance.id}{safe_suffix}"
+    # A pharmacy-created record keys by pharmacy; a patient upload has no pharmacy
+    # yet, so it keys by the uploading customer instead.
+    owner = instance.pharmacy_id or f"patient/{instance.customer_id}"
+    return f"prescriptions/{owner}/{instance.id}{safe_suffix}"
 
 
 def validate_prescription_file(file_obj):
@@ -28,7 +31,33 @@ def validate_prescription_file(file_obj):
 
 
 class PrescriptionRecord(UUIDTimeStampedModel):
-    pharmacy = models.ForeignKey("pharmacies.Pharmacy", on_delete=models.PROTECT, related_name="prescription_records", db_index=True)
+    class UploadStatus(models.TextChoices):
+        PENDING_REVIEW = "PENDING_REVIEW", "Pending review"
+        ACCEPTED = "ACCEPTED", "Accepted"
+        REJECTED = "REJECTED", "Rejected"
+
+    # Nullable because a patient can upload a scan of their paper prescription
+    # before any pharmacy is involved; a pharmacy claims it later. Pharmacy-created
+    # records always set this.
+    pharmacy = models.ForeignKey(
+        "pharmacies.Pharmacy", null=True, blank=True, on_delete=models.PROTECT, related_name="prescription_records", db_index=True
+    )
+    # Set only on a patient-uploaded scan. `created_by` is the uploader in that case too,
+    # but `customer` is the field views scope on and the "this is a patient upload" signal.
+    customer = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.CASCADE, related_name="prescription_uploads", db_index=True
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=UploadStatus.choices,
+        default=UploadStatus.ACCEPTED,
+        help_text="Pharmacy-created records are ACCEPTED by definition. A patient upload starts "
+        "PENDING_REVIEW until a pharmacy accepts or rejects it.",
+    )
+    rejection_reason = models.CharField(max_length=500, blank=True)
+    quality_findings = models.JSONField(
+        default=list, blank=True, help_text="Server-side legibility check results at upload time ({code, message, severity})."
+    )
     sale = models.ForeignKey("sales.Sale", null=True, blank=True, on_delete=models.SET_NULL, related_name="prescription_records")
     patient_name = models.CharField(max_length=255, blank=True)
     patient_phone = models.CharField(max_length=60, blank=True)

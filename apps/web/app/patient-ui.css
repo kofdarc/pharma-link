@@ -1850,6 +1850,44 @@
   color: var(--hc-muted);
 }
 
+/*
+ * Distance sits under the sourcing line and reads darker than it: when a shopper has
+ * shared a location, how far it is usually decides the choice, so it should not be the
+ * quietest thing on the card.
+ */
+.hc-result-distance {
+  font-size: 0.8125rem;
+  font-weight: 560;
+  color: var(--hc-ink);
+}
+
+/* The "near me" control above the results. */
+.hc-locate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+  color: var(--hc-muted);
+}
+
+.hc-locate button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hc-brand-deep);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.hc-locate button:disabled {
+  color: var(--hc-muted);
+  text-decoration: none;
+  cursor: progress;
+}
+
 @media (max-width: 820px) {
   .hc-searchtop {
     position: static;

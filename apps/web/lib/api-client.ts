@@ -6,6 +6,12 @@ import { API_BASE_URL } from "./constants";
 // of every page independently guessing why its data suddenly stopped loading.
 export const AUTH_EXPIRED_EVENT = "pharmalink:auth-expired";
 
+// Fired on window whenever the token is set or cleared - i.e. someone signed in, signed out,
+// or the session expired. Surfaces that carry conversational or persona-specific state (the
+// assistant widget) listen for this and wipe themselves, so one person's thread never bleeds
+// into the next session on the same tab.
+export const AUTH_CHANGED_EVENT = "pharmalink:auth-changed";
+
 export class ApiError extends Error {
   status: number;
   details: unknown;
@@ -24,10 +30,12 @@ export function getToken() {
 
 export function setToken(token: string) {
   window.sessionStorage.setItem("pharmalink_token", token);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
 }
 
 export function clearToken() {
   window.sessionStorage.removeItem("pharmalink_token");
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {

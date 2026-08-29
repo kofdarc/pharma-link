@@ -823,7 +823,11 @@
     "rxTag": "وصفة",
     "insurance": "التأمين (اختياري)",
     "noInsurance": "بدون تأمين",
-    "checkoutEstimatedCopay": "المشاركة المقدّرة بعد التأمين"
+    "checkoutEstimatedCopay": "المشاركة المقدّرة بعد التأمين",
+    "useMyLocation": "استخدام موقعي الحالي",
+    "usingMyLocation": "الترتيب انطلاقًا من موقعك الحالي{label}.",
+    "locationOff": "إيقاف",
+    "locationFailed": "تعذّر تحديد موقعك. سيتم الترتيب انطلاقًا من عنوان التوصيل."
   },
   "orders": {
     "title": "طلباتي",
@@ -938,7 +942,11 @@
     "latitude": "خط العرض",
     "longitude": "خط الطول",
     "publicVisibility": "الظهور العام",
-    "saveSettings": "حفظ الإعدادات"
+    "saveSettings": "حفظ الإعدادات",
+    "useCurrentLocation": "استخدام موقع هذا الجهاز",
+    "locating": "جارٍ تحديد الموقع…",
+    "locationHelp": "يعتمد ترتيب نتائج «بالقرب مني» على هذا. قف داخل الصيدلية واضغط الزر، أو أدخل الإحداثيات يدويًا.",
+    "locationFailed": "تعذّر قراءة موقع هذا الجهاز. أدخل الإحداثيات يدويًا."
   },
   "pharmacyStaff": {
     "title": "الموظفون",

@@ -12,6 +12,7 @@ import { FilterRail, FilterSheet } from "@/components/medicines/MedicineFilters"
 import { ResultSkeletons, StateBlock } from "@/components/medicines/SearchStates";
 import { Icon } from "@/components/ui/Icon";
 import { useOptionalUser } from "@/lib/auth";
+import { useShopperLocation } from "@/lib/location";
 import { useRecentSearches } from "@/lib/recent-searches";
 import { COMMON_SEARCH_TERMS } from "@/lib/catalog/prompts";
 import { applyFilters, applySort, availableForms, searchMedicines } from "@/lib/catalog/service";
@@ -44,6 +45,7 @@ function SearchScreen() {
   const query = params.get("q") ?? "";
   const { recent, remember, clear } = useRecentSearches();
   const user = useOptionalUser();
+  const location = useShopperLocation();
 
   const [input, setInput] = useState(query);
   const [results, setResults] = useState<MedicineSummary[]>([]);
@@ -69,7 +71,7 @@ function SearchScreen() {
     setError(false);
     remember(query);
 
-    searchMedicines(query, controller.signal)
+    searchMedicines(query, controller.signal, location.position)
       .then((found) => {
         setResults(found);
         setFilters(DEFAULT_FILTERS);
@@ -84,9 +86,17 @@ function SearchScreen() {
       });
 
     return () => controller.abort();
-    // `remember` is stable; re-running on it would loop.
+    // `remember` is stable; re-running on it would loop. The position is compared by value
+    // rather than by identity for the same reason - the hook returns a fresh object on every
+    // render, and depending on it directly would re-search forever.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [query, location.position?.latitude, location.position?.longitude]);
+
+  // Turning the location off takes the "Nearest" option out of the select; leaving `sort`
+  // pointing at it would render an empty control sorting by a value nothing offers.
+  useEffect(() => {
+    if (!location.position && sort === "nearest") setSort("recommended");
+  }, [location.position, sort]);
 
   const forms = useMemo(() => availableForms(results), [results]);
   const visible = useMemo(() => applySort(applyFilters(results, filters), sort), [results, filters, sort]);
@@ -180,6 +190,32 @@ function SearchScreen() {
                     Availability is confirmed when you continue with your order.
                   </p>
                 ) : null}
+                {/*
+                  Distance is opt-in and reversible, and it says which position it is using.
+                  A shopper who never presses this still gets every result - just without a
+                  "how far" on any of them.
+                */}
+                <p className="hc-locate" style={{ marginTop: 6 }}>
+                  <Icon name="pin" size={13} />
+                  {location.position ? (
+                    <>
+                      <span>
+                        Distances from your location
+                        {location.position.label ? ` near ${location.position.label}` : ""}.
+                      </span>
+                      <button type="button" onClick={location.clear}>
+                        Turn off
+                      </button>
+                    </>
+                  ) : location.supported ? (
+                    <>
+                      <span>{location.error || "Want to see which of these is closest to you?"}</span>
+                      <button type="button" onClick={location.request} disabled={location.pending}>
+                        {location.pending ? "Locating…" : "Use my location"}
+                      </button>
+                    </>
+                  ) : null}
+                </p>
               </div>
 
               <div className="hc-actions">
@@ -195,6 +231,9 @@ function SearchScreen() {
                   <span>Sort</span>
                   <select value={sort} onChange={(event) => setSort(event.target.value as SortMode)}>
                     <option value="recommended">Recommended</option>
+                    {/* Offered only once there is a position to measure from - a "Nearest"
+                        sort that silently does nothing is worse than no option at all. */}
+                    {location.position ? <option value="nearest">Nearest</option> : null}
                     <option value="price">Price</option>
                     <option value="availability">Availability</option>
                   </select>

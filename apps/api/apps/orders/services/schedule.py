@@ -7,7 +7,6 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.common.mailer import send_email
-from apps.messaging.services import send_whatsapp_text
 from apps.orders.models import Order, RecurringOrder
 from apps.orders.services.placement import OrderError, place_order
 
@@ -29,30 +28,61 @@ def _notify_recurring_failed(recurring: RecurringOrder, error: str) -> None:
             )
         except Exception:
             logger.exception("Failed to send recurring-order-failed email for %s", recurring.id)
-    phone = recurring.address.phone
-    if phone:
-        try:
-            send_whatsapp_text(
-                to=phone,
-                body=_("We couldn't generate your next refill for '%(label)s': %(error)s. We'll try again next cycle.")
-                % {"label": recurring.label, "error": error},
-            )
-        except Exception:
-            logger.exception("Failed to send recurring-order-failed WhatsApp message for %s", recurring.id)
+    from apps.messaging.notifications import notify_refill
+
+    occurrence_key = recurring.last_run_at.isoformat() if recurring.last_run_at else timezone.now().isoformat()
+    try:
+        notify_refill(
+            recurring=recurring,
+            milestone="failed",
+            occurrence_key=occurrence_key,
+            detail=_("The scheduled refill could not be placed. Review it in Pharma Link."),
+        )
+    except Exception:
+        logger.exception("Failed to send recurring-order-failed WhatsApp message for %s", recurring.id)
 
 
 def _notify_recurring_success(recurring: RecurringOrder, order: Order) -> None:
-    phone = recurring.address.phone
-    if not phone:
-        return
+    from apps.messaging.notifications import notify_refill
+
     try:
-        send_whatsapp_text(
-            to=phone,
-            body=_("Your refill '%(label)s' has been placed as order %(reference)s. We'll notify you as it's prepared.")
-            % {"label": recurring.label, "reference": order.reference},
+        notify_refill(
+            recurring=recurring,
+            milestone="placed",
+            occurrence_key=str(order.id),
+            detail=_("Placed as order %(reference)s.") % {"reference": order.reference},
         )
     except Exception:
         logger.exception("Failed to send recurring-order-success WhatsApp message for %s", recurring.id)
+
+
+def send_due_refill_reminders(*, now=None, lead_days: int = 3, order_lead_hours: int = 24) -> int:
+    """Send one heads-up before the scheduler turns the refill into an order."""
+    now = now or timezone.now()
+    due = RecurringOrder.objects.filter(
+        is_active=True,
+        next_run_at__gt=now + timedelta(hours=order_lead_hours),
+        next_run_at__lte=now + timedelta(days=lead_days),
+    ).select_related("address", "customer")
+    sent = 0
+    from apps.messaging.notifications import notify_refill
+    from apps.messaging.models import WhatsAppNotification
+
+    for recurring in due:
+        occurrence_key = recurring.next_run_at.isoformat()
+        deduplication_key = f"refill:{recurring.id}:due:{occurrence_key}"
+        if WhatsAppNotification.objects.filter(deduplication_key=deduplication_key).exists():
+            continue
+        detail = _("Scheduled for %(date)s.") % {"date": timezone.localtime(recurring.next_run_at).strftime("%d %b %Y")}
+        notification = notify_refill(
+            recurring=recurring,
+            milestone="due",
+            occurrence_key=occurrence_key,
+            detail=detail,
+        )
+        if notification is not None:
+            sent += 1
+    return sent
 
 
 def advance(recurring: RecurringOrder, *, now=None) -> None:

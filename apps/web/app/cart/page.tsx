@@ -77,11 +77,17 @@ export default function CartPage() {
               </Link>
 
               {uncovered.length > 0 ? (
-                <p className="hc-inline-note hc-inline-note-warn">
-                  <Icon name="rx" size={16} />
-                  {uncovered.length === 1 ? `${uncovered[0].name} needs` : `${uncovered.length} medications need`} a
-                  prescription. You can continue, and the pharmacy will ask for it before dispensing.
-                </p>
+                <>
+                  <p className="hc-inline-note hc-inline-note-warn">
+                    <Icon name="rx" size={16} />
+                    {uncovered.length === 1 ? `${uncovered[0].name} needs` : `${uncovered.length} medications need`} a
+                    prescription. You can continue, and the pharmacy will ask for it before dispensing.
+                  </p>
+                  <Link href="/prescriptions/upload" className="hc-textlink hc-summary-link">
+                    Only have it on paper? Upload a photo
+                    <Icon name="arrowRight" size={16} />
+                  </Link>
+                </>
               ) : null}
 
               <Link href="/search" className="hc-textlink hc-summary-link">

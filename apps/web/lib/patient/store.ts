@@ -6,6 +6,7 @@ import type {
   DeliveryAddress as ApiAddress,
   Order as ApiOrder,
   Prescription as ApiPrescription,
+  PrescriptionUpload as ApiPrescriptionUpload,
   RecurringOrder as ApiRecurringOrder,
   User
 } from "@/types/api";
@@ -20,6 +21,7 @@ import {
   toOrder,
   toPaymentMethod,
   toPrescription,
+  toPrescriptionUpload,
   toProfile,
   toRefills,
   type ApiNotificationPreferences,
@@ -32,6 +34,7 @@ import type {
   PatientProfile,
   PaymentMethod,
   Prescription,
+  PrescriptionUpload,
   Refill,
   RefillStatus
 } from "./types";
@@ -140,6 +143,26 @@ export function usePrescriptions() {
     []
   );
   return { prescriptions: data, ready, failed, refresh };
+}
+
+/**
+ * Paper prescriptions the patient photographed and uploaded, each waiting on a
+ * pharmacy to verify it. Distinct from `usePrescriptions`, which is the digital
+ * records a doctor issued.
+ */
+export function usePrescriptionUploads() {
+  const { data, ready, failed, refresh } = useCollection<PrescriptionUpload[]>(
+    async (signal) =>
+      list(await apiFetch<ApiPrescriptionUpload[]>("/shop/prescription-uploads/", { signal })).map(toPrescriptionUpload),
+    []
+  );
+
+  const remove = useCallback(async (id: string) => {
+    await apiFetch(`/shop/prescription-uploads/${id}/`, { method: "DELETE" });
+    announce();
+  }, []);
+
+  return { uploads: data, ready, failed, refresh, remove };
 }
 
 // --- orders ----------------------------------------------------------------

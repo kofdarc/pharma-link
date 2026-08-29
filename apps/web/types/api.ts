@@ -133,6 +133,25 @@ export interface PrescriptionRecord {
   created_at: string;
 }
 
+export type PrescriptionUploadStatus = "PENDING_REVIEW" | "ACCEPTED" | "REJECTED";
+
+export interface PrescriptionUpload {
+  id: string;
+  status: PrescriptionUploadStatus;
+  doctor_name: string;
+  prescription_date?: string;
+  notes: string;
+  rejection_reason: string;
+  file_name?: string;
+  file_mime_type?: string;
+  file_size?: number;
+  is_expired: boolean;
+  quality_warnings: string[];
+  download_url?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PrescriptionOcrCandidate {
   raw_line: string;
   name_guess: string;
@@ -968,4 +987,19 @@ export interface AssistantReply {
   source: string;
   suggestions: string[];
   tools_used: string[];
+  /**
+   * How the API described the position it ranked this answer from, or null if it had none.
+   * Shown to the person so "nearest to you" is checkable rather than taken on trust.
+   */
+  location_used: string | null;
+}
+
+export interface ShopperLocation {
+  latitude: string;
+  longitude: string;
+  accuracy_metres: number | null;
+  source: "DEVICE" | "ADDRESS" | "MANUAL";
+  /** Area name derived server-side from the coordinates - never sent by the client. */
+  label: string;
+  updated_at: string;
 }

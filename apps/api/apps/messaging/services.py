@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import write_audit_log
-from apps.messaging.models import Conversation, Message
+from apps.messaging.models import Conversation, Message, WhatsAppNotification
 from apps.messaging.phone import InvalidPhoneNumber, normalize_to_e164
 from apps.messaging.providers.base import SendResult
 from apps.messaging.providers.registry import get_provider
@@ -124,3 +124,28 @@ def ingest_inbound(*, from_phone: str, to_phone: str, body: str) -> Message | No
     conversation.last_message_at = timezone.now()
     conversation.save(update_fields=["last_message_at", "updated_at"])
     return message
+
+
+def ingest_delivery_status(*, provider_message_id: str, provider_status: str, failure_reason: str = "") -> bool:
+    status_map = {
+        "sent": Message.Status.SENT,
+        "delivered": Message.Status.DELIVERED,
+        "read": Message.Status.READ,
+        "failed": Message.Status.FAILED,
+    }
+    mapped = status_map.get(provider_status.lower())
+    if not provider_message_id or mapped is None:
+        return False
+    message = Message.objects.filter(provider_message_id=provider_message_id).first()
+    if message is not None:
+        message.status = mapped
+        message.failure_reason = failure_reason[:255]
+        message.save(update_fields=["status", "failure_reason", "updated_at"])
+        return True
+    notification = WhatsAppNotification.objects.filter(provider_message_id=provider_message_id).first()
+    if notification is None:
+        return False
+    notification.status = mapped
+    notification.failure_reason = failure_reason[:255]
+    notification.save(update_fields=["status", "failure_reason", "updated_at"])
+    return True

@@ -13,11 +13,48 @@ export default function PharmacySettingsPage() {
   const [profile, setProfile] = useState<Pharmacy | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  // The two coordinate inputs are controlled while the rest of the form is not, because
+  // "use this device's location" has to write into them. Everything else is only ever typed.
+  const [coordinates, setCoordinates] = useState({ latitude: "", longitude: "" });
+  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
-    apiFetch<Pharmacy>("/pharmacy/profile/").then(setProfile).catch(() => setError(t("pharmacySettings.loadError")));
+    apiFetch<Pharmacy>("/pharmacy/profile/")
+      .then((loaded) => {
+        setProfile(loaded);
+        setCoordinates({ latitude: loaded.latitude || "", longitude: loaded.longitude || "" });
+      })
+      .catch(() => setError(t("pharmacySettings.loadError")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * Fill the coordinates from the device the pharmacist is holding.
+   *
+   * This is the whole reason the pharmacy's position gets filled in at all. Latitude and
+   * longitude are not numbers anybody knows about their own shop, and an empty pair here is
+   * not a cosmetic gap: a pharmacy with no coordinates cannot be ranked by distance, so it
+   * never appears as "the closest one that has this" no matter what it stocks.
+   */
+  function fillCoordinatesFromDevice() {
+    if (!("geolocation" in navigator)) {
+      setError(t("pharmacySettings.locationFailed"));
+      return;
+    }
+    setLocating(true);
+    setError("");
+    navigator.geolocation.getCurrentPosition(
+      (fix) => {
+        setCoordinates({ latitude: fix.coords.latitude.toFixed(6), longitude: fix.coords.longitude.toFixed(6) });
+        setLocating(false);
+      },
+      () => {
+        setLocating(false);
+        setError(t("pharmacySettings.locationFailed"));
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,13 +71,14 @@ export default function PharmacySettingsPage() {
           phone: form.get("phone"),
           whatsapp: form.get("whatsapp"),
           email: form.get("email"),
-          latitude: form.get("latitude") || null,
-          longitude: form.get("longitude") || null,
+          latitude: coordinates.latitude || null,
+          longitude: coordinates.longitude || null,
           is_public: form.get("is_public") === "on",
           is_on_call: form.get("is_on_call") === "on"
         })
       });
       setProfile(updated);
+      setCoordinates({ latitude: updated.latitude || "", longitude: updated.longitude || "" });
       setMessage(t("pharmacySettings.saved"));
     } catch {
       setError(t("pharmacySettings.saveFailed"));
@@ -76,12 +114,27 @@ export default function PharmacySettingsPage() {
         <Field label={t("pharmacySettings.email")}>
           <input name="email" type="email" defaultValue={profile.email} />
         </Field>
-        <Field label={t("pharmacySettings.latitude")}>
-          <input name="latitude" type="number" step="0.000001" defaultValue={profile.latitude || ""} />
+        <Field label={t("pharmacySettings.latitude")} hint={t("pharmacySettings.locationHelp")}>
+          <input
+            name="latitude"
+            type="number"
+            step="0.000001"
+            value={coordinates.latitude}
+            onChange={(event) => setCoordinates({ ...coordinates, latitude: event.target.value })}
+          />
         </Field>
         <Field label={t("pharmacySettings.longitude")}>
-          <input name="longitude" type="number" step="0.000001" defaultValue={profile.longitude || ""} />
+          <input
+            name="longitude"
+            type="number"
+            step="0.000001"
+            value={coordinates.longitude}
+            onChange={(event) => setCoordinates({ ...coordinates, longitude: event.target.value })}
+          />
         </Field>
+        <Button type="button" variant="secondary" onClick={fillCoordinatesFromDevice} disabled={locating}>
+          {locating ? t("pharmacySettings.locating") : t("pharmacySettings.useCurrentLocation")}
+        </Button>
         <label className="field">
           <span>{t("pharmacySettings.publicVisibility")}</span>
           <input name="is_public" type="checkbox" defaultChecked={profile.is_public} />

@@ -16,10 +16,24 @@ class ToolContext:
 
     `slots` is parsed from the message and is therefore untrusted. Handlers treat it as search
     input only - a medicine name, a day count - and never as a key into somebody's records.
+
+    `origin` is where to measure "near me" from, resolved by apps.common.location from the
+    request and the caller's own saved records. It is deliberately NOT a slot: a position is
+    the one piece of context the intent parser must never be able to set, because a model
+    that can choose the coordinates can choose which pharmacy ranks first. Nothing the person
+    types, and nothing the model returns, reaches this field.
     """
 
     user: Any = None
     slots: dict[str, Any] = field(default_factory=dict)
+    origin: Any = None
+
+    @property
+    def coordinates(self) -> tuple[float | None, float | None]:
+        """The origin as a (latitude, longitude) pair, or (None, None) when there is none."""
+        if self.origin is None:
+            return None, None
+        return self.origin.latitude, self.origin.longitude
 
     def text(self, name: str, default: str = "") -> str:
         value = self.slots.get(name)

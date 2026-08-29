@@ -83,3 +83,39 @@ def area_coordinates(area: str, city: str = "") -> tuple[float, float]:
         if found:
             return found
     return BEIRUT_CENTRE
+
+
+def nearest_area(latitude: float, longitude: float, *, within_km: float = 3.0) -> str:
+    """
+    Which of the areas above a coordinate sits in, or "" if none is close enough.
+
+    The inverse of `area_coordinates`, and used for exactly one thing: telling a shopper
+    what "near me" currently resolves to ("using your location near Hamra"). A person who
+    cannot see what the platform thinks their position is has no way to notice it is wrong.
+    Deliberately conservative - a fix out in the suburbs gets no label rather than the name
+    of whichever centre happened to be least far away.
+    """
+    best_name, best_distance = "", within_km
+    for name, (area_latitude, area_longitude) in AREA_CENTRES.items():
+        distance = haversine_km(latitude, longitude, area_latitude, area_longitude)
+        if distance < best_distance:
+            best_name, best_distance = name, distance
+    return best_name.title()
+
+
+def describe_distance(distance_km: float | None) -> str:
+    """
+    How far, in words a person reads rather than a float.
+
+    Rounded on purpose. The underlying figure is a straight line scaled by `ROAD_FACTOR`,
+    not a routed distance, so quoting it to two decimals would claim a precision the number
+    does not have. Returns "" when there is no distance to describe, so callers can
+    concatenate without branching.
+    """
+    if distance_km is None:
+        return ""
+    if distance_km < 0.5:
+        return "a few minutes' walk away"
+    if distance_km < 1:
+        return "under 1 km away"
+    return f"about {distance_km:.1f} km away"

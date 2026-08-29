@@ -14,7 +14,7 @@ from apps.accounts.permissions import IsActivatedDoctor, IsPharmacyUserWithActiv
 from apps.eprescriptions.models import Prescription
 from apps.messaging.models import Conversation, Message
 from apps.messaging.serializers import MessageCreateSerializer, MessageSerializer
-from apps.messaging.services import get_or_create_conversation, ingest_inbound, send_message
+from apps.messaging.services import get_or_create_conversation, ingest_delivery_status, ingest_inbound, send_message
 from apps.orders.models import OrderFulfillment
 
 
@@ -128,4 +128,12 @@ class WhatsAppWebhookView(APIView):
                     body = incoming.get("text", {}).get("body", "")
                     if body:
                         ingest_inbound(from_phone=incoming.get("from", ""), to_phone=to_phone, body=body)
+                for delivery in value.get("statuses", []):
+                    errors = delivery.get("errors") or []
+                    reason = (errors[0].get("title") or errors[0].get("message") or "") if errors else ""
+                    ingest_delivery_status(
+                        provider_message_id=delivery.get("id", ""),
+                        provider_status=delivery.get("status", ""),
+                        failure_reason=reason,
+                    )
         return Response(status=status.HTTP_200_OK)

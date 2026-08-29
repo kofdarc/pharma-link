@@ -277,10 +277,18 @@ ANTHROPIC_OCR_MODEL = os.getenv("ANTHROPIC_OCR_MODEL", "claude-sonnet-5")
 # WhatsApp Business account. Point WHATSAPP_PROVIDER at "meta_cloud" and supply the token/
 # phone-number-id to send real messages (see apps.messaging.providers.meta_cloud).
 WHATSAPP_PROVIDER = os.getenv("WHATSAPP_PROVIDER", "console")
+WHATSAPP_GRAPH_API_VERSION = os.getenv("WHATSAPP_GRAPH_API_VERSION", "")
 WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
 WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN", "")
 WHATSAPP_APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")  # signs inbound webhook payloads (X-Hub-Signature-256)
+WHATSAPP_TEMPLATE_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_LANGUAGE", "en")
+WHATSAPP_TEMPLATE_ORDER_STATUS = os.getenv("WHATSAPP_TEMPLATE_ORDER_STATUS", "pharmalink_order_status_v1")
+WHATSAPP_TEMPLATE_REFILL_REMINDER = os.getenv("WHATSAPP_TEMPLATE_REFILL_REMINDER", "pharmalink_refill_reminder_v1")
+WHATSAPP_TEMPLATE_PHARMACY_ALERT = os.getenv("WHATSAPP_TEMPLATE_PHARMACY_ALERT", "pharmalink_pharmacy_alert_v1")
+WHATSAPP_TEMPLATE_PRESCRIPTION_EXPIRY = os.getenv("WHATSAPP_TEMPLATE_PRESCRIPTION_EXPIRY", "pharmalink_prescription_expiry_v1")
+WHATSAPP_TEMPLATE_RENEWAL_DECISION = os.getenv("WHATSAPP_TEMPLATE_RENEWAL_DECISION", "pharmalink_renewal_decision_v1")
+WHATSAPP_TEMPLATE_PAYMENT_FAILED = os.getenv("WHATSAPP_TEMPLATE_PAYMENT_FAILED", "pharmalink_payment_failed_v1")
 
 # --- In-app assistant ---------------------------------------------------------------------
 # The assistant answers by matching a message to one of a fixed set of intents, running one

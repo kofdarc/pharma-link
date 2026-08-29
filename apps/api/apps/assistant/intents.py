@@ -21,6 +21,8 @@ from typing import Callable
 
 from django.conf import settings
 
+from apps.common.geo import describe_distance
+
 Renderer = Callable[[dict, dict], str]
 
 
@@ -112,13 +114,21 @@ def render_availability(result: dict, slots: dict) -> str:
 
     first = rows[0]
     total = result.get("total_found", len(rows))
-    price = f" for {first['unit_price']}" if first.get("unit_price") else ""
+    price = f", at {first['unit_price']}" if first.get("unit_price") else ""
     head = f"{first['medicine']} {first['strength']}".strip()
     where = f"{first['pharmacy']} in {first['area']}" if first.get("area") else first["pharmacy"]
-    lead = f"{head} is in stock at {where}{price} ({first['availability'].lower()}, up to {first['available_up_to']})."
+    # "Closest" only when the row was actually ranked by distance. Saying it about an
+    # alphabetical list would be the one kind of wrong answer a shopper cannot check.
+    near = describe_distance(first.get("distance_km"))
+    lead = f"{head}: the closest is {where}, {near}" if near else f"{head} is in stock at {where}"
+    lead += f"{price} ({first['availability'].lower()}, up to {first['available_up_to']})."
     more = f" {plural(total - 1, 'other pharmacy', 'other pharmacies')} also {'has' if total - 1 == 1 else 'have'} it." if total > 1 else ""
-    rx = " It's prescription-only, so you'll need a valid prescription at checkout." if first.get("requires_prescription") else ""
-    return lead + more + rx
+    # Deliberately worded as a warning rather than a footnote. Someone told a pharmacy has a
+    # product will otherwise set out for it, and a wasted trip for a prescription-only
+    # medicine is the single most predictable disappointment this assistant can prevent.
+    rx = " Careful though - it's prescription-only, so bring a valid prescription or you won't be able to collect it." if first.get("requires_prescription") else ""
+    hint = "" if result.get("located") else " Share your location and I can tell you which of those is closest to you."
+    return lead + more + rx + hint
 
 
 def render_prescription_required(result: dict, slots: dict) -> str:
@@ -138,12 +148,86 @@ def render_find_pharmacies(result: dict, slots: dict) -> str:
     area = result.get("area")
     if not rows:
         return f"I couldn't find a connected pharmacy in {area}." if area else "I couldn't find any connected pharmacies to show."
-    lines = [f"{item['name']} ({item['area']}, {item['opens_at']}-{item['closes_at']}{', on call' if item['is_on_call'] else ''})" for item in rows[:3]]
+    located = result.get("located")
+    lines = []
+    for item in rows[:3]:
+        far = describe_distance(item.get("distance_km"))
+        detail = ", ".join(part for part in (far, f"{item['opens_at']}-{item['closes_at']}", "on call" if item["is_on_call"] else "") if part)
+        lines.append(f"{item['name']} ({item['area']}, {detail})")
     where = f" in {area}" if area else ""
-    return f"{plural(result.get('total_found', len(rows)), 'pharmacy', 'pharmacies')}{where}. Nearest listings: " + "; ".join(lines) + "."
+    lead = f"{plural(result.get('total_found', len(rows)), 'pharmacy', 'pharmacies')}{where}."
+    order = " Nearest first: " if located else " Here are some: "
+    tail = "" if located else " Share your location if you want these ordered by how close they are."
+    return lead + order + "; ".join(lines) + "." + tail
 
 
 # --- patient -------------------------------------------------------------------------------
+
+
+def render_prescription_coverage(result: dict, slots: dict) -> str:
+    """
+    "Which pharmacy near me has everything on my prescription?"
+
+    Ordered by what changes the person's next ten minutes: whether one trip does it, then
+    where, then how far, then the two things that would make the trip fail anyway - a line
+    nobody nearby stocks, and the fact that they must physically carry the prescription.
+    """
+    prescription = result.get("prescription")
+    if not prescription:
+        if result.get("reason") == "no_email":
+            return "I couldn't match any prescriptions to this account. They're matched on the email your doctor recorded, so check that it matches the address you signed up with."
+        return "You don't have a valid prescription on file right now. Once your doctor issues one, I can find the pharmacies that stock everything on it."
+
+    code = prescription["code"]
+    if not result.get("lines_outstanding"):
+        unmatched = result.get("unmatched") or []
+        if unmatched:
+            names = _join([item["medicine"] for item in unmatched[:3]])
+            return f"Prescription {code} lists {names}, which isn't in the HealthConnect catalogue yet, so I can't check stock for it. Any pharmacy can still dispense it from the prescription itself."
+        return f"Everything on prescription {code} has already been dispensed, so there's nothing left to source."
+
+    full = result.get("full_coverage") or []
+    partial = result.get("partial_coverage") or []
+    lines_requested = result.get("lines_outstanding", 0)
+
+    # "nearby" is a claim about distance, and it is only true when a position was used.
+    # Without one this searched the whole connected network, so it says so instead.
+    scope = " nearby" if result.get("located") else ""
+
+    if full:
+        best = full[0]
+        far = describe_distance(best.get("distance_km"))
+        where = f"{best['pharmacy']['name']} in {best['pharmacy']['area']}"
+        lead = f"{where} has all {plural(lines_requested, 'item')} on prescription {code}"
+        lead += f", {far}." if far else "."
+        others = f" {plural(len(full) - 1, 'other pharmacy', 'other pharmacies')}{scope} can also cover the whole list." if len(full) > 1 else ""
+        hours = f" Open {best['pharmacy']['opens_at']}-{best['pharmacy']['closes_at']}."
+        controlled = best.get("requires_prescription") or []
+    elif partial:
+        best = partial[0]
+        far = describe_distance(best.get("distance_km"))
+        where = f"{best['pharmacy']['name']} in {best['pharmacy']['area']}"
+        short = _join([item["medicine"] for item in (best.get("missing") or [])[:3]])
+        # Without a position the list is not ordered by distance, so this is the best
+        # coverage rather than the closest one - and it must not be described as the closest.
+        best_label = "closest" if result.get("located") else "best"
+        lead = f"No single pharmacy{scope} has the whole of prescription {code}. The {best_label} match is {where}"
+        lead += f", {far}," if far else ","
+        lead += f" which covers {best['lines_covered']} of {lines_requested} - it's short on {short}."
+        others = ""
+        hours = ""
+        controlled = best.get("requires_prescription") or []
+    else:
+        return f"No connected pharmacy{scope} currently lists anything from prescription {code}. It may be worth asking me again later, or calling a pharmacy directly."
+
+    # Always said, and always true of a prescription being filled: it has to be presented.
+    # The names are added only when the tool reported which lines are prescription-only - a
+    # doctor may well have written an over-the-counter item onto the same script, so
+    # "everything on it is prescription-only" would be an overclaim.
+    rx = f" Bring prescription {code} with you - the pharmacy needs it to dispense"
+    rx += f" {_join(controlled[:3])}." if controlled else "."
+    hint = "" if result.get("located") else " Share your location and I can rank these by how close they are to you."
+    return lead + others + hours + rx + hint
 
 
 def render_order_status(result: dict, slots: dict) -> str:
@@ -420,10 +504,21 @@ INTENTS: dict[str, Intent] = {
             description="Whether a named medicine is in stock anywhere, and at which pharmacy or price.",
             render=render_availability,
             tool="search_availability",
-            required=("stock", "available", "availability", "have", "find", "buy", "get", "sell", "price", "cost", "much"),
-            optional=("anyone", "where", "near", "me", "pharmacy", "any", "who", "looking", "anywhere"),
+            # "medicine"/"drug" earn required status rather than optional: without them,
+            # "which is the closest pharmacy to me that has this medicine" scored level with
+            # find_pharmacies and the router asked which was meant, on a question that plainly
+            # names a product. They cost nothing elsewhere - a message carrying one of these
+            # and nothing else is an availability question.
+            required=("stock", "available", "availability", "have", "find", "buy", "get", "sell", "price", "cost", "much", "medicine", "medicines", "drug"),
+            optional=("anyone", "where", "near", "nearest", "closest", "nearby", "me", "pharmacy", "any", "who", "looking", "anywhere", "far"),
             slots=("query", "area"),
-            examples=("who has panadol", "is amoxicillin available", "how much is augmentin", "find paracetamol near me"),
+            examples=(
+                "who has panadol",
+                "is amoxicillin available",
+                "how much is augmentin",
+                "find paracetamol near me",
+                "which is the closest pharmacy to me that has this medicine",
+            ),
         ),
         Intent(
             name="prescription_required",
@@ -441,9 +536,9 @@ INTENTS: dict[str, Intent] = {
             render=render_find_pharmacies,
             tool="find_pharmacies",
             required=("pharmacy", "pharmacies", "pharmacie", "open", "call"),
-            optional=("near", "me", "which", "list", "nearby", "area", "tonight", "now", "closest"),
+            optional=("near", "me", "which", "list", "nearby", "area", "tonight", "now", "closest", "nearest", "far", "around"),
             slots=("area",),
-            examples=("which pharmacies are near me", "any pharmacy open now", "pharmacies in Hamra"),
+            examples=("which pharmacies are near me", "any pharmacy open now", "pharmacies in Hamra", "what is the nearest pharmacy"),
         ),
         Intent(
             name="order_status",
@@ -463,6 +558,27 @@ INTENTS: dict[str, Intent] = {
             required=("prescription", "prescriptions", "rx", "script"),
             optional=("my", "expire", "expires", "expiry", "valid", "left", "remaining", "status", "when", "still"),
             examples=("when does my prescription expire", "is my prescription still valid"),
+        ),
+        Intent(
+            name="prescription_coverage",
+            description="Which pharmacy near the patient can fill everything on their current prescription in one visit.",
+            render=render_prescription_coverage,
+            tool="prescription_coverage",
+            # "everything" sits in `required` alongside the prescription words so that the
+            # coverage question outscores the plain "is my prescription still valid" one when
+            # both are readable. "all" was tried here and rejected: it is common enough
+            # ("show me all my orders") to pull unrelated messages in.
+            required=("prescription", "rx", "script", "everything"),
+            optional=(
+                "pharmacy", "pharmacies", "near", "nearest", "closest", "nearby", "which", "who", "me",
+                "fill", "one", "whole", "have", "carry", "stock", "medicine", "medicines", "trip", "single",
+            ),
+            slots=("reference",),
+            examples=(
+                "which pharmacy near me has everything on my prescription",
+                "where can I fill my whole prescription",
+                "nearest pharmacy that has all the medicine in my prescription",
+            ),
         ),
         Intent(
             name="refill_status",

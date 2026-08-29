@@ -47,6 +47,30 @@ export interface Prescription {
   accessPin: string;
 }
 
+/**
+ * A photo or scan of a paper prescription the patient uploaded themselves.
+ *
+ * Separate from `Prescription`: it is not a digital record a doctor issued, it
+ * is an image a pharmacy has to look at and verify before anything can be
+ * dispensed against it. Until then it sits in `pending` review.
+ */
+export type PrescriptionUploadStatus = "pending" | "accepted" | "rejected";
+
+export interface PrescriptionUpload {
+  id: string;
+  status: PrescriptionUploadStatus;
+  /** What the patient typed at upload time, if anything. */
+  doctorName: string;
+  uploadedOn: string;
+  fileName: string;
+  /** Set by the pharmacy when they turn it down. */
+  rejectionReason: string;
+  /** Non-blocking advice from the legibility check, e.g. "a little soft". */
+  qualityWarnings: string[];
+  /** API path to fetch the file itself, token-authenticated. */
+  filePath: string;
+}
+
 export function remaining(item: PrescriptionItem): number {
   return Math.max(0, item.prescribed - item.dispensed);
 }

@@ -25,3 +25,14 @@ class WhatsAppProvider(ABC):
 
     @abstractmethod
     def send_text(self, *, to: str, body: str) -> SendResult: ...
+
+    @abstractmethod
+    def send_template(
+        self,
+        *,
+        to: str,
+        template_name: str,
+        language_code: str,
+        body_parameters: list[str],
+        button_url_suffix: str = "",
+    ) -> SendResult: ...

@@ -823,7 +823,11 @@
     "rxTag": "Ord.",
     "insurance": "Assurance (optionnelle)",
     "noInsurance": "Aucune assurance",
-    "checkoutEstimatedCopay": "Franchise estimée après assurance"
+    "checkoutEstimatedCopay": "Franchise estimée après assurance",
+    "useMyLocation": "Utiliser ma position actuelle",
+    "usingMyLocation": "Classement depuis votre position actuelle{label}.",
+    "locationOff": "Désactiver",
+    "locationFailed": "Position indisponible. Classement depuis votre adresse de livraison."
   },
   "orders": {
     "title": "Mes commandes",
@@ -938,7 +942,11 @@
     "latitude": "Latitude",
     "longitude": "Longitude",
     "publicVisibility": "Visibilité publique",
-    "saveSettings": "Enregistrer les paramètres"
+    "saveSettings": "Enregistrer les paramètres",
+    "useCurrentLocation": "Utiliser la position de cet appareil",
+    "locating": "Localisation…",
+    "locationHelp": "C'est ce qui classe les recherches « près de moi ». Placez-vous dans la pharmacie et appuyez sur le bouton, ou saisissez les coordonnées.",
+    "locationFailed": "Impossible de lire la position de cet appareil. Saisissez les coordonnées manuellement."
   },
   "pharmacyStaff": {
     "title": "Personnel",

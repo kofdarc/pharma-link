@@ -17,6 +17,19 @@ export function sourcingLine(medicine: MedicineSummary): string {
   return `${medicine.sourcingCount} connected pharmacies can supply this`;
 }
 
+/**
+ * How far the nearest listing is, or "" when the shopper has shared no location.
+ *
+ * Returning an empty string rather than a placeholder is deliberate: a card that says
+ * nothing about distance is honest, and one that says "distance unknown" is noise on every
+ * row until someone shares a position.
+ */
+export function distanceLine(medicine: MedicineSummary): string {
+  if (medicine.nearestKm === null) return "";
+  const how = medicine.nearestKm < 1 ? "under 1 km" : `${medicine.nearestKm.toFixed(1)} km`;
+  return medicine.nearestPharmacy ? `${how} away · ${medicine.nearestPharmacy}` : `${how} away`;
+}
+
 export function MedicineResult({ medicine }: { medicine: MedicineSummary }) {
   return (
     <article className="hc-result">
@@ -48,6 +61,7 @@ export function MedicineResult({ medicine }: { medicine: MedicineSummary }) {
             <p className="hc-result-sourcing">Price shown when available</p>
           )}
           <p className="hc-result-sourcing">{sourcingLine(medicine)}</p>
+          {distanceLine(medicine) ? <p className="hc-result-distance">{distanceLine(medicine)}</p> : null}
         </div>
         <Link href={`/medications/${encodeURIComponent(medicine.id)}`} className="hc-btn hc-btn-secondary hc-btn-sm">
           View medication

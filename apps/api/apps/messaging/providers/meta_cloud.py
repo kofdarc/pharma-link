@@ -9,7 +9,6 @@ from django.conf import settings
 from apps.messaging.models import Message
 from apps.messaging.providers.base import SendResult, WhatsAppProvider
 
-GRAPH_API_VERSION = "v20.0"
 REQUEST_TIMEOUT_SECONDS = 10
 
 
@@ -24,16 +23,15 @@ class MetaCloudWhatsAppProvider(WhatsAppProvider):
 
     code = "meta_cloud"
 
-    def send_text(self, *, to: str, body: str) -> SendResult:
-        url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
-        payload = json.dumps(
-            {
-                "messaging_product": "whatsapp",
-                "to": to.lstrip("+"),
-                "type": "text",
-                "text": {"body": body},
-            }
-        ).encode("utf-8")
+    def _send(self, *, to: str, message: dict) -> SendResult:
+        version = settings.WHATSAPP_GRAPH_API_VERSION
+        if not version or not settings.WHATSAPP_PHONE_NUMBER_ID or not settings.WHATSAPP_ACCESS_TOKEN:
+            return SendResult(
+                status=Message.Status.FAILED,
+                failure_reason="Meta WhatsApp provider is not fully configured.",
+            )
+        url = f"https://graph.facebook.com/{version}/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+        payload = json.dumps({"messaging_product": "whatsapp", "to": to.lstrip("+"), **message}).encode("utf-8")
         request = urllib.request.Request(
             url,
             data=payload,
@@ -53,3 +51,37 @@ class MetaCloudWhatsAppProvider(WhatsAppProvider):
             return SendResult(status=Message.Status.FAILED, failure_reason=f"HTTP {exc.code}: {detail}"[:255])
         except (urllib.error.URLError, OSError, TimeoutError) as exc:
             return SendResult(status=Message.Status.FAILED, failure_reason=str(exc)[:255])
+
+    def send_text(self, *, to: str, body: str) -> SendResult:
+        return self._send(to=to, message={"type": "text", "text": {"body": body}})
+
+    def send_template(
+        self,
+        *,
+        to: str,
+        template_name: str,
+        language_code: str,
+        body_parameters: list[str],
+        button_url_suffix: str = "",
+    ) -> SendResult:
+        components = []
+        if body_parameters:
+            components.append(
+                {
+                    "type": "body",
+                    "parameters": [{"type": "text", "text": str(value)} for value in body_parameters],
+                }
+            )
+        if button_url_suffix:
+            components.append(
+                {
+                    "type": "button",
+                    "sub_type": "url",
+                    "index": "0",
+                    "parameters": [{"type": "text", "text": button_url_suffix}],
+                }
+            )
+        template = {"name": template_name, "language": {"code": language_code}}
+        if components:
+            template["components"] = components
+        return self._send(to=to, message={"type": "template", "template": template})

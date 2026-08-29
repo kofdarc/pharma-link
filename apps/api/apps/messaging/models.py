@@ -52,6 +52,7 @@ class Message(UUIDTimeStampedModel):
         QUEUED = "QUEUED", "Queued"
         SENT = "SENT", "Sent"
         DELIVERED = "DELIVERED", "Delivered"
+        READ = "READ", "Read"
         FAILED = "FAILED", "Failed"
         RECEIVED = "RECEIVED", "Received"
 
@@ -70,3 +71,40 @@ class Message(UUIDTimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.direction} message on {self.conversation_id}"
+
+
+class WhatsAppNotification(UUIDTimeStampedModel):
+    """A system-generated WhatsApp template send, separate from human chat threads."""
+
+    class Kind(models.TextChoices):
+        ORDER_UPDATE = "ORDER_UPDATE", "Order update"
+        REFILL_REMINDER = "REFILL_REMINDER", "Refill reminder"
+        PHARMACY_ALERT = "PHARMACY_ALERT", "Pharmacy alert"
+        PRESCRIPTION_EXPIRY = "PRESCRIPTION_EXPIRY", "Prescription expiry"
+        RENEWAL_DECISION = "RENEWAL_DECISION", "Renewal decision"
+        PAYMENT_FAILURE = "PAYMENT_FAILURE", "Payment failure"
+
+    class Status(models.TextChoices):
+        QUEUED = "QUEUED", "Queued"
+        SENT = "SENT", "Sent"
+        DELIVERED = "DELIVERED", "Delivered"
+        READ = "READ", "Read"
+        FAILED = "FAILED", "Failed"
+
+    kind = models.CharField(max_length=32, choices=Kind.choices, db_index=True)
+    deduplication_key = models.CharField(max_length=180, unique=True)
+    recipient_phone = models.CharField(max_length=20)
+    template_name = models.CharField(max_length=120)
+    language_code = models.CharField(max_length=16, default="en")
+    body_parameters = models.JSONField(default=list)
+    button_url_suffix = models.CharField(max_length=255, blank=True)
+    fallback_body = models.TextField(blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    provider_message_id = models.CharField(max_length=120, blank=True, db_index=True)
+    failure_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.kind} to {self.recipient_phone}: {self.status}"

@@ -21,6 +21,7 @@ from apps.orders.models import Order
 from apps.orders.services.lifecycle import accept_fulfillment, hand_over
 from apps.orders.services.placement import place_order
 from apps.orders.services.schedule import run_due_recurring_orders
+from apps.messaging.models import WhatsAppNotification
 from apps.payments.models import Payment
 from apps.payments.providers.base import ChargeResult
 from apps.payments.providers.mock_gateway import MockGatewayProvider
@@ -136,13 +137,12 @@ class RecurringOrderSuccessNotificationTests(NotificationTestCase):
             next_run_at=timezone.now(),
         )
 
-        with patch("apps.orders.services.schedule.send_whatsapp_text") as mock_send:
-            result = run_due_recurring_orders()
+        result = run_due_recurring_orders()
 
         self.assertEqual(len(result["created"]), 1)
-        mock_send.assert_called_once()
-        self.assertEqual(mock_send.call_args.kwargs["to"], self.address.phone)
-        self.assertIn(recurring.label, mock_send.call_args.kwargs["body"])
+        notification = WhatsAppNotification.objects.get(kind=WhatsAppNotification.Kind.REFILL_REMINDER)
+        self.assertEqual(notification.recipient_phone, "+96171000000")
+        self.assertIn(recurring.label, notification.body_parameters)
 
     def test_a_whatsapp_failure_does_not_break_the_recurring_cycle(self):
         from apps.orders.models import RecurringOrder
@@ -156,7 +156,7 @@ class RecurringOrderSuccessNotificationTests(NotificationTestCase):
             next_run_at=timezone.now(),
         )
 
-        with patch("apps.orders.services.schedule.send_whatsapp_text", side_effect=RuntimeError("WhatsApp API is down")):
+        with patch("apps.messaging.notifications.notify_refill", side_effect=RuntimeError("WhatsApp API is down")):
             result = run_due_recurring_orders()
 
         self.assertEqual(len(result["created"]), 1, "the order must still be created even if the WhatsApp send fails")

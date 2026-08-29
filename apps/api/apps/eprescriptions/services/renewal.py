@@ -122,4 +122,7 @@ def respond_to_renewal(*, renewal_request: PrescriptionRenewalRequest, approve: 
         if response_note:
             body += f" Reason: {response_note}"
         send_message(conversation=conversation, sender=original.doctor.user, body=body)
+    from apps.messaging.notifications import notify_renewal_decision
+
+    notify_renewal_decision(renewal_request=renewal_request)
     return renewal_request

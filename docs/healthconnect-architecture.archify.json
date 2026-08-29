@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "HealthConnect System Architecture",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/kofdarc/pharma-link.git",
+      "revision": "c335db1fd263196ac8ad53de8fe23e6e300f3f89"
+    },
+    "viewBox": [1380, 780]
+  },
+  "components": [
+    { "id": "users", "type": "external", "label": "Platform Users", "sublabel": "four healthcare roles", "pos": [40, 330], "size": [170, 68], "sources": [{ "path": "README.md", "line": 23, "label": "Product roles" }] },
+    { "id": "web", "type": "frontend", "label": "Next.js Web App", "sublabel": "React · TypeScript · PWA", "pos": [290, 330], "size": [170, 68], "sources": [{ "path": "apps/web/package.json", "line": 1, "label": "Web manifest" }] },
+    { "id": "api", "type": "backend", "label": "Django REST API", "sublabel": "authenticated domain services", "pos": [560, 330], "size": [180, 68], "sources": [{ "path": "apps/api/config/settings.py", "line": 1, "label": "API settings" }, { "path": "apps/api/apps/api_urls/urls.py", "line": 1, "label": "API routes" }] },
+    { "id": "postgres", "type": "database", "label": "PostgreSQL", "sublabel": "application state", "pos": [840, 330], "size": [170, 68], "sources": [{ "path": "docker-compose.yml", "line": 2, "label": "Database service" }] },
+    { "id": "connector", "type": "backend", "label": "Pharmacy Connector", "sublabel": "signed incremental POS sync", "pos": [290, 560], "size": [185, 68], "sources": [{ "path": "tools/connector/pharmalink_connector.py", "line": 1, "label": "Connector agent" }] },
+    { "id": "pharmacy_pos", "type": "external", "label": "Pharmacy POS", "sublabel": "existing inventory system", "pos": [40, 560], "size": [170, 68], "sources": [{ "path": "README.md", "line": 64, "label": "POS integration" }] },
+    { "id": "scheduler", "type": "backend", "label": "Background Scheduler", "sublabel": "maintenance and routing", "pos": [570, 560], "size": [195, 68], "sources": [{ "path": "docker-compose.yml", "line": 16, "label": "Scheduler service" }] },
+    { "id": "providers", "type": "external", "label": "External Providers", "sublabel": "catalog · messaging · AI", "pos": [1120, 100], "size": [190, 68], "sources": [{ "path": "apps/api/apps/integrations/services/webhooks.py", "line": 1, "label": "Webhook delivery" }, { "path": "apps/api/apps/medicines/services/moph_online.py", "line": 1, "label": "MoPH client" }] },
+    { "id": "amplify", "type": "cloud", "label": "AWS Amplify", "sublabel": "web build and hosting", "pos": [290, 100], "size": [175, 68], "sources": [{ "path": "amplify.yml", "line": 1, "label": "Amplify build" }] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "HealthConnect application", "wraps": ["web", "api", "postgres", "scheduler", "amplify"], "pad": 22 },
+    { "kind": "security-group", "label": "server-side trust boundary", "wraps": ["api", "postgres", "scheduler"], "pad": 14 }
+  ],
+  "connections": [
+    { "from": "users", "to": "web", "label": "HTTPS", "variant": "emphasis" },
+    { "from": "web", "to": "api", "label": "JSON API", "variant": "emphasis" },
+    { "from": "api", "to": "postgres", "label": "ORM queries", "variant": "security", "labelDy": 58 },
+    { "from": "pharmacy_pos", "to": "connector", "label": "inventory exports", "labelAt": [250, 642] },
+    { "from": "connector", "to": "api", "label": "signed sync", "variant": "security" },
+    { "from": "scheduler", "to": "postgres", "label": "scheduled state changes", "variant": "dashed" },
+    { "from": "api", "to": "providers", "label": "catalog + notifications + AI", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Core Request Path", "items": ["Users interact through the multilingual PWA", "The Django API owns domain rules and persistence", "PostgreSQL is the primary transactional store"] },
+    { "dot": "emerald", "title": "Pharmacy Interoperability", "items": ["The connector runs beside an existing pharmacy POS", "Only changed inventory records are sent", "Connector requests are signed before API ingestion"] },
+    { "dot": "violet", "title": "Async and External Work", "items": ["The scheduler releases holds and plans delivery routes", "Provider adapters isolate catalog, messaging, email, and AI services", "AWS Amplify builds and hosts the web application"] }
+  ]
+}

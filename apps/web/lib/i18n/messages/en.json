@@ -824,7 +824,11 @@
     "rxTag": "Rx",
     "insurance": "Insurance (optional)",
     "noInsurance": "No insurance",
-    "checkoutEstimatedCopay": "Estimated copay after insurance"
+    "checkoutEstimatedCopay": "Estimated copay after insurance",
+    "useMyLocation": "Use my current location",
+    "usingMyLocation": "Ranking from your current location{label}.",
+    "locationOff": "Turn off",
+    "locationFailed": "Couldn't get your location. Ranking from your delivery address instead."
   },
   "orders": {
     "title": "My orders",
@@ -940,7 +944,11 @@
     "longitude": "Longitude",
     "publicVisibility": "Public visibility",
     "onCall": "On call (\"de garde\")",
-    "saveSettings": "Save settings"
+    "saveSettings": "Save settings",
+    "useCurrentLocation": "Use this device's location",
+    "locating": "Locating…",
+    "locationHelp": "Shoppers searching \"near me\" are ranked by this. Stand in the pharmacy and press the button, or type the coordinates.",
+    "locationFailed": "Couldn't read this device's location. Enter the coordinates by hand."
   },
   "chat": {
     "open": "Message",

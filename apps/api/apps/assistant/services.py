@@ -22,6 +22,7 @@ from apps.assistant.models import AssistantConversation, AssistantMessage
 from apps.assistant.parsers.base import ParseResult
 from apps.assistant.router import resolve
 from apps.assistant.tools.base import ToolContext
+from apps.common.location import resolve_origin
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +61,18 @@ def load_conversation(conversation_id: str, user) -> AssistantConversation:
     return conversation
 
 
-def answer(*, user, message: str, conversation: AssistantConversation | None = None) -> dict:
-    """Take one message and produce one reply, persisting both."""
+def answer(*, user, message: str, conversation: AssistantConversation | None = None, latitude=None, longitude=None) -> dict:
+    """
+    Take one message and produce one reply, persisting both.
+
+    `latitude`/`longitude` are the device position the client offered with this turn, and are
+    the only thing here a caller contributes beyond the message itself. They are search input,
+    exactly like the `lat`/`lng` the public search endpoint already accepts - they widen no
+    persona, unlock no tool, and name nobody. Everything about *who* this is still comes from
+    the auth token. A caller that sends none, or sends nonsense, falls back through
+    apps.common.location to whatever the account already has on file, and then to no distance
+    at all.
+    """
     persona = persona_module.persona_for(user)
     text = (message or "").strip()[:MAX_MESSAGE_CHARS]
     if not text:
@@ -88,11 +99,17 @@ def answer(*, user, message: str, conversation: AssistantConversation | None = N
     if parsed.intent == "greeting":
         slots.setdefault("greeting", persona.greeting)
 
+    # Resolved once per turn, before any tool runs, and passed as its own field rather than
+    # folded into `slots` - see ToolContext for why the parser must not be able to reach it.
+    origin = resolve_origin(user=user, latitude=latitude, longitude=longitude)
+
     result: dict = {}
     tools_used: list[dict] = []
     if intent.tool:
         try:
-            result = tools.execute(intent.tool, allowed=frozenset(_allowed_tools(persona)), context=ToolContext(user=user, slots=slots))
+            result = tools.execute(
+                intent.tool, allowed=frozenset(_allowed_tools(persona)), context=ToolContext(user=user, slots=slots, origin=origin)
+            )
             tools_used.append({"name": intent.tool, "slots": slots})
         except tools.ToolNotAllowed:
             logger.warning("Assistant blocked tool %r for persona %r", intent.tool, persona.key)
@@ -132,6 +149,10 @@ def answer(*, user, message: str, conversation: AssistantConversation | None = N
         "source": parsed.source,
         "suggestions": list(persona.suggestions),
         "tools_used": [entry["name"] for entry in tools_used],
+        # So the widget can say what "near me" meant this turn, and offer to fix it. An
+        # answer ranked by distance from an address the person forgot they saved is not
+        # wrong, but it is surprising, and silence is what makes it surprising.
+        "location_used": origin.describe() if origin is not None else None,
     }
 
 

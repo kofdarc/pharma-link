@@ -5,7 +5,8 @@ import Link from "next/link";
 import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, EmptyPanel, LoadError, PageHead, Segmented } from "@/components/patient/Page";
 import { PrescriptionCard } from "@/components/prescriptions/PrescriptionParts";
-import { usePrescriptions } from "@/lib/patient/store";
+import { UploadedPrescriptions } from "@/components/prescriptions/UploadedPrescriptions";
+import { usePrescriptions, usePrescriptionUploads } from "@/lib/patient/store";
 import type { Prescription } from "@/lib/patient/types";
 
 type Tab = "active" | "completed" | "expired";
@@ -32,6 +33,7 @@ function bucket(prescription: Prescription): Tab {
 
 export default function PrescriptionsPage() {
   const { prescriptions, ready, failed, refresh } = usePrescriptions();
+  const uploads = usePrescriptionUploads();
   const [tab, setTab] = useState<Tab>("active");
 
   const counts = useMemo(() => {
@@ -55,6 +57,17 @@ export default function PrescriptionsPage() {
         <PageHead
           title="Prescriptions"
           lead="Prescriptions your physicians issued through HealthConnect, and what is left to collect on each."
+          actions={
+            <Link href="/prescriptions/upload" className="hc-btn hc-btn-secondary hc-btn-sm">
+              Upload paper prescription
+            </Link>
+          }
+        />
+
+        <UploadedPrescriptions
+          uploads={uploads.uploads}
+          ready={uploads.ready}
+          onRemove={(id) => uploads.remove(id).then(uploads.refresh)}
         />
 
         <Segmented

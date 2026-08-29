@@ -60,7 +60,13 @@ class AssistantChatView(APIView):
                 return Response({"detail": "No such conversation."}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            payload = services.answer(user=request.user, message=serializer.validated_data["message"], conversation=conversation)
+            payload = services.answer(
+                user=request.user,
+                message=serializer.validated_data["message"],
+                conversation=conversation,
+                latitude=serializer.validated_data.get("latitude"),
+                longitude=serializer.validated_data.get("longitude"),
+            )
         except services.ConversationNotFound:
             return Response({"detail": "No such conversation."}, status=status.HTTP_404_NOT_FOUND)
         except ValueError as exc:

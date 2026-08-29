@@ -18,3 +18,22 @@ class ConsoleWhatsAppProvider(WhatsAppProvider):
     def send_text(self, *, to: str, body: str) -> SendResult:
         logger.info("WhatsApp[console] -> %s: %s", to, body)
         return SendResult(status=Message.Status.SENT, provider_message_id=f"console-{uuid4().hex[:10]}")
+
+    def send_template(
+        self,
+        *,
+        to: str,
+        template_name: str,
+        language_code: str,
+        body_parameters: list[str],
+        button_url_suffix: str = "",
+    ) -> SendResult:
+        logger.info(
+            "WhatsApp[console] template=%s language=%s -> %s params=%s button=%s",
+            template_name,
+            language_code,
+            to,
+            body_parameters,
+            button_url_suffix,
+        )
+        return SendResult(status=Message.Status.SENT, provider_message_id=f"console-{uuid4().hex[:10]}")
