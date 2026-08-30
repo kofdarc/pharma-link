@@ -28,8 +28,19 @@ SEVERITY_WARN = "warn"
 
 # Smallest side, in pixels, worth a pharmacist's time. A modern phone camera
 # clears this by an order of magnitude; anything under it is a crop or a
-# thumbnail.
+# thumbnail. Overridable per environment via settings.PRESCRIPTION_MIN_SCAN_DIMENSION
+# (env PRESCRIPTION_MIN_SCAN_DIMENSION) so prod can be dialled without a redeploy;
+# this is the fallback if that setting is missing.
 MIN_DIMENSION = 200
+
+
+def _min_dimension() -> int:
+    try:
+        from django.conf import settings
+
+        return int(getattr(settings, "PRESCRIPTION_MIN_SCAN_DIMENSION", MIN_DIMENSION))
+    except Exception:
+        return MIN_DIMENSION
 
 # Mean luma, 0-255. Measured on phone photos of paper scripts: a normal indoor
 # capture sits near 150, a dim one near 55. The upper bound is deliberately high
@@ -96,7 +107,7 @@ def check_scan_bytes(data, *, mime_type=""):
         width, height = image.size
         findings = []
 
-        if min(width, height) < MIN_DIMENSION:
+        if min(width, height) < _min_dimension():
             findings.append(
                 _finding(
                     "too_small",

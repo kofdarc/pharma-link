@@ -748,7 +748,8 @@
     "noResults": "Aucune pharmacie connectée n'indique actuellement ce médicament comme disponible.",
     "call": "Appeler {phone}",
     "whatsapp": "WhatsApp",
-    "lastUpdated": "Mis à jour le {when}"
+    "lastUpdated": "Mis à jour le {when}",
+    "onCall": "De garde maintenant"
   },
   "shop": {
     "title": "Boutique",
@@ -954,7 +955,8 @@
     "useCurrentLocation": "Utiliser la position de cet appareil",
     "locating": "Localisation…",
     "locationHelp": "C'est ce qui classe les recherches « près de moi ». Placez-vous dans la pharmacie et appuyez sur le bouton, ou saisissez les coordonnées.",
-    "locationFailed": "Impossible de lire la position de cet appareil. Saisissez les coordonnées manuellement."
+    "locationFailed": "Impossible de lire la position de cet appareil. Saisissez les coordonnées manuellement.",
+    "onCall": "De garde"
   },
   "pharmacyStaff": {
     "title": "Personnel",
@@ -1135,7 +1137,12 @@
     "allowSubstitutionHint": "Autoriser la pharmacie à substituer un générique équivalent.",
     "removeItem": "Supprimer l'article",
     "issuing": "Émission en cours...",
-    "issueAndEmail": "Émettre et envoyer l'ordonnance par e-mail"
+    "issueAndEmail": "Émettre et envoyer l'ordonnance par e-mail",
+    "sendToPharmacy": "Envoyer à une pharmacie",
+    "sendToPharmacyHint": "Facultatif - envoie directement l'ordonnance à la file de la pharmacie au lieu de remettre un QR/PIN au patient",
+    "sendToPharmacyPlaceholder": "Commencez à saisir le nom d'une pharmacie",
+    "sentDirectly": "Envoyée directement à {pharmacy}.",
+    "backupHint": "Le QR/PIN ci-dessous reste utilisable comme solution de secours dans toute pharmacie."
   },
   "doctorPrescriptionDetail": {
     "notFound": "Ordonnance introuvable, ou elle ne vous appartient pas.",
@@ -1168,7 +1175,9 @@
     "cancelHint": "Une fois annulée, aucune pharmacie ne pourra la délivrer, même partiellement. Ceci ne peut pas être annulé.",
     "cancelling": "Annulation en cours...",
     "cancelPrescription": "Annuler l'ordonnance",
-    "prescriptionLabel": "Ordonnance"
+    "prescriptionLabel": "Ordonnance",
+    "renewalOf": "Renouvellement de {code}",
+    "sentTo": "Envoyée à"
   },
   "doctorProfile": {
     "generalPractice": "Médecine générale",
@@ -1289,6 +1298,36 @@
     "coverage": "{percentage}% couvert, {minimum} de franchise minimum",
     "remove": "Supprimer",
     "removeError": "Impossible de supprimer cette police."
+  },
+  "chat": {
+    "open": "Message", "close": "Fermer", "title": "Messages", "empty": "Aucun message pour le moment.",
+    "placeholder": "Saisissez un message...", "send": "Envoyer", "loadError": "Impossible de charger les messages.", "sendFailed": "Impossible d'envoyer le message."
+  },
+  "doctorRenewalRequests": {
+    "title": "Demandes de renouvellement", "subtitle": "Pharmacies vous demandant de renouveler une ordonnance.",
+    "loadError": "Impossible de charger les demandes de renouvellement.", "respondFailed": "Impossible d'enregistrer votre réponse.",
+    "denyReasonPrompt": "Motif du refus (facultatif)", "empty": "Aucune demande de renouvellement pour le moment.",
+    "prescription": "Ordonnance", "patient": "Patient", "pharmacy": "Pharmacie", "note": "Note", "status": "Statut",
+    "approve": "Approuver", "deny": "Refuser", "issuedAs": "Émise sous le code {code}"
+  },
+  "doctorFormulary": {
+    "title": "Vérification de la couverture",
+    "subtitle": "Vérifiez la couverture d'assurance connue d'un patient avant de prescrire. Il n'existe pas de données par médicament ; cette page affiche la couverture du plan du patient.",
+    "patientEmail": "E-mail du patient", "patientPhone": "Téléphone du patient", "provideOne": "Saisissez l'e-mail ou le téléphone du patient.",
+    "checking": "Vérification...", "checkCoverage": "Vérifier la couverture", "lookupFailed": "La vérification a échoué.",
+    "noPolicy": "Aucun plan d'assurance enregistré", "noPolicyHint": "Ce patient n'a aucune police d'assurance connue sur la plateforme.",
+    "provider": "Assureur", "plan": "Plan", "coverage": "Couverture", "copayMinimum": "Franchise minimale"
+  },
+  "pharmacyIncoming": {
+    "title": "Ordonnances électroniques reçues", "subtitle": "Ordonnances envoyées directement à votre pharmacie par les médecins.",
+    "loadError": "Impossible de charger les ordonnances reçues.", "empty": "Aucune ordonnance reçue",
+    "emptyHint": "Les ordonnances envoyées directement à votre pharmacie apparaîtront ici.", "remaining": "restant",
+    "dispense": "Délivrer", "close": "Fermer", "item": "Article", "dispensingNow": "Délivrance en cours",
+    "dispensingPharmacist": "Pharmacien effectuant la délivrance", "recording": "Enregistrement...", "confirmDispense": "Confirmer la délivrance",
+    "enterQuantity": "Saisissez au moins une quantité à délivrer.", "dispensed": "{code} délivrée.", "dispenseFailed": "La délivrance a échoué.",
+    "requestRenewal": "Demander un renouvellement", "renewalNotePrompt": "Note pour le médecin (facultatif)",
+    "renewalRequested": "Renouvellement demandé pour {code}.", "renewalRequestFailed": "La demande de renouvellement a échoué.",
+    "renewalOf": "Renouvellement de {code}"
   },
   "pharmacyInsuranceClaims": {
     "title": "Sinistres d'assurance",

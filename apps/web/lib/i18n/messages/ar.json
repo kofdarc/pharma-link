@@ -748,7 +748,8 @@
     "noResults": "لا توجد صيدلية متصلة تُظهر هذا الدواء كمتوفر حاليًا.",
     "call": "اتصل بـ {phone}",
     "whatsapp": "واتساب",
-    "lastUpdated": "آخر تحديث {when}"
+    "lastUpdated": "آخر تحديث {when}",
+    "onCall": "مناوب الآن"
   },
   "shop": {
     "title": "المتجر",
@@ -954,7 +955,8 @@
     "useCurrentLocation": "استخدام موقع هذا الجهاز",
     "locating": "جارٍ تحديد الموقع…",
     "locationHelp": "يعتمد ترتيب نتائج «بالقرب مني» على هذا. قف داخل الصيدلية واضغط الزر، أو أدخل الإحداثيات يدويًا.",
-    "locationFailed": "تعذّر قراءة موقع هذا الجهاز. أدخل الإحداثيات يدويًا."
+    "locationFailed": "تعذّر قراءة موقع هذا الجهاز. أدخل الإحداثيات يدويًا.",
+    "onCall": "مناوب (صيدلية حراسة)"
   },
   "pharmacyStaff": {
     "title": "الموظفون",
@@ -1135,7 +1137,12 @@
     "allowSubstitutionHint": "السماح للصيدلية باستبدال دواء جنيس معادل.",
     "removeItem": "إزالة العنصر",
     "issuing": "جارٍ الإصدار...",
-    "issueAndEmail": "إصدار وإرسال الوصفة بالبريد"
+    "issueAndEmail": "إصدار وإرسال الوصفة بالبريد",
+    "sendToPharmacy": "إرسال إلى صيدلية",
+    "sendToPharmacyHint": "اختياري - يرسل الوصفة مباشرة إلى قائمة الصيدلية بدلاً من أن يحمل المريض رمز QR ورقم PIN",
+    "sendToPharmacyPlaceholder": "ابدأ بكتابة اسم الصيدلية",
+    "sentDirectly": "أُرسلت مباشرة إلى {pharmacy}.",
+    "backupHint": "يظل رمز QR ورقم PIN أدناه صالحين كخيار احتياطي في أي صيدلية."
   },
   "doctorPrescriptionDetail": {
     "notFound": "الوصفة غير موجودة، أو لا تخصك.",
@@ -1168,7 +1175,9 @@
     "cancelHint": "بمجرد الإلغاء، لن تتمكن أي صيدلية من صرفها، حتى جزئيًا. لا يمكن التراجع عن هذا.",
     "cancelling": "جارٍ الإلغاء...",
     "cancelPrescription": "إلغاء الوصفة",
-    "prescriptionLabel": "وصفة"
+    "prescriptionLabel": "وصفة",
+    "renewalOf": "تجديد للوصفة {code}",
+    "sentTo": "أُرسلت إلى"
   },
   "doctorProfile": {
     "generalPractice": "طب عام",
@@ -1289,6 +1298,33 @@
     "coverage": "تغطية {percentage}%، حد أدنى للمشاركة {minimum}",
     "remove": "إزالة",
     "removeError": "تعذر إزالة هذه البوليصة."
+  },
+  "chat": {
+    "open": "مراسلة", "close": "إغلاق", "title": "الرسائل", "empty": "لا توجد رسائل بعد.",
+    "placeholder": "اكتب رسالة...", "send": "إرسال", "loadError": "تعذّر تحميل الرسائل.", "sendFailed": "تعذّر إرسال الرسالة."
+  },
+  "doctorRenewalRequests": {
+    "title": "طلبات التجديد", "subtitle": "صيدليات تطلب منك تجديد وصفة طبية.", "loadError": "تعذّر تحميل طلبات التجديد.",
+    "respondFailed": "تعذّر تسجيل ردك.", "denyReasonPrompt": "سبب الرفض (اختياري)", "empty": "لا توجد طلبات تجديد بعد.",
+    "prescription": "الوصفة", "patient": "المريض", "pharmacy": "الصيدلية", "note": "ملاحظة", "status": "الحالة",
+    "approve": "موافقة", "deny": "رفض", "issuedAs": "أُصدرت بالرمز {code}"
+  },
+  "doctorFormulary": {
+    "title": "التحقق من التغطية الدوائية",
+    "subtitle": "تحقق من التغطية التأمينية المعروفة للمريض قبل وصف الدواء. لا توجد بيانات تغطية لكل دواء؛ تعرض هذه الصفحة تغطية خطة المريض.",
+    "patientEmail": "البريد الإلكتروني للمريض", "patientPhone": "هاتف المريض", "provideOne": "أدخل بريد المريض الإلكتروني أو رقم هاتفه.",
+    "checking": "جارٍ التحقق...", "checkCoverage": "التحقق من التغطية", "lookupFailed": "فشل التحقق.",
+    "noPolicy": "لا توجد خطة تأمين مسجلة", "noPolicyHint": "لا توجد بوليصة تأمين معروفة لهذا المريض على المنصة.",
+    "provider": "شركة التأمين", "plan": "الخطة", "coverage": "التغطية", "copayMinimum": "الحد الأدنى للمشاركة"
+  },
+  "pharmacyIncoming": {
+    "title": "الوصفات الإلكترونية الواردة", "subtitle": "وصفات أرسلها الأطباء مباشرة إلى صيدليتك.",
+    "loadError": "تعذّر تحميل الوصفات الواردة.", "empty": "لا توجد وصفات واردة", "emptyHint": "ستظهر هنا الوصفات التي يرسلها الأطباء مباشرة إلى صيدليتك.",
+    "remaining": "متبقٍ", "dispense": "صرف", "close": "إغلاق", "item": "العنصر", "dispensingNow": "جارٍ الصرف الآن",
+    "dispensingPharmacist": "الصيدلاني الذي يصرف الوصفة", "recording": "جارٍ التسجيل...", "confirmDispense": "تأكيد الصرف",
+    "enterQuantity": "أدخل كمية واحدة على الأقل لصرفها.", "dispensed": "تم صرف {code}.", "dispenseFailed": "فشل الصرف.",
+    "requestRenewal": "طلب تجديد", "renewalNotePrompt": "ملاحظة للطبيب (اختياري)", "renewalRequested": "طُلب تجديد {code}.",
+    "renewalRequestFailed": "فشل طلب التجديد.", "renewalOf": "تجديد للوصفة {code}"
   },
   "pharmacyInsuranceClaims": {
     "title": "مطالبات التأمين",

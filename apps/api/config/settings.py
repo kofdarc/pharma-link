@@ -229,6 +229,11 @@ PUBLIC_WEB_BASE_URL = os.getenv("PUBLIC_WEB_BASE_URL", "http://localhost:3000")
 
 # --- E-prescriptions -------------------------------------------------------------------
 PRESCRIPTION_VALIDITY_DAYS = int(os.getenv("PRESCRIPTION_VALIDITY_DAYS", "30"))
+# Smallest side (px) an uploaded scan may have before the legibility gate refuses it
+# (apps.prescriptions.services.quality). 200 is permissive - real phone photos clear it by
+# an order of magnitude; raise it if too many unusable thumbnails get through, lower it to
+# accept screenshots/crops.
+PRESCRIPTION_MIN_SCAN_DIMENSION = int(os.getenv("PRESCRIPTION_MIN_SCAN_DIMENSION", "200"))
 PRESCRIPTION_MAX_FAILED_ATTEMPTS = int(os.getenv("PRESCRIPTION_MAX_FAILED_ATTEMPTS", "5"))
 PRESCRIPTION_LOCKOUT_MINUTES = int(os.getenv("PRESCRIPTION_LOCKOUT_MINUTES", "15"))
 

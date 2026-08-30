@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { BrandLogo } from "@/components/ui/BrandMark";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useOptionalUser } from "@/lib/auth";
 import { useBasket } from "@/lib/basket";
 
@@ -44,6 +45,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="hc-header-actions">
+          <LanguageSwitcher className="hc-header-language hc-desktop-language" />
           <Link
             href="/cart"
             className="hc-cartbtn"
@@ -87,6 +89,9 @@ export function SiteHeader() {
 
       {open ? (
         <div className="hc-mobile-panel" id="hc-mobile-nav">
+          <div className="hc-mobile-language">
+            <LanguageSwitcher className="hc-header-language" />
+          </div>
           {LINKS.map((link) => (
             <Link key={link.href} href={link.href} aria-current={current(link.href)}>
               {link.label}
