@@ -166,14 +166,6 @@ function SearchScreen() {
               ))}
             </div>
           </section>
-
-          <div className="hc-card hc-card-quiet" style={{ marginTop: 40, maxWidth: "42rem" }}>
-            <h2 className="hc-h3">Searching by generic name works too</h2>
-            <p className="hc-body" style={{ marginTop: 8 }}>
-              If you only know the active ingredient — paracetamol, atorvastatin, salbutamol — search that. HealthConnect will
-              show the products listed under it.
-            </p>
-          </div>
         </div>
       ) : (
         <div className="hc-wrap hc-search-layout">

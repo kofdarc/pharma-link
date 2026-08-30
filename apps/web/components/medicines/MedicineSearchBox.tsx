@@ -75,7 +75,10 @@ export function MedicineSearchBox({
         .then((next) => {
           setSuggestions(next);
           setActiveIndex(-1);
-          setOpen(next.length > 0);
+          // A request can finish after the user submits or chooses a search
+          // chip. Only reopen the panel when they are still interacting with
+          // the input; otherwise suggestions would cover the search results.
+          setOpen(next.length > 0 && document.activeElement === inputRef.current);
         })
         .catch(() => undefined);
     }, DEBOUNCE_MS);

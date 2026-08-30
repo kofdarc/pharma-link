@@ -79,6 +79,7 @@ export default function FulfillmentPage() {
 
   const plan = result?.plans.find((entry) => entry.kind === selected) ?? null;
   const everythingAvailable = (result?.unavailable.length ?? 0) === 0;
+  const hasMultiPharmacyOption = result?.plans.some((entry) => entry.pharmacies.length > 1) ?? false;
 
   function continueToCheckout(chosen: FulfillmentPlan) {
     choose(chosen);
@@ -181,7 +182,7 @@ export default function FulfillmentPage() {
                   ))}
                 </fieldset>
 
-                <WhyMultiplePharmacies />
+                {hasMultiPharmacyOption ? <WhyMultiplePharmacies /> : null}
               </div>
 
               <aside className="hc-summary hc-summary-sticky" aria-labelledby="fulfil-summary">
