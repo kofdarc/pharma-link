@@ -14,12 +14,12 @@ import { FormAlert } from "@/components/site/FormField";
 const SEEDED_PASSWORD = "Password123!";
 
 const DEV_ACCOUNTS = [
-  { label: "Platform admin", email: "admin@pharmalink.test" },
+  { label: "Platform admin", email: "admin@healthconnect.dev" },
   { label: "Pharmacy owner (Cedar Care)", email: "owner@cedarcare.test" },
   { label: "Pharmacy staff (Cedar Care)", email: "staff@cedarcare.test" },
   { label: "Doctor", email: "rima.khalil@doctors.test" },
-  { label: "Shopper", email: "shopper1@pharmalink.test" },
-  { label: "Driver", email: "karim@pharmalink.test" }
+  { label: "Shopper", email: "shopper1@healthconnect.dev" },
+  { label: "Driver", email: "karim@healthconnect.dev" }
 ];
 
 export function DevQuickLogin() {

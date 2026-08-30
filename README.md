@@ -197,12 +197,12 @@ All use `Password123!`
 
 | Role | Email |
 |---|---|
-| Platform admin | `admin@pharmalink.test` |
+| Platform admin | `admin@healthconnect.dev` |
 | Pharmacy owner | `owner@cedarcare.test` |
 | Pharmacy staff | `staff@cedarcare.test` |
 | Doctor | `rima.khalil@doctors.test` |
-| Shopper | `shopper1@pharmalink.test` |
-| Driver | `karim@pharmalink.test` |
+| Shopper | `shopper1@healthconnect.dev` |
+| Driver | `karim@healthconnect.dev` |
 
 Two more physicians (`samir.aoun@doctors.test`, `lina.nassar@doctors.test`) are left
 unactivated so the account claim flow can be demonstrated.
