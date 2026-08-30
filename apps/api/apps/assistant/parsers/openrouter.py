@@ -21,13 +21,12 @@ from __future__ import annotations
 
 import json
 import logging
-import urllib.error
-import urllib.request
 
 from django.conf import settings
 
 from apps.assistant.intents import INTENTS
 from apps.assistant.parsers.base import IntentParser, ParseResult, ParserError
+from apps.common.openai_chat import Endpoint, OpenAiChatError, chat_completion
 
 logger = logging.getLogger(__name__)
 
@@ -86,55 +85,35 @@ class OpenRouterIntentParser(IntentParser):
         if not settings.ASSISTANT_MODEL:
             raise ParserError("ASSISTANT_MODEL is not set - name the model to route to (see config/settings.py).")
 
-        payload = json.dumps(
-            {
-                "model": settings.ASSISTANT_MODEL,
-                # Structured output rather than native tool-calling: JSON mode is supported far
-                # more consistently across OpenAI-compatible backends than `tools` is, so the
-                # same adapter works if this is ever pointed at a different endpoint.
-                "response_format": {"type": "json_object"},
-                "temperature": 0,
-                "max_tokens": 200,
-                "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT + _catalogue(persona)},
-                    # Delimited so the model can see where untrusted text starts and stops. The
-                    # delimiter is a hint, not a defence - the defence is that the persona's
-                    # intent list is the only vocabulary the answer is read against.
-                    {"role": "user", "content": f"<message>\n{message[:MAX_MESSAGE_CHARS]}\n</message>"},
-                ],
-            }
-        ).encode("utf-8")
-
-        request = urllib.request.Request(
-            f"{settings.ASSISTANT_BASE_URL.rstrip('/')}/chat/completions",
-            data=payload,
-            method="POST",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {settings.ASSISTANT_API_KEY}",
-                # OpenRouter attributes traffic with these; harmless elsewhere.
-                "HTTP-Referer": settings.ASSISTANT_REFERER,
-                "X-Title": "HealthConnect assistant",
-            },
-        )
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT + _catalogue(persona)},
+            # Delimited so the model can see where untrusted text starts and stops. The
+            # delimiter is a hint, not a defence - the defence is that the persona's
+            # intent list is the only vocabulary the answer is read against.
+            {"role": "user", "content": f"<message>\n{message[:MAX_MESSAGE_CHARS]}\n</message>"},
+        ]
         try:
-            with urllib.request.urlopen(request, timeout=settings.ASSISTANT_TIMEOUT_SECONDS) as response:
-                data = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise ParserError(f"Assistant parser request failed: HTTP {exc.code}: {detail}"[:400]) from exc
-        except (urllib.error.URLError, OSError, TimeoutError, json.JSONDecodeError) as exc:
+            reply = chat_completion(
+                Endpoint(settings.ASSISTANT_BASE_URL, settings.ASSISTANT_API_KEY, settings.ASSISTANT_MODEL),
+                messages=messages,
+                # Structured output rather than native tool-calling: JSON mode is supported far
+                # more consistently across OpenAI-compatible backends than `tools` is.
+                response_format={"type": "json_object"},
+                temperature=0,
+                # The classifier's own answer is tiny, but a "thinking" fallback model burns
+                # tokens reasoning first - keep headroom so it still lands one JSON object.
+                max_tokens=1500,
+                timeout=settings.ASSISTANT_TIMEOUT_SECONDS,
+                # OpenRouter attributes traffic with these; harmless elsewhere.
+                extra_headers={"HTTP-Referer": settings.ASSISTANT_REFERER, "X-Title": "HealthConnect assistant"},
+            )
+        except OpenAiChatError as exc:
             raise ParserError(f"Assistant parser request failed: {exc}") from exc
 
-        return self._read(data, persona)
+        return self._read(reply, persona)
 
-    def _read(self, data: dict, persona) -> ParseResult | None:
-        try:
-            content = data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise ParserError(f"Assistant parser returned an unreadable response: {exc}") from exc
-
-        parsed = _loads(content)
+    def _read(self, reply: dict, persona) -> ParseResult | None:
+        parsed = _loads(reply.get("content"))
         if parsed is None:
             raise ParserError("Assistant parser did not return JSON.")
 

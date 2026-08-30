@@ -173,6 +173,26 @@ export interface PrescriptionRecord {
 
 export type PrescriptionUploadStatus = "PENDING_REVIEW" | "ACCEPTED" | "REJECTED";
 
+export interface OcrMedication {
+  name: string;
+  strength: string;
+  quantity: number | null;
+  directions: string;
+  duration: string;
+  refills: number | null;
+}
+
+/** The structured read of an uploaded scan: what OCR + extraction pulled off the
+ * page. Shown to the patient read-only; editable by a pharmacist on review. */
+export interface OcrFields {
+  patient_name: string;
+  patient_phone: string;
+  doctor_name: string;
+  prescription_date: string;
+  medications: OcrMedication[];
+  notes: string;
+}
+
 export interface PrescriptionUpload {
   id: string;
   status: PrescriptionUploadStatus;
@@ -180,6 +200,9 @@ export interface PrescriptionUpload {
   prescription_date?: string;
   notes: string;
   rejection_reason: string;
+  ocr_fields?: OcrFields;
+  ocr_review_requested?: boolean;
+  ocr_review_note?: string;
   file_name?: string;
   file_mime_type?: string;
   file_size?: number;

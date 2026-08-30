@@ -272,6 +272,58 @@ PRESCRIPTION_OCR_PROVIDER = os.getenv("PRESCRIPTION_OCR_PROVIDER", "tesseract")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ANTHROPIC_OCR_MODEL = os.getenv("ANTHROPIC_OCR_MODEL", "claude-sonnet-5")
 
+# PRESCRIPTION_OCR_PROVIDER="openai_vision" sends the scan to a vision-language model on any
+# OpenAI-compatible /chat/completions endpoint that accepts image blocks (OpenRouter, a local
+# Ollama with llama3.2-vision/qwen2-vl, Groq, ...). This is the non-Anthropic way to read
+# *handwriting* - Tesseract and EasyOCR only do print. The image (which can carry patient/
+# doctor names) leaves the box for a hosted gateway, so it is a data-handling decision, same
+# as ANTHROPIC_API_KEY - just not tied to one vendor. _MODEL has no default: name a
+# vision-capable model. Inert until all three of BASE_URL/API_KEY/MODEL are set.
+PRESCRIPTION_OCR_VISION_BASE_URL = os.getenv("PRESCRIPTION_OCR_VISION_BASE_URL", "")
+PRESCRIPTION_OCR_VISION_API_KEY = os.getenv("PRESCRIPTION_OCR_VISION_API_KEY", "")
+PRESCRIPTION_OCR_VISION_MODEL = os.getenv("PRESCRIPTION_OCR_VISION_MODEL", "")
+PRESCRIPTION_OCR_VISION_TIMEOUT_SECONDS = int(os.getenv("PRESCRIPTION_OCR_VISION_TIMEOUT_SECONDS", "45"))
+
+# --- Prescription structured extraction (NLP) ------------------------------------------
+# After OCR turns a scanned paper prescription into text, this step turns that text into
+# structured fields - patient, prescriber, date, and each medication with its directions
+# ("how to take it"), duration ("how long"), and refill count. A patient sees the result
+# read-only on their upload; a pharmacist edits it on review.
+#
+# PRESCRIPTION_NLP_PROVIDER="regex" (the default) is deterministic and offline - it reuses
+# apps.prescriptions.services.metadata + .extraction, no account, no external call.
+#
+# PRESCRIPTION_NLP_PROVIDER="openai_compatible" (+ _BASE_URL, _API_KEY, _MODEL) sends the OCR
+# text to an OpenAI-compatible chat gateway (OpenRouter, a local Ollama, Groq, ...) for a
+# real parse of messy layouts, falling back to the regex extractor on any error. This is
+# NOT the Anthropic path - but the OCR text can still carry patient/doctor names, so the
+# same data-handling/compliance check flagged on PRESCRIPTION_OCR_PROVIDER applies to
+# whichever gateway you point this at. _MODEL has no default on purpose - name the model
+# you mean to pay for rather than inheriting one that quietly changes cost.
+PRESCRIPTION_NLP_PROVIDER = os.getenv("PRESCRIPTION_NLP_PROVIDER", "regex")
+PRESCRIPTION_NLP_BASE_URL = os.getenv("PRESCRIPTION_NLP_BASE_URL", "")
+PRESCRIPTION_NLP_API_KEY = os.getenv("PRESCRIPTION_NLP_API_KEY", "")
+PRESCRIPTION_NLP_MODEL = os.getenv("PRESCRIPTION_NLP_MODEL", "")
+# 45s (not 20) leaves room for the shared LLM_FALLBACK_* to answer - a thinking model on a
+# free tier is slower than the primary, and a fallback that always times out is no fallback.
+PRESCRIPTION_NLP_TIMEOUT_SECONDS = int(os.getenv("PRESCRIPTION_NLP_TIMEOUT_SECONDS", "45"))
+
+# --- Shared LLM fallback endpoint ------------------------------------------------------
+# Every OpenAI-compatible chat caller in the codebase - the assistant intent parser and
+# reply composer (ASSISTANT_*), the analytics digest (ANALYTICS_AI_*), and prescription OCR
+# + structuring (PRESCRIPTION_OCR_VISION_* / PRESCRIPTION_NLP_*) - tries its OWN gateway
+# first and this one only if that call fails. One cheap/free key (e.g. a Google AI Studio
+# Gemini key via its OpenAI-compatible endpoint,
+# https://generativelanguage.googleapis.com/v1beta/openai) as a cushion when a primary
+# provider is rate-limited or down. It is a cushion, not capacity: a free tier has its own
+# hard limits, and each caller still degrades to its deterministic path if the fallback
+# fails too. Inert unless all three are set. For the OCR fallback to work the model must be
+# multimodal (gemini-2.5-flash is). Same data-handling note as the per-surface keys - the
+# image or text still leaves the box.
+LLM_FALLBACK_BASE_URL = os.getenv("LLM_FALLBACK_BASE_URL", "")
+LLM_FALLBACK_API_KEY = os.getenv("LLM_FALLBACK_API_KEY", "")
+LLM_FALLBACK_MODEL = os.getenv("LLM_FALLBACK_MODEL", "")
+
 # --- WhatsApp ----------------------------------------------------------------------------
 # The console provider logs messages instead of calling Meta's API, so dev/test needs no
 # WhatsApp Business account. Point WHATSAPP_PROVIDER at "meta_cloud" and supply the token/
@@ -354,3 +406,21 @@ ANALYTICS_AI_MODEL = os.getenv("ANALYTICS_AI_MODEL", "")
 # (no address on file, or the send fails), it's faxed instead. Console logs instead of
 # calling a real fax gateway (see apps.eprescriptions.services.fax).
 FAX_PROVIDER = os.getenv("FAX_PROVIDER", "console")
+
+# --- Test isolation --------------------------------------------------------------------
+# `manage.py test` must never reach a real LLM endpoint just because a developer keeps live
+# keys in their local .env. Force every model-backed surface to its offline/deterministic
+# path for the test run; a test that wants the model path still opts in explicitly with
+# override_settings + a mocked transport.
+import sys  # noqa: E402
+
+if "test" in sys.argv:
+    PRESCRIPTION_OCR_PROVIDER = "tesseract"
+    PRESCRIPTION_NLP_PROVIDER = "regex"
+    PRESCRIPTION_OCR_VISION_BASE_URL = PRESCRIPTION_OCR_VISION_API_KEY = PRESCRIPTION_OCR_VISION_MODEL = ""
+    PRESCRIPTION_NLP_BASE_URL = PRESCRIPTION_NLP_API_KEY = PRESCRIPTION_NLP_MODEL = ""
+    ASSISTANT_PARSER = "keyword"
+    ASSISTANT_API_KEY = ASSISTANT_MODEL = ""
+    ANALYTICS_AI_PROVIDER = "none"
+    ANALYTICS_AI_BASE_URL = ANALYTICS_AI_API_KEY = ANALYTICS_AI_MODEL = ""
+    LLM_FALLBACK_BASE_URL = LLM_FALLBACK_API_KEY = LLM_FALLBACK_MODEL = ""

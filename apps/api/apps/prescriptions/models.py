@@ -78,6 +78,20 @@ class PrescriptionRecord(UUIDTimeStampedModel):
     ocr_text = models.TextField(
         blank=True, help_text="Cached raw OCR transcription of `file`, populated on first request to extract candidate drug lines."
     )
+    ocr_fields = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Structured read of `ocr_text`: {patient_name, patient_phone, doctor_name, prescription_date, "
+        "medications: [{name, strength, quantity, directions, duration, refills}], notes}. Shown to the patient "
+        "read-only on a paper upload and editable by a pharmacist on review. Empty when extraction is off or failed.",
+    )
+    ocr_provider = models.CharField(
+        max_length=40, blank=True, help_text="Which extractor produced `ocr_fields` ('regex', 'openai_compatible', ...)."
+    )
+    ocr_review_requested = models.BooleanField(
+        default=False, help_text="The patient flagged the OCR read as wrong; a pharmacist should re-check it before accepting."
+    )
+    ocr_review_note = models.CharField(max_length=500, blank=True, help_text="What the patient said was wrong with the OCR read.")
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="prescription_records")
 

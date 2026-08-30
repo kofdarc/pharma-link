@@ -162,7 +162,12 @@ export function usePrescriptionUploads() {
     announce();
   }, []);
 
-  return { uploads: data, ready, failed, refresh, remove };
+  const flag = useCallback(async (id: string, note: string) => {
+    await apiFetch(`/shop/prescription-uploads/${id}/flag/`, { method: "POST", body: JSON.stringify({ note }) });
+    announce();
+  }, []);
+
+  return { uploads: data, ready, failed, refresh, remove, flag };
 }
 
 // --- orders ----------------------------------------------------------------

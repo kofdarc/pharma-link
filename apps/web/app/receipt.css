@@ -1,0 +1,332 @@
+/* --- Order receipt --------------------------------------------------------
+   A standalone document at `/orders/[id]/receipt`, styled to read well on
+   screen and to come out as a clean A4 page when the patient prints it or
+   saves it as a PDF. Every rule here is namespaced `hc-rcpt-` so it cannot
+   reach the rest of the patient app. */
+
+.hc-rcpt {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 24px 20px 72px;
+}
+
+.hc-rcpt-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.hc-rcpt-doc {
+  background: #ffffff;
+  border: 1px solid #e5e8eb;
+  border-radius: 16px;
+  padding: 44px;
+  color: #16202a;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.hc-rcpt-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #00bf63;
+}
+
+.hc-rcpt-logo {
+  height: 34px;
+  width: auto;
+}
+
+.hc-rcpt-meta {
+  text-align: right;
+}
+
+.hc-rcpt-meta h1 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+}
+
+.hc-rcpt-meta dl {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+}
+
+.hc-rcpt-meta dl > div {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.hc-rcpt-meta dt {
+  color: #64727f;
+}
+
+.hc-rcpt-meta dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.hc-rcpt-parties {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  margin: 26px 0 8px;
+}
+
+.hc-rcpt-parties h2,
+.hc-rcpt-payment h2 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #64727f;
+}
+
+.hc-rcpt-parties p {
+  margin: 0 0 2px;
+}
+
+.hc-rcpt-pharm + .hc-rcpt-pharm {
+  margin-top: 10px;
+}
+
+.hc-rcpt-pharm-name {
+  font-weight: 600;
+}
+
+.hc-rcpt-lines {
+  margin: 24px 0 0;
+}
+
+.hc-rcpt-lines h3 {
+  margin: 22px 0 8px;
+  font-size: 13px;
+}
+
+.hc-rcpt-lines table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.hc-rcpt-lines th {
+  padding: 8px 8px 8px 0;
+  border-bottom: 1px solid #e5e8eb;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64727f;
+  text-align: left;
+}
+
+.hc-rcpt-lines td {
+  padding: 11px 8px 11px 0;
+  border-bottom: 1px solid #f0f2f4;
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+}
+
+.hc-rcpt-lines th:nth-child(n + 2),
+.hc-rcpt-lines td:nth-child(n + 2) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.hc-rcpt-item {
+  display: block;
+  font-weight: 500;
+}
+
+.hc-rcpt-sub {
+  display: block;
+  color: #64727f;
+  font-size: 12px;
+}
+
+.hc-rcpt-lines tfoot td {
+  border-bottom: none;
+  padding-top: 10px;
+  font-weight: 600;
+}
+
+.hc-rcpt-totals {
+  width: 280px;
+  margin-left: auto;
+  margin-top: 18px;
+}
+
+.hc-rcpt-totals > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.hc-rcpt-grand {
+  margin-top: 6px;
+  padding-top: 10px !important;
+  border-top: 2px solid #16202a;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.hc-rcpt-payment {
+  margin-top: 30px;
+}
+
+.hc-rcpt-payment p {
+  margin: 0;
+}
+
+.hc-rcpt-foot {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e8eb;
+  color: #64727f;
+  font-size: 12px;
+}
+
+.hc-rcpt-foot p {
+  margin: 0 0 3px;
+}
+
+.hc-rcpt-status {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 72px 20px;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .hc-rcpt-doc {
+    padding: 28px 20px;
+  }
+  .hc-rcpt-head {
+    flex-direction: column;
+  }
+  .hc-rcpt-meta {
+    text-align: left;
+  }
+  .hc-rcpt-meta dl > div {
+    justify-content: flex-start;
+  }
+  .hc-rcpt-parties {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .hc-rcpt-totals {
+    width: 100%;
+  }
+}
+
+@media print {
+  .hc-rcpt-noprint,
+  .assistant-launcher,
+  .assistant-panel,
+  .install-prompt {
+    display: none !important;
+  }
+  .hc-rcpt {
+    max-width: none;
+    padding: 0;
+  }
+  .hc-rcpt-doc {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+  }
+  .hc-rcpt-lines table,
+  .hc-rcpt-lines tr {
+    break-inside: avoid;
+  }
+  /* Don't let the browser split the receipt: a receipt is one page. If the
+     compact density below still overflows, the page shrinks it (see
+     `--rcpt-zoom`) rather than spilling onto a second sheet. */
+  .hc-rcpt-doc,
+  .hc-rcpt-parties,
+  .hc-rcpt-totals {
+    break-inside: avoid;
+  }
+}
+
+@page {
+  margin: 12mm;
+}
+
+/* Compact density, plus a fit-to-page shrink.
+   The receipt page adds `is-compact` around printing and sets `--rcpt-zoom`
+   from script: it measures the compacted document and, only if it is still
+   taller than one page, scales it down (to a readable floor) so the receipt
+   stays a single page. A normal order never triggers the shrink. */
+.hc-rcpt.is-compact .hc-rcpt-doc {
+  zoom: var(--rcpt-zoom, 1);
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-head {
+  padding-bottom: 14px;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-logo {
+  height: 28px;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-meta h1 {
+  margin-bottom: 6px;
+  font-size: 17px;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-parties {
+  margin: 16px 0 4px;
+  gap: 20px;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-lines {
+  margin-top: 14px;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-lines h3 {
+  margin: 14px 0 4px;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-lines th {
+  padding: 6px 6px 6px 0;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-lines td {
+  padding: 7px 6px 7px 0;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-lines tfoot td {
+  padding-top: 7px;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-totals {
+  margin-top: 12px;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-totals > div {
+  padding: 4px 0;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-payment {
+  margin-top: 18px;
+}
+
+.hc-rcpt.is-compact .hc-rcpt-foot {
+  margin-top: 22px;
+  padding-top: 12px;
+}

@@ -78,6 +78,21 @@
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
 
+/* --- analytics "Ask" panel ------------------------------------------------ */
+/* Reuses the floating assistant's turn/chip/composer styles; only the shell differs -
+   a bounded, scrolling log embedded in a panel rather than a fixed-position dialog. */
+.analytics-ask { padding: 0; overflow: hidden; }
+.analytics-ask .analytics-ask__head { padding: 18px 18px 0; margin-bottom: 0; }
+.analytics-ask .analytics-ask__head p { margin: 6px 0 0; }
+.analytics-ask .assistant-log {
+  flex: none;
+  min-height: 240px;
+  max-height: 440px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.analytics-ask .assistant-chips { padding-top: 10px; }
+
 /* --- layout helpers ----------------------------------------------------- */
 .panel-row { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .panel-highlight { border-left: 3px solid var(--primary); }

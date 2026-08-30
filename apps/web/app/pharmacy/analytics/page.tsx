@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { useTranslations } from "@/lib/i18n/context";
+import { useAssistantChat } from "@/lib/assistant/use-assistant-chat";
+import { useRotatingChips } from "@/lib/assistant/use-rotating-chips";
+import { ANALYTICS_PROMPTS } from "@/lib/assistant/analytics-prompts";
 import type {
   AnalyticsDigest,
   AnalyticsInsights,
@@ -21,8 +24,9 @@ import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { BarMeter } from "@/components/charts/BarMeter";
+import { Icon } from "@/components/ui/Icon";
 
-type Tab = "digest" | "overview" | "inventory" | "replenishment" | "demand" | "insights";
+type Tab = "digest" | "overview" | "inventory" | "replenishment" | "demand" | "insights" | "ask";
 
 export default function PharmacyAnalyticsPage() {
   const t = useTranslations();
@@ -32,9 +36,18 @@ export default function PharmacyAnalyticsPage() {
     ["inventory", t("pharmacyAnalytics.tabInventory")],
     ["replenishment", t("pharmacyAnalytics.tabReplenishment")],
     ["demand", t("pharmacyAnalytics.tabDemand")],
-    ["insights", t("pharmacyAnalytics.tabInsights")]
+    ["insights", t("pharmacyAnalytics.tabInsights")],
+    ["ask", t("pharmacyAnalytics.tabAsk")]
   ];
   const [tab, setTab] = useState<Tab>("digest");
+  // The assistant lives at page level, like every other tab's data, so its transcript
+  // survives switching away and back. Nothing is fetched until the Ask tab is first opened.
+  const [askOpened, setAskOpened] = useState(false);
+  const chat = useAssistantChat({
+    enabled: askOpened,
+    unavailableMessage: t("pharmacyAnalytics.askUnavailable"),
+    sendErrorMessage: t("pharmacyAnalytics.askSendError")
+  });
   const [digest, setDigest] = useState<AnalyticsDigest | null>(null);
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [inventory, setInventory] = useState<{ stock: StockSnapshot; turnover: TurnoverMetrics; movement: MovementClassification } | null>(null);
@@ -47,6 +60,10 @@ export default function PharmacyAnalyticsPage() {
     apiFetch<AnalyticsOverview>("/pharmacy/analytics/overview/").then(setOverview).catch(() => setError(t("pharmacyAnalytics.loadOverviewError")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (tab === "ask") setAskOpened(true);
+  }, [tab]);
 
   useEffect(() => {
     if (tab === "digest" && !digest) {
@@ -100,7 +117,104 @@ export default function PharmacyAnalyticsPage() {
       {tab === "replenishment" ? <ReplenishmentTab data={replenishment} /> : null}
       {tab === "demand" ? <DemandTab data={demand} /> : null}
       {tab === "insights" ? <InsightsTab data={insights} /> : null}
+      {tab === "ask" ? <AskTab chat={chat} /> : null}
     </>
+  );
+}
+
+/**
+ * A dedicated home for the natural-language assistant on the analytics page, instead of the
+ * floating widget (which is suppressed on this route). Same conversation as the floating
+ * assistant - same persona, same `/assistant/chat/` endpoint, same stored thread - but the
+ * suggestion chips are drawn from an analytics-specific pool rather than the persona's
+ * general pharmacy openers, and rotate the way the floating widget's do.
+ */
+function AskTab({ chat }: { chat: ReturnType<typeof useAssistantChat> }) {
+  const t = useTranslations();
+  const { turns, busy, error, send, startNewChat } = chat;
+  const { chips, cycle, holdHandlers } = useRotatingChips(ANALYTICS_PROMPTS, turns.length <= 1 && !busy);
+  const started = turns.length > 1;
+
+  return (
+    <section className="panel analytics-ask">
+      <div className="analytics-ask__head section-header">
+        <div>
+          <h3>{t("pharmacyAnalytics.askHeading")}</h3>
+          <p className="muted small">{t("pharmacyAnalytics.askIntro")}</p>
+        </div>
+        {started ? (
+          <button type="button" className="assistant-newchat" onClick={startNewChat}>
+            {t("pharmacyAnalytics.askNewChat")}
+          </button>
+        ) : null}
+      </div>
+
+      <div className="assistant-log" aria-live="polite">
+        {turns.map((turn, index) => (
+          <p
+            key={index}
+            className={`assistant-turn ${turn.role === "assistant" ? "assistant-turn-assistant" : "assistant-turn-user"}`}
+          >
+            {turn.body}
+          </p>
+        ))}
+        {busy ? (
+          <p className="assistant-turn assistant-turn-assistant assistant-typing" aria-label="Thinking">
+            <span />
+            <span />
+            <span />
+          </p>
+        ) : null}
+        {error ? <p className="assistant-error">{error}</p> : null}
+      </div>
+
+      {chips.length > 0 && !started ? (
+        <div className="assistant-chips" {...holdHandlers}>
+          {chips.map((suggestion, index) => (
+            <button
+              key={`${cycle}:${suggestion}`}
+              type="button"
+              className="assistant-chip"
+              style={{ "--chip-index": index } as CSSProperties}
+              onClick={() => send(suggestion)}
+              disabled={busy}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <AskComposer onSend={send} busy={busy} placeholder={t("pharmacyAnalytics.askPlaceholder")} />
+
+      <p className="assistant-foot">{t("pharmacyAnalytics.askDisclaimer")}</p>
+    </section>
+  );
+}
+
+function AskComposer({ onSend, busy, placeholder }: { onSend: (message: string) => void; busy: boolean; placeholder: string }) {
+  const [draft, setDraft] = useState("");
+  return (
+    <form
+      className="assistant-composer"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSend(draft);
+        setDraft("");
+      }}
+    >
+      <input
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        maxLength={500}
+        disabled={busy}
+      />
+      <button type="submit" disabled={busy || !draft.trim()} aria-label="Send">
+        <Icon name="arrowRight" size={18} />
+      </button>
+    </form>
   );
 }
 

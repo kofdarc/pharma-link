@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import json
-import urllib.error
-import urllib.request
 from typing import Any
 
 from apps.analytics.providers.base import AssistantProvider, AssistantProviderError, ChatResult
+from apps.common.openai_chat import Endpoint, OpenAiChatError, chat_completion
 
 REQUEST_TIMEOUT_SECONDS = 30
 # Some gateways sit behind Cloudflare bot rules that block urllib's default
@@ -46,39 +44,17 @@ class OpenAiCompatibleProvider(AssistantProvider):
         tools: list[dict[str, Any]] | None = None,
         max_tokens: int = 1024,
     ) -> ChatResult:
-        body: dict[str, Any] = {
-            "model": self.model,
-            "max_tokens": max_tokens,
-            "messages": [{"role": "system", "content": system}, *messages],
-        }
-        if tools:
-            body["tools"] = tools
-
-        request = urllib.request.Request(
-            f"{self.base_url}/chat/completions",
-            data=json.dumps(body).encode("utf-8"),
-            method="POST",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": USER_AGENT,
-            },
-        )
         try:
-            with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
-                data = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise AssistantProviderError(f"{self.code} request failed: HTTP {exc.code}: {detail}"[:500]) from exc
-        except (urllib.error.URLError, OSError, TimeoutError) as exc:
+            choice = chat_completion(
+                Endpoint(self.base_url, self.api_key, self.model),
+                messages=[{"role": "system", "content": system}, *messages],
+                max_tokens=max_tokens,
+                tools=tools,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+                user_agent=USER_AGENT,
+            )
+        except OpenAiChatError as exc:
             raise AssistantProviderError(f"{self.code} request failed: {exc}") from exc
-        except (json.JSONDecodeError, KeyError, IndexError) as exc:
-            raise AssistantProviderError(f"{self.code} returned a response this adapter could not parse: {exc}") from exc
-
-        try:
-            choice = data["choices"][0]["message"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise AssistantProviderError(f"{self.code} response had no completion: {json.dumps(data)[:500]}") from exc
 
         tool_calls = [
             {
@@ -88,4 +64,4 @@ class OpenAiCompatibleProvider(AssistantProvider):
             }
             for call in (choice.get("tool_calls") or [])
         ]
-        return ChatResult(text=choice.get("content") or "", provider=self.code, tool_calls=tool_calls, raw=data)
+        return ChatResult(text=choice.get("content") or "", provider=self.code, tool_calls=tool_calls, raw=choice)

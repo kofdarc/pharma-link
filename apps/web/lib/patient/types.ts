@@ -56,10 +56,30 @@ export interface Prescription {
  */
 export type PrescriptionUploadStatus = "pending" | "accepted" | "rejected";
 
+export interface OcrMedication {
+  name: string;
+  strength: string;
+  quantity: number | null;
+  directions: string;
+  duration: string;
+  refills: number | null;
+}
+
+/** What OCR read off the uploaded scan. The patient sees this read-only and can
+ * flag it; a pharmacist corrects it on review. */
+export interface OcrFields {
+  patientName: string;
+  patientPhone: string;
+  doctorName: string;
+  prescriptionDate: string;
+  medications: OcrMedication[];
+  notes: string;
+}
+
 export interface PrescriptionUpload {
   id: string;
   status: PrescriptionUploadStatus;
-  /** What the patient typed at upload time, if anything. */
+  /** What OCR read as the prescriber, mirrored onto the record. */
   doctorName: string;
   uploadedOn: string;
   fileName: string;
@@ -69,6 +89,11 @@ export interface PrescriptionUpload {
   qualityWarnings: string[];
   /** API path to fetch the file itself, token-authenticated. */
   filePath: string;
+  /** The structured OCR read, or null if extraction was off or produced nothing. */
+  ocrFields: OcrFields | null;
+  /** The patient flagged the OCR read as wrong. */
+  ocrReviewRequested: boolean;
+  ocrReviewNote: string;
 }
 
 export function remaining(item: PrescriptionItem): number {
@@ -146,6 +171,21 @@ export interface OrderLine {
   prescriptionId?: string | null;
 }
 
+/**
+ * One connected pharmacy's part in an order, with its own totals.
+ *
+ * The order screen only needs the names (see `orderPharmacies`), but the
+ * receipt is a document: it names each pharmacy that dispensed, where it is and
+ * how to reach it, and what its own lines came to.
+ */
+export interface OrderPharmacy {
+  name: string;
+  area: string;
+  phone: string;
+  /** What this pharmacy's lines came to, before the delivery fee. */
+  subtotal: number;
+}
+
 export interface Order {
   id: string;
   placedAt: string;
@@ -156,7 +196,14 @@ export interface Order {
   deliveredAt: string | null;
   lines: OrderLine[];
   address: Address;
+  /** Who the order was placed for, carried on the order at the time. */
+  contactName: string;
+  contactPhone: string;
   paymentLabel: string;
+  /** ISO date the payment cleared, when it has. Null for cash on delivery. */
+  paidAt: string | null;
+  /** The connected pharmacies that filled this order. */
+  fulfilledBy: OrderPharmacy[];
   medicationTotal: number;
   deliveryFee: number;
   /** Timestamps for the stages that have actually happened. */

@@ -13,6 +13,7 @@
 
 import type {
   DeliveryAddress as ApiAddress,
+  OcrFields as ApiOcrFields,
   Order as ApiOrder,
   OrderFulfillment as ApiFulfillment,
   OrderStatus,
@@ -26,6 +27,7 @@ import type {
   Address,
   DeliveryPreference,
   NotificationPreferences,
+  OcrFields,
   Order,
   OrderLine,
   OrderStage,
@@ -204,6 +206,28 @@ const UPLOAD_STATUS: Record<string, PrescriptionUploadStatus> = {
   REJECTED: "rejected"
 };
 
+/** The structured OCR read as the API returns it (snake_case) -> the camelCase
+ * shape the patient UI renders. Used for both a stored upload and a pre-submit
+ * `preview` response. */
+export function toOcrFields(ocr: ApiOcrFields | null | undefined): OcrFields | null {
+  if (!ocr) return null;
+  return {
+    patientName: ocr.patient_name ?? "",
+    patientPhone: ocr.patient_phone ?? "",
+    doctorName: ocr.doctor_name ?? "",
+    prescriptionDate: ocr.prescription_date ?? "",
+    medications: (ocr.medications ?? []).map((med) => ({
+      name: med.name ?? "",
+      strength: med.strength ?? "",
+      quantity: med.quantity ?? null,
+      directions: med.directions ?? "",
+      duration: med.duration ?? "",
+      refills: med.refills ?? null
+    })),
+    notes: ocr.notes ?? ""
+  };
+}
+
 export function toPrescriptionUpload(record: ApiPrescriptionUpload): PrescriptionUpload {
   return {
     id: record.id,
@@ -213,7 +237,10 @@ export function toPrescriptionUpload(record: ApiPrescriptionUpload): Prescriptio
     fileName: record.file_name ?? "",
     rejectionReason: record.rejection_reason ?? "",
     qualityWarnings: record.quality_warnings ?? [],
-    filePath: (record.download_url ?? "").replace(/^\/api/, "")
+    filePath: (record.download_url ?? "").replace(/^\/api/, ""),
+    ocrFields: toOcrFields(record.ocr_fields),
+    ocrReviewRequested: Boolean(record.ocr_review_requested),
+    ocrReviewNote: record.ocr_review_note ?? ""
   };
 }
 
@@ -272,8 +299,11 @@ const PAYMENT_LABELS: Record<Payment["provider"], string> = {
 };
 
 export function toOrder(record: ApiOrder): Order {
-  const lines: OrderLine[] = record.fulfillments
-    .filter((entry) => entry.status !== "REJECTED" && entry.status !== "CANCELLED")
+  const activeFulfillments = record.fulfillments.filter(
+    (entry) => entry.status !== "REJECTED" && entry.status !== "CANCELLED"
+  );
+
+  const lines: OrderLine[] = activeFulfillments
     .flatMap((fulfillment) =>
       fulfillment.lines.map((line) => ({
         medicineId: line.medicine,
@@ -311,7 +341,16 @@ export function toOrder(record: ApiOrder): Order {
       notes: record.delivery_notes ?? "",
       isDefault: false
     },
+    contactName: record.contact_name ?? "",
+    contactPhone: record.contact_phone ?? "",
     paymentLabel: record.payment ? PAYMENT_LABELS[record.payment.provider] : "Not recorded",
+    paidAt: record.payment?.paid_at ? isoDate(record.payment.paid_at) : null,
+    fulfilledBy: activeFulfillments.map((entry) => ({
+      name: entry.pharmacy_name,
+      area: entry.pharmacy_area ?? "",
+      phone: entry.pharmacy_phone ?? "",
+      subtotal: Number(entry.subtotal) || 0
+    })),
     medicationTotal: Number(record.items_subtotal),
     deliveryFee: Number(record.delivery_fee),
     reachedAt: reachedAt(record),

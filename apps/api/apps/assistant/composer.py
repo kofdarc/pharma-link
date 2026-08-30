@@ -20,10 +20,10 @@ from __future__ import annotations
 import json
 import logging
 import re
-import urllib.error
-import urllib.request
 
 from django.conf import settings
+
+from apps.common.openai_chat import Endpoint, OpenAiChatError, chat_completion
 
 logger = logging.getLogger(__name__)
 
@@ -77,43 +77,30 @@ def compose(*, intent, result: dict, message: str, persona) -> str | None:
         message=message[:MAX_MESSAGE_CHARS],
         intent_description=intent.description,
     )
-    body = json.dumps(
-        {
-            "model": settings.ASSISTANT_MODEL,
-            "temperature": 0.3,
-            "max_tokens": 220,
-            "messages": [
-                {"role": "system", "content": system},
-                # Delimited the same way the intent parser delimits the user's message - a
-                # visual boundary marking where untrusted content starts, not a security
-                # control on its own. The actual control is the grounding check below, which
-                # does not care what the model was talked into writing, only whether the
-                # numbers in it are real.
-                {"role": "user", "content": f"<data>\n{payload_json}\n</data>"},
-            ],
-        }
-    ).encode("utf-8")
-
-    request = urllib.request.Request(
-        f"{settings.ASSISTANT_BASE_URL.rstrip('/')}/chat/completions",
-        data=body,
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {settings.ASSISTANT_API_KEY}",
-            "HTTP-Referer": settings.ASSISTANT_REFERER,
-            "X-Title": "HealthConnect assistant",
-        },
-    )
+    messages = [
+        {"role": "system", "content": system},
+        # Delimited the same way the intent parser delimits the user's message - a visual
+        # boundary marking where untrusted content starts, not a security control on its
+        # own. The actual control is the grounding check below, which does not care what the
+        # model was talked into writing, only whether the numbers in it are real.
+        {"role": "user", "content": f"<data>\n{payload_json}\n</data>"},
+    ]
     try:
-        with urllib.request.urlopen(request, timeout=settings.ASSISTANT_TIMEOUT_SECONDS) as response:
-            data = json.loads(response.read().decode("utf-8"))
-        raw = data["choices"][0]["message"]["content"]
-    except (urllib.error.HTTPError, urllib.error.URLError, OSError, TimeoutError, KeyError, IndexError, TypeError, json.JSONDecodeError):
+        message = chat_completion(
+            Endpoint(settings.ASSISTANT_BASE_URL, settings.ASSISTANT_API_KEY, settings.ASSISTANT_MODEL),
+            messages=messages,
+            temperature=0.3,
+            # The reply is two or three sentences, but a "thinking" fallback model spends
+            # tokens reasoning before it - headroom so it still finishes the sentence.
+            max_tokens=1500,
+            timeout=settings.ASSISTANT_TIMEOUT_SECONDS,
+            extra_headers={"HTTP-Referer": settings.ASSISTANT_REFERER, "X-Title": "HealthConnect assistant"},
+        )
+    except OpenAiChatError:
         logger.warning("Assistant composer request failed", exc_info=True)
         return None
 
-    reply = _clean(raw)
+    reply = _clean(message.get("content"))
     if not reply:
         return None
     if not is_grounded(reply, result):

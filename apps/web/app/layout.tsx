@@ -5,6 +5,7 @@ import "./poc.css";
 import "./patient.css";
 import "./patient-ui.css";
 import "./patient-app.css";
+import "./receipt.css";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { I18nProvider } from "@/lib/i18n/context";

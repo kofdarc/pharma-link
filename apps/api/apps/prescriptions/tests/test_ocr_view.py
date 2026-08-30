@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import UserRole
@@ -20,6 +21,7 @@ from apps.prescriptions.models import PrescriptionRecord
 from apps.prescriptions.services.ocr.base import OcrResult, UnsupportedFileType
 
 
+@override_settings(PRESCRIPTION_OCR_PROVIDER="tesseract")
 class PrescriptionExtractViewTests(APITestCase):
     def setUp(self):
         User = get_user_model()

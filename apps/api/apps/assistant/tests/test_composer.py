@@ -14,6 +14,7 @@ from django.test import TestCase, override_settings
 
 from apps.assistant import composer, personas, services
 from apps.assistant.intents import get_intent
+from apps.common.openai_chat import OpenAiChatError
 
 
 class GroundingCheckTests(TestCase):
@@ -81,14 +82,13 @@ class ComposerConfigTests(TestCase):
 
     @override_settings(ASSISTANT_API_KEY="test-key", ASSISTANT_MODEL="openai/gpt-4o-mini")
     def test_a_request_failure_returns_none_rather_than_raising(self):
-        with patch("apps.assistant.composer.urllib.request.urlopen", side_effect=OSError("network down")):
+        with patch("apps.assistant.composer.chat_completion", side_effect=OpenAiChatError("network down")):
             result = composer.compose(intent=self.intent, result={"query": "panadol", "results": []}, message="who has panadol", persona=self.persona)
         self.assertIsNone(result)
 
     @override_settings(ASSISTANT_API_KEY="test-key", ASSISTANT_MODEL="openai/gpt-4o-mini")
     def test_an_ungrounded_completion_is_rejected(self):
-        fake_response = _fake_completion("Panadol is available for 9.99, an invented price.")
-        with patch("apps.assistant.composer.urllib.request.urlopen", return_value=fake_response):
+        with patch("apps.assistant.composer.chat_completion", return_value={"content": "Panadol is available for 9.99, an invented price."}):
             result = composer.compose(
                 intent=self.intent,
                 result={"query": "panadol", "results": [{"medicine": "Panadol", "unit_price": "2.25"}]},
@@ -99,8 +99,7 @@ class ComposerConfigTests(TestCase):
 
     @override_settings(ASSISTANT_API_KEY="test-key", ASSISTANT_MODEL="openai/gpt-4o-mini")
     def test_a_grounded_completion_is_accepted(self):
-        fake_response = _fake_completion("Panadol is available for 2.25.")
-        with patch("apps.assistant.composer.urllib.request.urlopen", return_value=fake_response):
+        with patch("apps.assistant.composer.chat_completion", return_value={"content": "Panadol is available for 2.25."}):
             result = composer.compose(
                 intent=self.intent,
                 result={"query": "panadol", "results": [{"medicine": "Panadol", "unit_price": "2.25"}]},
@@ -122,7 +121,7 @@ class ComposerIntegrationTests(TestCase):
 
     @override_settings(ASSISTANT_API_KEY="test-key", ASSISTANT_MODEL="openai/gpt-4o-mini")
     def test_a_composer_failure_still_returns_the_template_reply(self):
-        with patch("apps.assistant.composer.urllib.request.urlopen", side_effect=OSError("network down")):
+        with patch("apps.assistant.composer.chat_completion", side_effect=OpenAiChatError("network down")):
             out = services.answer(user=None, message="who has panadol")
         self.assertEqual(out["intent"], "search_availability")
         self.assertTrue(out["reply"])
@@ -131,19 +130,3 @@ class ComposerIntegrationTests(TestCase):
         with patch("apps.assistant.composer.compose") as mocked:
             services.answer(user=None, message="hi")
         mocked.assert_not_called()
-
-
-def _fake_completion(text: str):
-    import io
-    import json as jsonlib
-
-    payload = jsonlib.dumps({"choices": [{"message": {"content": text}}]}).encode("utf-8")
-
-    class _Resp(io.BytesIO):
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc):
-            return False
-
-    return _Resp(payload)

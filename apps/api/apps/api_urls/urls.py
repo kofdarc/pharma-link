@@ -117,7 +117,11 @@ from apps.pharmacies.views import (
     PharmacyProfileView,
     PublicPharmacyViewSet,
 )
-from apps.prescriptions.views import PrescriptionRecordViewSet, ShopPrescriptionUploadViewSet
+from apps.prescriptions.views import (
+    PharmacyPrescriptionUploadViewSet,
+    PrescriptionRecordViewSet,
+    ShopPrescriptionUploadViewSet,
+)
 from apps.sales.views import SaleViewSet
 
 
@@ -187,6 +191,7 @@ router.register("pharmacy/sales", SaleViewSet, basename="pharmacy-sales")
 router.register("pharmacy/invoices", SaleViewSet, basename="pharmacy-invoices")
 router.register("pharmacy/clients", ClientViewSet, basename="pharmacy-clients")
 router.register("pharmacy/prescriptions", PrescriptionRecordViewSet, basename="pharmacy-prescriptions")
+router.register("pharmacy/prescription-uploads", PharmacyPrescriptionUploadViewSet, basename="pharmacy-prescription-uploads")
 router.register("pharmacy/orders", PharmacyOrderViewSet, basename="pharmacy-orders")
 router.register("pharmacy/staff", PharmacyStaffViewSet, basename="pharmacy-staff")
 router.register("pharmacy/audit-logs", PharmacyAuditLogViewSet, basename="pharmacy-audit-logs")

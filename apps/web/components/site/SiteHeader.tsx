@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { BrandLogo } from "@/components/ui/BrandMark";
 import { useOptionalUser } from "@/lib/auth";
+import { useBasket } from "@/lib/basket";
 
 const LINKS = [
   { href: "/", label: "Home" },
@@ -20,6 +21,7 @@ export function SiteHeader() {
   // Resolves after mount. Signed-out is the right first paint for a public
   // page, so only the two trailing actions change once we know otherwise.
   const user = useOptionalUser();
+  const { count, ready } = useBasket();
 
   // Route changes should not leave the panel hanging open behind the new page.
   useEffect(() => setOpen(false), [pathname]);
@@ -42,6 +44,19 @@ export function SiteHeader() {
         </nav>
 
         <div className="hc-header-actions">
+          <Link
+            href="/cart"
+            className="hc-cartbtn"
+            aria-current={current("/cart")}
+            aria-label={ready && count > 0 ? `Basket, ${count} in it` : "Basket"}
+          >
+            <Icon name="box" size={19} />
+            {ready && count > 0 ? (
+              <span className="hc-cartbtn-count hc-num" aria-hidden="true">
+                {count > 9 ? "9+" : count}
+              </span>
+            ) : null}
+          </Link>
           {user ? (
             <Link href="/home" className="hc-btn hc-btn-secondary hc-btn-sm">
               <Icon name="home" size={16} />

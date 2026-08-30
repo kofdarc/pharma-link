@@ -5,13 +5,13 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { PatientShell } from "@/components/site/PatientShell";
 import { CardSkeletons, EmptyPanel, PageHead } from "@/components/patient/Page";
-import { OrderStatusChip, OrderStatusTimeline, ReceiptDialog, ReviewDialog, stageLabel } from "@/components/orders/OrderParts";
+import { OrderStatusChip, OrderStatusTimeline, ReviewDialog, stageLabel } from "@/components/orders/OrderParts";
 import { useToast } from "@/components/patient/Toast";
 import { Icon } from "@/components/ui/Icon";
 import { useBasket } from "@/lib/basket";
 import { useOrders } from "@/lib/patient/store";
 import { formatDate, formatMoney, plural } from "@/lib/patient/format";
-import { orderPharmacies, orderTotal, type Order } from "@/lib/patient/types";
+import { orderPharmacies, orderTotal } from "@/lib/patient/types";
 
 /**
  * A single order.
@@ -31,7 +31,6 @@ function OrderDetailScreen() {
   const { notify } = useToast();
 
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [receiptOpen, setReceiptOpen] = useState(false);
 
   const order = orders.find((entry) => entry.id === id);
 
@@ -254,10 +253,15 @@ function OrderDetailScreen() {
               {pharmacies.length > 1 ? (
                 <p className="hc-small">Includes fulfilment from {plural(pharmacies.length, "pharmacy", "pharmacies")}.</p>
               ) : null}
-              <button type="button" className="hc-btn hc-btn-secondary hc-btn-block" onClick={() => setReceiptOpen(true)}>
+              <Link
+                href={`/orders/${order.id}/receipt`}
+                target="_blank"
+                rel="noopener"
+                className="hc-btn hc-btn-secondary hc-btn-block"
+              >
                 <Icon name="receipt" size={16} />
                 View receipt
-              </button>
+              </Link>
             </section>
 
             <section className="hc-card hc-card-quiet">
@@ -285,7 +289,6 @@ function OrderDetailScreen() {
             .catch(() => notify("We couldn't save your review", "alert"));
         }}
       />
-      <ReceiptDialog open={receiptOpen} onClose={() => setReceiptOpen(false)} order={order as Order} />
     </PatientShell>
   );
 }

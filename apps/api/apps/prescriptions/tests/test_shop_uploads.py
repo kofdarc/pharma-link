@@ -2,6 +2,7 @@ import io
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import UserRole
@@ -23,6 +24,9 @@ def _readable_scan(name="rx.png"):
     return SimpleUploadedFile(name, _png_bytes(800, 1000), content_type="image/png")
 
 
+# Keep the upload path off any real LLM endpoint a local .env may configure - these tests
+# exercise the view/flow, not OCR or extraction.
+@override_settings(PRESCRIPTION_OCR_PROVIDER="tesseract", PRESCRIPTION_NLP_PROVIDER="regex")
 class ShopPrescriptionUploadTests(APITestCase):
     def setUp(self):
         User = get_user_model()
@@ -32,6 +36,47 @@ class ShopPrescriptionUploadTests(APITestCase):
         self.staff = User.objects.create_user(
             email="staff@test.local", password="Password123!", role=UserRole.PHARMACY_STAFF, pharmacy=self.pharmacy
         )
+
+    def test_preview_returns_structured_fields_without_storing_anything(self):
+        from unittest.mock import patch
+
+        from apps.prescriptions.services.ocr.base import OcrResult
+
+        self.client.force_authenticate(self.shopper)
+        text = "Dr. Rima Khalil\nDate: 14/03/2026\nPanadol 500mg x30 - 1 tab bid\n"
+        with patch(
+            "apps.prescriptions.services.ocr.tesseract.TesseractOcrProvider.extract_text",
+            return_value=OcrResult(text=text, provider="tesseract"),
+        ):
+            response = self.client.post(f"{LIST_URL}preview/", {"file": _readable_scan()}, format="multipart")
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["ocr_fields"]["doctor_name"], "Dr. Rima Khalil")
+        self.assertEqual(len(response.data["ocr_fields"]["medications"]), 1)
+        self.assertFalse(PrescriptionRecord.objects.filter(customer=self.shopper).exists())
+
+    def test_preview_degrades_to_null_when_ocr_is_unavailable(self):
+        from unittest.mock import patch
+
+        from apps.prescriptions.services.ocr.base import OcrProviderError
+
+        self.client.force_authenticate(self.shopper)
+        with patch(
+            "apps.prescriptions.services.ocr.tesseract.TesseractOcrProvider.extract_text",
+            side_effect=OcrProviderError("down"),
+        ):
+            response = self.client.post(f"{LIST_URL}preview/", {"file": _readable_scan()}, format="multipart")
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data["ocr_fields"])
+
+    def test_preview_rejects_a_wrong_file_type(self):
+        self.client.force_authenticate(self.shopper)
+        bad = SimpleUploadedFile("notes.txt", b"text", content_type="text/plain")
+        self.assertEqual(self.client.post(f"{LIST_URL}preview/", {"file": bad}, format="multipart").status_code, 400)
+
+    def test_preview_requires_a_shopper(self):
+        self.client.force_authenticate(self.staff)
+        self.assertEqual(self.client.post(f"{LIST_URL}preview/", {"file": _readable_scan()}, format="multipart").status_code, 403)
 
     def test_shopper_uploads_a_paper_prescription_pending_review(self):
         self.client.force_authenticate(self.shopper)
@@ -98,9 +143,11 @@ class ShopPrescriptionUploadTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(b"".join(response.streaming_content)[:8], b"\x89PNG\r\n\x1a\n")
 
-    def test_ocr_extract_is_not_exposed_on_the_shop_endpoint(self):
+    def test_pharmacy_only_actions_are_not_exposed_on_the_shop_endpoint(self):
+        # The patient side gets the OCR read (populated at upload time) and can `flag` it,
+        # but drug-line `extract`ion + catalog matching stays a pharmacy-side action.
         from apps.prescriptions.views import ShopPrescriptionUploadViewSet
 
         action_names = {a.__name__ for a in ShopPrescriptionUploadViewSet.get_extra_actions()}
         self.assertNotIn("extract", action_names)
-        self.assertIn("file", action_names)
+        self.assertEqual({"file", "flag", "preview"}, action_names)

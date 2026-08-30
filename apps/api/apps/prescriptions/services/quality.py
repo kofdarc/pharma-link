@@ -29,7 +29,7 @@ SEVERITY_WARN = "warn"
 # Smallest side, in pixels, worth a pharmacist's time. A modern phone camera
 # clears this by an order of magnitude; anything under it is a crop or a
 # thumbnail.
-MIN_DIMENSION = 600
+MIN_DIMENSION = 200
 
 # Mean luma, 0-255. Measured on phone photos of paper scripts: a normal indoor
 # capture sits near 150, a dim one near 55. The upper bound is deliberately high

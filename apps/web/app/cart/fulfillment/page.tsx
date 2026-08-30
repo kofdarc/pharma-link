@@ -144,7 +144,7 @@ export default function FulfillmentPage() {
               </h1>
               <p className="hc-lead">
                 {everythingAvailable
-                  ? "HealthConnect coordinates the pharmacy pickups so everything reaches you in one delivery."
+                  ? "Delivery times are estimates. Nothing is charged until you place the order on the next screen."
                   : "Some of your basket is not available from any connected pharmacy at the moment. You can continue with the rest."}
               </p>
               <ul className="hc-fulfil-facts">
@@ -222,9 +222,6 @@ export default function FulfillmentPage() {
                       Choose this option
                     </button>
 
-                    <p className="hc-small">
-                      Delivery times are estimates. Nothing is charged until you place the order on the next screen.
-                    </p>
                   </>
                 ) : null}
               </aside>

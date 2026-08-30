@@ -13,40 +13,48 @@ const STEPS = [
   {
     title: "Tell us the medicine, not the pharmacy",
     body: [
-      "Type a brand name, a generic name, or whatever is written on the box. HealthConnect understands that Augmentin and amoxicillin / clavulanic acid are the same search, and it will suggest the strengths that exist.",
-      "You are choosing a medicine. Where it comes from is our problem, not yours."
+      "Search by brand or generic name. HealthConnect knows Augmentin and amoxicillin / clavulanic acid are the same, and shows the strengths that exist.",
+      "You pick the medicine. Finding it is our job."
     ],
     visual: <SearchVisual />
   },
   {
     title: "We check every connected pharmacy at once",
     body: [
-      "Instead of you calling around, HealthConnect asks the whole connected network. Pharmacies keep their own software and their own stock — the platform reads what they can actually supply.",
-      "You see availability in plain words. Pharmacies never publish how much they hold."
+      "Instead of you calling around, HealthConnect asks the whole network and reads what each pharmacy can actually supply.",
+      "You see availability in plain words, never how much a pharmacy holds."
     ],
     visual: <AvailabilityVisual />
   },
   {
     title: "One basket can come from more than one pharmacy",
     body: [
-      "If no single pharmacy has everything you need, HealthConnect does not send you away half-served. It works out a combination that covers the basket with as few pickups as possible.",
-      "You still place one order and receive one delivery. HealthConnect handles the coordination for you."
+      "If no single pharmacy has everything, HealthConnect combines pharmacies to cover your basket.",
+      "You still place one order and get one delivery."
     ],
     visual: <SourcingVisual />
   },
   {
-    title: "Prescription medicines are verified before they're dispensed",
+    title: "Set up medicines you take regularly",
     body: [
-      "A prescription issued through HealthConnect travels as a code plus a protected key. The pharmacy scans it, HealthConnect confirms it is valid and unclaimed, and the pharmacy dispenses against it.",
-      "Partial dispensing is normal: take what is available now, and the remainder stays claimable later — once."
+      "For an ongoing medication, schedule a recurring order so it's ready before you run out.",
+      "Pause, skip, or cancel it any time. A valid prescription is still checked each time it's filled."
+    ],
+    visual: <DeliveryVisual />
+  },
+  {
+    title: "Prescriptions are verified before dispensing",
+    body: [
+      "A prescription from HealthConnect is confirmed as valid and unclaimed before a pharmacy fills it.",
+      "If only part is in stock, take what's available now and claim the rest later."
     ],
     visual: <RxCard />
   },
   {
     title: "Then it comes to you",
     body: [
-      "Once the pharmacies have prepared their part, a driver collects and delivers. Where several orders share a pharmacy, those pickups are combined, which is why deliveries do not need a separate trip each.",
-      "You can follow the order the whole way."
+      "Once a pharmacy has your order ready, a driver collects it and brings it to you.",
+      "You can follow it the whole way."
     ],
     visual: <DeliveryVisual />
   }
@@ -56,37 +64,37 @@ const PRESCRIBING_FEATURES: { icon: IconName; title: string; body: string }[] = 
   {
     icon: "rx",
     title: "Create Rx",
-    body: "Your physician writes the prescription in HealthConnect. Patient choice comes first: pick a pharmacy and it's sent straight to that pharmacy's queue, ready before you arrive. Haven't decided yet? The prescription is held in HealthConnect instead — you're handed a signed copy with a code and a QR barcode, and any connected pharmacy can pull it up by scanning that barcode or entering the code."
+    body: "Your physician writes the prescription and sends it straight to your chosen pharmacy, or holds it for you to use at any connected pharmacy with a code."
   },
   {
     icon: "shield",
     title: "Guaranteed delivery",
-    body: "Whichever way a prescription is sent, HealthConnect makes sure it reaches you. It's emailed first where an address is on file; if that can't go through, or none was given, it's faxed instead as a back-up. Either way, the signed copy your physician hands you is always the authoritative record — digital delivery is a convenience on top of it, never a condition for it."
+    body: "However a prescription is sent, HealthConnect makes sure it reaches you and the pharmacy. The signed copy from your physician stays the authoritative record."
   },
   {
     icon: "refresh",
     title: "Renew Rx",
-    body: "When a prescription is running low, a pharmacy can request a renewal directly from your physician. Once it's approved, the renewal comes back through HealthConnect as a new e-prescription."
+    body: "When a prescription runs low, the pharmacy can request a renewal from your physician, and the approved renewal returns as a new e-prescription."
   },
   {
     icon: "trash",
     title: "Prescription cancel",
-    body: "A prescription that's already been sent to a pharmacy can still be cancelled by the physician who issued it, whether it hasn't been touched yet or has already been partly dispensed."
+    body: "The physician who issued a prescription can cancel it, even after it has been partly dispensed."
   },
   {
     icon: "checkCircle",
     title: "Rx status",
-    body: "Your physician can see whether a prescription has been dispensed, partly filled, or cancelled — without having to call the pharmacy to ask."
+    body: "Your physician can see whether a prescription was dispensed, partly filled, or cancelled, without calling the pharmacy."
   },
   {
     icon: "message",
     title: "Clinical communication",
-    body: "Physicians and pharmacies can message each other about a specific prescription, and that conversation stays attached to the record for later reference."
+    body: "Physicians and pharmacies can message each other about a prescription, and it stays attached to the record."
   },
   {
     icon: "card",
     title: "Formulary services",
-    body: "Before prescribing, your physician can check whether a medicine is covered under your insurance plan, so coverage isn't a surprise when you get to the pharmacy."
+    body: "Before prescribing, your physician can check whether a medicine is covered by your insurance."
   }
 ];
 
@@ -101,8 +109,7 @@ export default function HowItWorksPage() {
             <div style={{ maxWidth: "46rem" }}>
               <h1 className="hc-display">Getting your medication shouldn&apos;t require five phone calls.</h1>
               <p className="hc-lead" style={{ marginTop: 22 }}>
-                HealthConnect sits between you and every pharmacy that has joined the network. You search once; the platform does
-                the asking, the sourcing, the prescription checks and the delivery.
+                You search once. HealthConnect handles the asking, the sourcing, the prescription checks, and the delivery.
               </p>
             </div>
           </div>

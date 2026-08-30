@@ -268,7 +268,7 @@ class ModelParserTests(TestCase):
         self.parser = OpenRouterIntentParser()
 
     def _read(self, content: str, persona_key: str):
-        return self.parser._read({"choices": [{"message": {"content": content}}]}, personas.PERSONAS[persona_key])
+        return self.parser._read({"content": content}, personas.PERSONAS[persona_key])
 
     def test_in_persona_intent_is_accepted(self):
         result = self._read('{"intent": "order_status", "slots": {}, "confidence": 0.9}', personas.CUSTOMER)

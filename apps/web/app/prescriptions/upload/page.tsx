@@ -6,12 +6,15 @@ import { useRouter } from "next/navigation";
 import { PatientShell } from "@/components/site/PatientShell";
 import { PageHead } from "@/components/patient/Page";
 import { FormAlert } from "@/components/site/FormField";
+import { OcrReadout } from "@/components/prescriptions/OcrReadout";
 import { useToast } from "@/components/patient/Toast";
 import { Icon } from "@/components/ui/Icon";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { toOcrFields } from "@/lib/patient/adapters";
 import { usePrescriptionUploads } from "@/lib/patient/store";
+import type { OcrFields } from "@/lib/patient/types";
 import { blockingFindings, inspectScan, type ScanFinding } from "@/lib/prescription-scan-check";
-import type { PrescriptionUpload } from "@/types/api";
+import type { OcrFields as ApiOcrFields, PrescriptionUpload } from "@/types/api";
 
 const MAX_MB = 10;
 const ACCEPT = ".pdf,.jpg,.jpeg,.png";
@@ -23,6 +26,12 @@ const ACCEPT = ".pdf,.jpg,.jpeg,.png";
  * patient to retake a dark or blurry one before it is sent. It is only a nudge:
  * the server re-checks and is the authority, and a pharmacist reviews every
  * upload by hand before anything is dispensed against it.
+ *
+ * The prescriber, date and medications are read off the photo by OCR - the
+ * patient does not type them. A pre-submit `preview` call shows that read on
+ * this page so they see it before uploading; the server re-runs OCR on submit
+ * (authoritative), and the read stays editable only by a pharmacist. If it is
+ * wrong the patient flags it from the Prescriptions screen.
  */
 export default function UploadPrescriptionPage() {
   const router = useRouter();
@@ -34,8 +43,8 @@ export default function UploadPrescriptionPage() {
   const [previewUrl, setPreviewUrl] = useState("");
   const [findings, setFindings] = useState<ScanFinding[]>([]);
   const [checking, setChecking] = useState(false);
-  const [doctorName, setDoctorName] = useState("");
-  const [prescriptionDate, setPrescriptionDate] = useState("");
+  const [reading, setReading] = useState(false);
+  const [ocrPreview, setOcrPreview] = useState<OcrFields | null>(null);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -50,26 +59,49 @@ export default function UploadPrescriptionPage() {
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  const onPick = useCallback(async (picked: File | null) => {
-    setError("");
-    setFindings([]);
-    if (!picked) {
-      setFile(null);
-      return;
-    }
-    if (picked.size > MAX_MB * 1024 * 1024) {
-      setFile(null);
-      setError(`That file is over ${MAX_MB} MB. Try a photo instead of a scan, or a lower resolution.`);
-      return;
-    }
-    setFile(picked);
-    setChecking(true);
+  const readScan = useCallback(async (picked: File) => {
+    setReading(true);
     try {
-      setFindings(await inspectScan(picked));
+      const body = new FormData();
+      body.set("file", picked);
+      const res = await apiFetch<{ ocr_fields: ApiOcrFields | null }>("/shop/prescription-uploads/preview/", {
+        method: "POST",
+        body
+      });
+      setOcrPreview(toOcrFields(res.ocr_fields));
+    } catch {
+      // The preview is a convenience - if it fails, the upload still OCRs server-side.
+      setOcrPreview(null);
     } finally {
-      setChecking(false);
+      setReading(false);
     }
   }, []);
+
+  const onPick = useCallback(
+    async (picked: File | null) => {
+      setError("");
+      setFindings([]);
+      setOcrPreview(null);
+      if (!picked) {
+        setFile(null);
+        return;
+      }
+      if (picked.size > MAX_MB * 1024 * 1024) {
+        setFile(null);
+        setError(`That file is over ${MAX_MB} MB. Try a photo instead of a scan, or a lower resolution.`);
+        return;
+      }
+      setFile(picked);
+      void readScan(picked);
+      setChecking(true);
+      try {
+        setFindings(await inspectScan(picked));
+      } finally {
+        setChecking(false);
+      }
+    },
+    [readScan]
+  );
 
   const blocked = blockingFindings(findings).length > 0;
 
@@ -81,8 +113,6 @@ export default function UploadPrescriptionPage() {
 
     const body = new FormData();
     body.set("file", file);
-    if (doctorName.trim()) body.set("doctor_name", doctorName.trim());
-    if (prescriptionDate) body.set("prescription_date", prescriptionDate);
     if (note.trim()) body.set("notes", note.trim());
 
     try {
@@ -104,7 +134,7 @@ export default function UploadPrescriptionPage() {
       <div className="hc-wrap hc-page">
         <PageHead
           title="Upload a paper prescription"
-          lead="Photograph or scan a prescription a doctor gave you on paper. A pharmacy reviews it before anything is dispensed."
+          lead="Photograph or scan a prescription a doctor gave you on paper. We read the details off it for you, and a pharmacy reviews it before anything is dispensed."
           back={{ href: "/prescriptions", label: "Prescriptions" }}
         />
 
@@ -140,33 +170,30 @@ export default function UploadPrescriptionPage() {
           ))}
           {blocked ? <p className="hc-small">Choose or take another photo to continue.</p> : null}
 
-          <div className="hc-form-row">
-            <div className="hc-field">
-              <label htmlFor="rx-doctor">
-                Prescribing doctor<span className="hc-field-hint"> (optional)</span>
-              </label>
-              <input id="rx-doctor" className="hc-input" value={doctorName} onChange={(event) => setDoctorName(event.target.value)} placeholder="Dr. …" />
-            </div>
-            <div className="hc-field">
-              <label htmlFor="rx-date">
-                Date on the prescription<span className="hc-field-hint"> (optional)</span>
-              </label>
-              <input id="rx-date" className="hc-input" type="date" value={prescriptionDate} onChange={(event) => setPrescriptionDate(event.target.value)} />
-            </div>
-          </div>
+          {reading ? <p className="hc-small">Reading the prescription…</p> : null}
+          <OcrReadout
+            fields={ocrPreview}
+            footnote="This is what we read from your photo. It goes to the pharmacy with the scan - if anything is wrong you can flag it once it is uploaded, and a pharmacist corrects it."
+          />
 
           <div className="hc-field">
             <label htmlFor="rx-note">
               Note for the pharmacy<span className="hc-field-hint"> (optional)</span>
             </label>
-            <input id="rx-note" className="hc-input" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Anything the pharmacist should know" />
+            <input
+              id="rx-note"
+              className="hc-input"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Anything the pharmacist should know"
+            />
           </div>
 
           {error ? <FormAlert tone="error">{error}</FormAlert> : null}
 
           <p className="hc-inline-note">
             <Icon name="lock" size={15} />
-            Your prescription is encrypted at rest and only shared with a pharmacy you order from.
+            Your prescription is encrypted and only shared with a pharmacy you order from.
           </p>
 
           <div className="hc-actions">

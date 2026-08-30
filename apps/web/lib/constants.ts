@@ -13,6 +13,7 @@ export const PHARMACY_NAV = [
   ["Imports", "/pharmacy/imports"],
   ["Sales", "/pharmacy/sales"],
   ["Prescriptions", "/pharmacy/prescriptions"],
+  ["Patient uploads", "/pharmacy/prescription-uploads"],
   ["Incoming e-prescriptions", "/pharmacy/incoming-prescriptions"],
   ["Scan a QR script", "/pharmacy/scan"],
   ["Connect software", "/pharmacy/connect"],

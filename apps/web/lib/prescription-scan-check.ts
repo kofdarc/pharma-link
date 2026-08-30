@@ -18,7 +18,7 @@ export interface ScanFinding {
   severity: ScanSeverity;
 }
 
-const MIN_DIMENSION = 600;
+const MIN_DIMENSION = 200;
 const MIN_MEAN_LUMA = 45;
 const MAX_MEAN_LUMA = 248;
 const SOFT_FOCUS_VARIANCE = 120;
@@ -41,7 +41,11 @@ export async function inspectScan(file: File): Promise<ScanFinding[]> {
     const image = await loadImage(url);
     const findings: ScanFinding[] = [];
 
-    if (Math.min(image.naturalWidth, image.naturalHeight) < MIN_DIMENSION) {
+    const shortSide = Math.min(image.naturalWidth, image.naturalHeight);
+    // shortSide === 0 means the browser could not report a size (some HEIC/large
+    // camera files decode but expose no intrinsic dimensions). Can't measure it,
+    // so don't block on it - the server re-checks and a pharmacist looks anyway.
+    if (shortSide > 0 && shortSide < MIN_DIMENSION) {
       findings.push({
         code: "too_small",
         severity: "block",

@@ -85,8 +85,8 @@ export default function LandingPage() {
                 </Link>
               </div>
               <p className="hc-hero-note">
-                <Icon name="info" size={16} />
-                Searching is free and does not need an account.
+                <Icon name="refresh" size={16} />
+                For medicines you take regularly, set up a recurring order so it arrives before you run out.
               </p>
             </div>
 
