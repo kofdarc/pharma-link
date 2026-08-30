@@ -153,15 +153,23 @@ export default function UploadPrescriptionPage() {
           </div>
 
           {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- local object-URL preview, not a remote asset
-            <img
-              src={previewUrl}
-              alt="Preview of the prescription you selected"
-              style={{ maxWidth: "260px", maxHeight: "340px", borderRadius: "10px", border: "1px solid var(--hc-line, rgba(0,0,0,0.12))" }}
-            />
+            <span className={`hc-scan-frame${checking || reading ? " is-scanning" : ""}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- local object-URL preview, not a remote asset */}
+              <img
+                src={previewUrl}
+                alt="Preview of the prescription you selected"
+                style={{ maxWidth: "260px", maxHeight: "340px", borderRadius: "10px", border: "1px solid var(--hc-line, rgba(0,0,0,0.12))" }}
+              />
+              {checking || reading ? <span className="hc-scan-line" aria-hidden="true" /> : null}
+            </span>
           ) : null}
 
-          {checking ? <p className="hc-small">Checking the photo…</p> : null}
+          {checking ? (
+            <p className="hc-scan-status hc-small">
+              <span className="hc-spinner" aria-hidden="true" />
+              Checking the photo…
+            </p>
+          ) : null}
 
           {findings.map((finding) => (
             <FormAlert key={finding.code} tone={finding.severity === "block" ? "error" : "info"}>
@@ -170,7 +178,12 @@ export default function UploadPrescriptionPage() {
           ))}
           {blocked ? <p className="hc-small">Choose or take another photo to continue.</p> : null}
 
-          {reading ? <p className="hc-small">Reading the prescription…</p> : null}
+          {reading ? (
+            <p className="hc-scan-status hc-small">
+              <span className="hc-spinner" aria-hidden="true" />
+              Reading the prescription…
+            </p>
+          ) : null}
           <OcrReadout
             fields={ocrPreview}
             footnote="This is what we read from your photo. It goes to the pharmacy with the scan - if anything is wrong you can flag it once it is uploaded, and a pharmacist corrects it."
