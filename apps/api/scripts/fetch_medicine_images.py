@@ -29,6 +29,7 @@ import django
 django.setup()
 
 from django.conf import settings
+from django.db import models
 from apps.medicines.models import Medicine
 
 logging.basicConfig(
@@ -191,7 +192,15 @@ def fetch_image_for_medicine(medicine: Medicine, session: requests.Session, dela
 
 
 def get_medicines_without_images() -> list[Medicine]:
-    return list(Medicine.objects.filter(image="", is_active=True).order_by("brand_name"))
+    # Match BOTH representations of "no image": PostgreSQL/MySQL store an unset
+    # ImageField as NULL, while this SQLite dev DB stores it as "". Filtering on
+    # image="" alone silently skips every NULL row.
+    return list(
+        Medicine.objects.filter(
+            (models.Q(image="") | models.Q(image__isnull=True)),
+            is_active=True,
+        ).order_by("brand_name")
+    )
 
 
 def main():
@@ -202,6 +211,10 @@ def main():
     parser.add_argument("--batch-file", type=str, help="File with one medicine UUID per line")
     parser.add_argument("--all", action="store_true", help="Process all medicines without images")
     parser.add_argument("--delay", type=float, default=1.5, help="Delay between searches (seconds)")
+    parser.add_argument("--limit", type=int, help="Only process this many medicines (useful for a test run)")
+    parser.add_argument("--start", type=int, default=0, help="Skip the first N selected medicines (resume after an abort)")
+    parser.add_argument("--dry-run", action="store_true", help="Report candidates without searching/downloading/writing")
+    parser.add_argument("--abort-after", type=int, default=50, help="Stop after this many consecutive failures (0 disables)")
     parser.add_argument("--log-file", type=str, help="Also write results to a log file")
     args = parser.parse_args()
 
@@ -228,24 +241,49 @@ def main():
         logger.error("Specify --all, --medicine-ids, or --batch-id/--num-batches")
         sys.exit(1)
 
+    if args.start:
+        medicines = medicines[args.start :]
+    if args.limit:
+        medicines = medicines[: args.limit]
+
     logger.info(f"Processing {len(medicines)} medicines")
+
+    if args.dry_run:
+        logger.info("Dry run: no search or download performed.")
+        for med in medicines:
+            logger.info(f"  would fetch image for: {med.brand_name} ({med.pk})")
+        return 0
 
     session = requests.Session()
     success = 0
     failed = 0
     failed_names = []
+    consecutive_failures = 0
 
     for i, med in enumerate(medicines):
         try:
             if fetch_image_for_medicine(med, session, delay=args.delay):
                 success += 1
+                consecutive_failures = 0
             else:
                 failed += 1
+                consecutive_failures += 1
                 failed_names.append(med.brand_name)
         except Exception as e:
             logger.error(f"[{med.brand_name}] Unexpected error: {e}")
             failed += 1
+            consecutive_failures += 1
             failed_names.append(med.brand_name)
+
+        # A long streak of failures almost always means Bing started serving a
+        # consent/captcha page or the network path broke - stop instead of hammering
+        # N more medicines that "look" failed but were really never attempted.
+        if args.abort_after and consecutive_failures >= args.abort_after:
+            logger.error(
+                f"Aborting after {consecutive_failures} consecutive failures "
+                f"(processed {i + 1}/{len(medicines)}). Re-run with a resume offset to continue."
+            )
+            break
 
         if (i + 1) % 10 == 0:
             logger.info(f"Progress: {i + 1}/{len(medicines)} (success={success}, failed={failed})")
