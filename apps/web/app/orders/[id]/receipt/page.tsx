@@ -248,7 +248,7 @@ function Receipt({ order }: { order: Order }) {
         </section>
 
         <footer className="hc-rcpt-foot">
-          <p>HealthConnect · Questions about this receipt? support@healthconnect.app</p>
+          <p>HealthConnect · Questions about this receipt? support@healthconnect.dev</p>
           <p>
             © {new Date().getFullYear()} HealthConnect. HealthConnect does not provide medical
             advice.
