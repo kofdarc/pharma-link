@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { type ReactNode, useEffect, useId, useRef } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { countActiveFilters, DEFAULT_FILTERS, type SearchFilters } from "@/lib/catalog/types";
 
@@ -109,11 +109,14 @@ function FilterControls({
 export function FilterRail({
   filters,
   onChange,
-  forms
+  forms,
+  note
 }: {
   filters: SearchFilters;
   onChange: (next: SearchFilters) => void;
   forms: string[];
+  /** Optional helper text pinned below the controls (e.g. an ordering caveat). */
+  note?: ReactNode;
 }) {
   const active = countActiveFilters(filters);
   return (
@@ -127,6 +130,7 @@ export function FilterRail({
         ) : null}
       </div>
       <FilterControls filters={filters} onChange={onChange} forms={forms} namespace="rail" />
+      {note ? <p className="hc-filter-note">{note}</p> : null}
     </aside>
   );
 }

@@ -270,45 +270,54 @@ async function fromCatalogueOnly(id: string, signal?: AbortSignal): Promise<Medi
 }
 
 /**
- * Other MARKETED products whose full composition text (active ingredient(s) + strength,
- * as one string) matches this one exactly - resolved server-side via
+ * Every MARKETED product whose full composition text (active ingredient(s) + strength,
+ * as one string) matches the referenced medicine exactly, resolved server-side via
  * `same_composition_as` (see `apps.inventory.services.availability`), which is also
- * where the MARKETED-only filter and the exact-string match live.
+ * where the MARKETED-only filter, the route match and the exact-string match live.
  *
  * This is a *candidate list*, built the way WHO/Lebanese-MoPH guidance says candidates
  * should be generated (same complete active-ingredient set + strength), not a claim of
  * equivalence: there is no MoPH substitution-list or bioequivalence data behind it, so
- * the page must present it as "same composition, not verified interchangeable" - see
- * `medicine.related` on `MedicineDetail` and the section that renders it.
+ * every surface that renders it must say "same composition, not verified interchangeable".
  *
  * Matching on the full `ingredients` string (rather than `generic`/`generic_name`, which
  * is populated on well under 1% of the production catalogue) is also what makes this
- * section render at all in production. A combination product's `ingredients` string
- * encodes every active plus its strength, so this can't collapse "amoxicillin" and
- * "amoxicillin + clavulanate" into the same group the way matching on a single "main
- * ingredient" would.
+ * render at all in production. A combination product's `ingredients` string encodes every
+ * active plus its strength, so this can't collapse "amoxicillin" and "amoxicillin +
+ * clavulanate" into one group the way matching on a single "main ingredient" would.
  *
- * A failure here empties the section instead of failing the whole medicine page -
- * supporting information, not the answer to the page.
+ * The reference itself is dropped and the list comes back most-available-first. Callers
+ * decide how many to show: the detail page previews the first few, `/search?composition=`
+ * shows all of them, and both go through this one function so the two stay identical.
+ * Errors propagate - the medication page turns that into an empty section rather than a
+ * failed page (see `relatedTo`); the search page shows its normal error state.
+ */
+export async function medicinesWithSameComposition(
+  referenceId: string,
+  signal?: AbortSignal
+): Promise<MedicineSummary[]> {
+  const rows = await apiFetch<PublicAvailability[]>(
+    `/public/search/?same_composition_as=${encodeURIComponent(referenceId)}`,
+    { signal }
+  );
+  return groupByMedicine(rows)
+    .filter((entry) => entry.id !== referenceId)
+    .sort((a, b) => AVAILABILITY_RANK[a.availability] - AVAILABILITY_RANK[b.availability]);
+}
+
+/**
+ * The same-composition candidates for a medicine detail page. Supporting information,
+ * not the answer to the page, so a failed request empties the section instead of
+ * rejecting the whole `getMedicine` call.
  */
 async function relatedTo(medicine: MedicineSummary, signal?: AbortSignal): Promise<MedicineSummary[]> {
   if (!medicine.activeIngredient) return [];
-  let pool: MedicineSummary[];
   try {
-    const siblings = await apiFetch<PublicAvailability[]>(
-      `/public/search/?same_composition_as=${encodeURIComponent(medicine.id)}`,
-      { signal }
-    );
-    pool = groupByMedicine(siblings);
+    return await medicinesWithSameComposition(medicine.id, signal);
   } catch (error) {
     if (signal?.aborted) throw error;
     return [];
   }
-
-  return pool
-    .filter((entry) => entry.id !== medicine.id)
-    .sort((a, b) => AVAILABILITY_RANK[a.availability] - AVAILABILITY_RANK[b.availability])
-    .slice(0, 4);
 }
 
 // --- client-side refinement ------------------------------------------------

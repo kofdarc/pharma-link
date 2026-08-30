@@ -15,7 +15,13 @@ import { useOptionalUser } from "@/lib/auth";
 import { useShopperLocation } from "@/lib/location";
 import { useRecentSearches } from "@/lib/recent-searches";
 import { COMMON_SEARCH_TERMS } from "@/lib/catalog/prompts";
-import { applyFilters, applySort, availableForms, searchMedicines } from "@/lib/catalog/service";
+import {
+  applyFilters,
+  applySort,
+  availableForms,
+  medicinesWithSameComposition,
+  searchMedicines
+} from "@/lib/catalog/service";
 import { countActiveFilters, DEFAULT_FILTERS, type MedicineSummary, type SearchFilters, type SortMode } from "@/lib/catalog/types";
 import type { User } from "@/types/api";
 
@@ -43,6 +49,13 @@ function SearchScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const query = params.get("q") ?? "";
+  // `?composition=<medicineId>` switches the page into "same composition as X"
+  // mode: it lists every product sharing that medicine's full composition,
+  // pulled from the exact call the medication page's preview rail uses so the
+  // two never drift. `ref` is just the reference brand name, for the heading.
+  const compositionRef = params.get("composition") ?? "";
+  const compositionLabel = params.get("ref") ?? "";
+  const compositionMode = compositionRef !== "";
   const { recent, remember, clear } = useRecentSearches();
   const user = useOptionalUser();
   const location = useShopperLocation();
@@ -60,7 +73,7 @@ function SearchScreen() {
   useEffect(() => setInput(query), [query]);
 
   useEffect(() => {
-    if (!query.trim()) {
+    if (!compositionMode && !query.trim()) {
       setResults([]);
       setError(false);
       return;
@@ -69,9 +82,13 @@ function SearchScreen() {
     const controller = new AbortController();
     setLoading(true);
     setError(false);
-    remember(query);
+    if (!compositionMode) remember(query);
 
-    searchMedicines(query, controller.signal, location.position)
+    const request = compositionMode
+      ? medicinesWithSameComposition(compositionRef, controller.signal)
+      : searchMedicines(query, controller.signal, location.position);
+
+    request
       .then((found) => {
         setResults(found);
         setFilters(DEFAULT_FILTERS);
@@ -90,7 +107,7 @@ function SearchScreen() {
     // rather than by identity for the same reason - the hook returns a fresh object on every
     // render, and depending on it directly would re-search forever.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, location.position?.latitude, location.position?.longitude]);
+  }, [compositionMode, compositionRef, query, location.position?.latitude, location.position?.longitude]);
 
   // Turning the location off takes the "Nearest" option out of the select; leaving `sort`
   // pointing at it would render an empty control sorting by a value nothing offers.
@@ -117,12 +134,12 @@ function SearchScreen() {
             onSubmit={runSearch}
             onSelectSuggestion={(suggestion) => router.push(`/medications/${encodeURIComponent(suggestion.id)}`)}
             size="lg"
-            autoFocus={!query}
+            autoFocus={!query && !compositionMode}
           />
         </div>
       </div>
 
-      {!query.trim() ? (
+      {!query.trim() && !compositionMode ? (
         <div className="hc-wrap" style={{ paddingBlock: "clamp(28px, 5vw, 56px) 64px" }}>
           <div style={{ maxWidth: "42rem" }}>
             <h1 className="hc-h2">What medication are you looking for?</h1>
@@ -169,19 +186,36 @@ function SearchScreen() {
         </div>
       ) : (
         <div className="hc-wrap hc-search-layout">
-          <FilterRail filters={filters} onChange={setFilters} forms={forms} />
+          <FilterRail
+            filters={filters}
+            onChange={setFilters}
+            forms={forms}
+            note={
+              !compositionMode && !loading && results.length > 0
+                ? "Availability is confirmed when you continue with your order."
+                : undefined
+            }
+          />
 
           <div>
             <div className="hc-results-bar">
               <div>
-                <h1 className="hc-h3" aria-live="polite">
-                  {loading ? "Searching…" : `${visible.length} ${visible.length === 1 ? "result" : "results"} for “${query}”`}
-                </h1>
-                {!loading && results.length > 0 ? (
-                  <p className="hc-small" style={{ marginTop: 4 }}>
-                    Availability is confirmed when you continue with your order.
-                  </p>
+                {compositionMode ? (
+                  <Link
+                    href={`/medications/${encodeURIComponent(compositionRef)}`}
+                    className="hc-textlink hc-comp-back"
+                  >
+                    <Icon name="arrowLeft" size={14} />
+                    Back to {compositionLabel || "medication"}
+                  </Link>
                 ) : null}
+                <h1 className="hc-h3" aria-live="polite">
+                  {loading
+                    ? "Searching…"
+                    : compositionMode
+                      ? `Same composition as ${compositionLabel || "this medication"}`
+                      : `${visible.length} ${visible.length === 1 ? "result" : "results"} for “${query}”`}
+                </h1>
                 {/*
                   Distance is opt-in and reversible, and it says which position it is using.
                   A shopper who never presses this still gets every result - just without a
@@ -252,27 +286,44 @@ function SearchScreen() {
             ) : null}
 
             {!loading && !error && results.length === 0 ? (
-              <StateBlock
-                icon="search"
-                title={`We couldn't find “${query}”`}
-                body="It might be listed under a different name, or it may not be in the catalogue yet."
-                hints={[
-                  "Check the spelling on the box",
-                  "Try the generic name — for example, paracetamol instead of Panadol",
-                  "Try the brand without the strength"
-                ]}
-              >
-                <Link href="/search" className="hc-btn hc-btn-secondary">
-                  Clear search
-                </Link>
-              </StateBlock>
+              compositionMode ? (
+                <StateBlock
+                  icon="search"
+                  title={`Nothing with the same composition as ${compositionLabel || "this medication"} is listed right now`}
+                  body="No connected pharmacy currently stocks another product with the same active ingredient(s) and strength. Connected pharmacies update stock throughout the day."
+                >
+                  <Link
+                    href={`/medications/${encodeURIComponent(compositionRef)}`}
+                    className="hc-btn hc-btn-secondary"
+                  >
+                    Back to medication
+                  </Link>
+                </StateBlock>
+              ) : (
+                <StateBlock
+                  icon="search"
+                  title={`We couldn't find “${query}”`}
+                  body="It might be listed under a different name, or it may not be in the catalogue yet."
+                  hints={[
+                    "Check the spelling on the box",
+                    "Try the generic name — for example, paracetamol instead of Panadol",
+                    "Try the brand without the strength"
+                  ]}
+                >
+                  <Link href="/search" className="hc-btn hc-btn-secondary">
+                    Clear search
+                  </Link>
+                </StateBlock>
+              )
             ) : null}
 
             {!loading && !error && results.length > 0 && visible.length === 0 ? (
               <StateBlock
                 icon="filters"
                 title="No results match these filters"
-                body={`${results.length} ${results.length === 1 ? "medicine matches" : "medicines match"} “${query}”, but none fit the filters you've applied.`}
+                body={`${results.length} ${
+                  results.length === 1 ? "product matches" : "products match"
+                } ${compositionMode ? "this composition" : `“${query}”`}, but none fit the filters you've applied.`}
               >
                 <button type="button" className="hc-btn hc-btn-primary" onClick={() => setFilters(DEFAULT_FILTERS)}>
                   Clear filters

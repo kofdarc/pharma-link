@@ -1664,6 +1664,15 @@
   gap: 12px;
 }
 
+.hc-filter-note {
+  margin: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--hc-line);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--hc-muted);
+}
+
 /* Fieldset resets: the grouping is semantic, the browser chrome is not wanted. */
 .hc-filter-group {
   display: grid;
@@ -2131,6 +2140,13 @@
   align-items: start;
 }
 
+/* Both columns must be allowed to shrink below their content width, or the
+   horizontal same-composition rail forces the whole page to scroll sideways
+   instead of scrolling within itself. */
+.hc-med > div {
+  min-width: 0;
+}
+
 .hc-med-head {
   display: flex;
   gap: clamp(20px, 3vw, 32px);
@@ -2272,43 +2288,179 @@
   border-top: none;
 }
 
-.hc-related {
-  display: grid;
-  gap: 10px;
+/* --- same-composition rail -----------------------------------------------
+   A horizontal, snap-scrolling shelf of products that share this medicine's
+   full composition. It previews the first few (SAME_COMPOSITION_PREVIEW); the
+   trailing card and the header link both open /search?composition= for the
+   complete, filterable set. Replaces an earlier full-width stacked list that
+   pushed the buy box and every later section down the page once it grew past
+   two or three rows. */
+
+.hc-comp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
 }
 
-.hc-related-item {
-  display: flex;
+.hc-comp-head .hc-h3 {
+  margin: 0;
+}
+
+.hc-comp-seeall {
+  flex: none;
+  display: inline-flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: 5px;
+  font-size: 0.8125rem;
+  font-weight: 620;
+  color: var(--hc-brand-hover);
+  white-space: nowrap;
+}
+
+.hc-comp-seeall svg {
+  transition: transform 160ms ease;
+}
+
+.hc-comp-seeall:hover svg {
+  transform: translateX(3px);
+}
+
+/* Sits below the rail: the disclosure toggle, then its note when open. */
+.hc-comp-intro {
+  margin: 12px 0 0;
+  max-width: 62ch;
+}
+
+.hc-comp-note {
+  margin: 8px 0 0;
+  max-width: 62ch;
+  padding-left: 12px;
+  border-left: 2px solid var(--hc-line-2);
+}
+
+.hc-comp-rail {
+  --hc-comp-w: 210px;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 2px 14px;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hc-line-2) transparent;
+}
+
+.hc-comp-rail::-webkit-scrollbar {
+  height: 8px;
+}
+
+.hc-comp-rail::-webkit-scrollbar-thumb {
+  background: var(--hc-line-2);
+  border-radius: 999px;
+}
+
+.hc-comp-item {
+  flex: 0 0 var(--hc-comp-w);
+  scroll-snap-align: start;
+}
+
+.hc-comp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  padding: 16px;
   border: 1px solid var(--hc-line);
   border-radius: var(--hc-r-md);
-  background: #fff;
-  transition: border-color 150ms ease;
+  background: var(--hc-canvas);
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
 
-.hc-related-item:hover {
+.hc-comp-card:hover {
   border-color: var(--hc-brand);
+  box-shadow: var(--hc-shadow-md);
+  transform: translateY(-2px);
 }
 
-.hc-related-body {
-  min-width: 0;
-  flex: 1;
+.hc-comp-card:active {
+  transform: translateY(0);
 }
 
-.hc-related-body strong {
-  display: block;
-  font-size: 0.9375rem;
-  font-weight: 600;
+/* A standard focus ring is clipped by the scroll container, so draw it inside. */
+.hc-comp-card:focus-visible {
+  outline: none;
+  border-color: var(--hc-brand);
+  box-shadow: inset 0 0 0 2px var(--hc-brand);
+}
+
+.hc-comp-card .hc-pack {
+  width: 100%;
+  height: 94px;
+  border-radius: var(--hc-r-sm);
+}
+
+.hc-comp-name {
+  font-size: 0.9063rem;
+  font-weight: 620;
+  line-height: 1.3;
   color: var(--hc-ink);
+  text-wrap: balance;
 }
 
-.hc-related-sub {
-  display: block;
-  margin-top: 2px;
-  font-size: 0.8125rem;
+.hc-comp-meta {
+  font-size: 0.75rem;
+  line-height: 1.45;
   color: var(--hc-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hc-comp-foot {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding-top: 4px;
+}
+
+.hc-comp-price {
+  font-size: 0.8125rem;
+  font-weight: 640;
+  color: var(--hc-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .hc-comp-rail {
+    --hc-comp-w: 168px;
+  }
+}
+
+/* Back-to-medication link above the results heading on /search?composition= */
+.hc-comp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-size: 0.8125rem;
+  font-weight: 560;
+}
+
+.hc-comp-back svg {
+  transition: transform 160ms ease;
+}
+
+.hc-comp-back:hover svg {
+  transform: translateX(-3px);
 }
 
 /* --- buy box -------------------------------------------------------------- */
@@ -2424,7 +2576,7 @@
 
 @media (max-width: 1000px) {
   .hc-med {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   /* On one column the action belongs right after the product header, not

@@ -16,6 +16,10 @@ import { useBasket } from "@/lib/basket";
 
 const MAX_QUANTITY = 10;
 
+// How many same-composition products the detail page previews inline. The rest
+// stay one tap away on /search?composition=, which shows the full, filterable set.
+const SAME_COMPOSITION_PREVIEW = 8;
+
 /**
  * Rough out-of-pocket estimate for an NSSF-covered medicine: the Fund pays its rate
  * against the cheaper of the shelf price and the NSSF reference price, and the patient
@@ -48,6 +52,7 @@ export default function MedicationDetailPage() {
   const [attempt, setAttempt] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [showCompositionNote, setShowCompositionNote] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -129,6 +134,11 @@ export default function MedicationDetailPage() {
   }
 
   const orderable = medicine.availability !== "unavailable";
+  // Same query the "Same composition" rail is built from, handed to /search so the
+  // full list there is guaranteed to match the preview here.
+  const sameCompositionHref = `/search?composition=${encodeURIComponent(medicine.id)}&ref=${encodeURIComponent(
+    medicine.brand
+  )}`;
 
   return (
     <div className="hc">
@@ -267,7 +277,7 @@ export default function MedicationDetailPage() {
               ) : (
                 <p className="hc-small" style={{ marginTop: 10 }}>
                   This medicine is not on the platform&apos;s NSSF reimbursable list. That is not confirmation the Fund
-                  refuses it — coverage may simply not be recorded here yet. Check with your pharmacy or the NSSF.
+                  refuses it, as coverage may simply not be recorded here yet. Check with your pharmacy or the NSSF.
                 </p>
               )}
             </section>
@@ -289,32 +299,54 @@ export default function MedicationDetailPage() {
             ) : null}
 
             {medicine.related.length > 0 ? (
-              <section className="hc-med-section">
-                <h2 className="hc-h3">Same composition — interchangeability not verified</h2>
-                <p className="hc-small" style={{ margin: "6px 0 14px" }}>
-                  These list the same active ingredient(s) and strength as {medicine.brand}. Same composition is not the same
-                  as interchangeable: MoPH substitution-list status and bioequivalence haven&apos;t been checked for these
-                  products, and formulation or manufacturing differences can still matter. This is not a recommendation to
-                  switch — only your physician or pharmacist can advise on substitution.
-                </p>
-                <div className="hc-related">
-                  {medicine.related.map((option) => (
-                    <Link className="hc-related-item" href={`/medications/${encodeURIComponent(option.id)}`} key={option.id}>
-                      <PackThumb brand={option.brand} image={option.image} />
-                      <span className="hc-related-body">
-                        <strong>{medicineLabel(option)}</strong>
-                        <span className="hc-related-sub">
-                          {option.form}
-                          {option.fromPrice !== null ? ` · from ${formatPrice(option.fromPrice)}` : ""}
-                        </span>
-                        <span className="hc-related-sub">
-                          {[option.manufacturer, option.country].filter(Boolean).join(" · ") || "Manufacturer not listed"}
-                        </span>
-                      </span>
-                      <AvailabilityBadge state={option.availability} />
-                    </Link>
-                  ))}
+              <section className="hc-med-section hc-comp" aria-labelledby="same-composition-heading">
+                <div className="hc-comp-head">
+                  <h2 className="hc-h3" id="same-composition-heading">
+                    Same composition
+                  </h2>
+                  <Link href={sameCompositionHref} className="hc-comp-seeall">
+                    See all
+                    <Icon name="arrowRight" size={15} />
+                  </Link>
                 </div>
+
+                <ul className="hc-comp-rail">
+                  {medicine.related.slice(0, SAME_COMPOSITION_PREVIEW).map((option) => (
+                    <li className="hc-comp-item" key={option.id}>
+                      <Link className="hc-comp-card" href={`/medications/${encodeURIComponent(option.id)}`}>
+                        <PackThumb brand={option.brand} image={option.image} size="result" />
+                        <span className="hc-comp-name">{medicineLabel(option)}</span>
+                        <span className="hc-comp-meta">
+                          {option.form || "Details on product page"}
+                        </span>
+                        <span className="hc-comp-foot">
+                          <span className="hc-comp-price">
+                            {option.fromPrice !== null ? formatPrice(option.fromPrice) : "Price at checkout"}
+                          </span>
+                          <AvailabilityBadge state={option.availability} />
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+
+                <p className="hc-small hc-comp-intro">
+                  <button
+                    type="button"
+                    className="hc-linkbtn"
+                    aria-expanded={showCompositionNote}
+                    onClick={() => setShowCompositionNote((value) => !value)}
+                  >
+                    {showCompositionNote ? "Show less" : "What does this mean?"}
+                  </button>
+                </p>
+                {showCompositionNote ? (
+                  <p className="hc-small hc-comp-note">
+                    Same composition is not the same as interchangeable, as formulation or manufacturing differences can still
+                    matter. This is not a recommendation to switch, only your physician or pharmacist can advise on
+                    substitution.
+                  </p>
+                ) : null}
               </section>
             ) : null}
           </div>
