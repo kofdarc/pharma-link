@@ -31,6 +31,18 @@ export default function ConnectPage() {
   const [newWebhookUrl, setNewWebhookUrl] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [exportSetup, setExportSetup] = useState({
+    path: "C:/PharmacyExports/stock.csv",
+    delimiter: ",",
+    externalCode: "item code",
+    name: "item description",
+    quantity: "available quantity",
+    sellingPrice: "selling price",
+    purchaseCost: "cost",
+    expiryDate: "expiry date",
+    supplierName: "supplier",
+    minimumRows: "10"
+  });
 
   const load = useCallback(async () => {
     try {
@@ -123,6 +135,52 @@ export default function ConnectPage() {
     }
   }
 
+  function updateExportSetup(field: keyof typeof exportSetup, value: string) {
+    setExportSetup((current) => ({ ...current, [field]: value }));
+  }
+
+  function downloadConnectorConfig() {
+    const activeKey = keys.find((key) => key.is_active);
+    const minimumRows = Math.max(1, Number.parseInt(exportSetup.minimumRows, 10) || 10);
+    const config = {
+      api_base_url: process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/api\/?$/, "") || "http://localhost:8000",
+      key_id: activeKey?.key_id || "REPLACE_WITH_INTEGRATION_KEY_ID",
+      interval_seconds: 300,
+      chunk_size: 500,
+      timeout_seconds: 30,
+      orders_out_file: "C:/HealthConnect/incoming-orders.csv",
+      source: {
+        type: "csv",
+        path: exportSetup.path,
+        encoding: "utf-8-sig",
+        delimiter: exportSetup.delimiter || ",",
+        minimum_file_age_seconds: 10,
+        aggregate_duplicate_codes: true,
+        safety: {
+          enabled: true,
+          minimum_rows: minimumRows,
+          maximum_drop_fraction: 0.5
+        },
+        columns: {
+          external_code: exportSetup.externalCode,
+          name: exportSetup.name,
+          quantity: exportSetup.quantity,
+          selling_price: exportSetup.sellingPrice,
+          purchase_cost: exportSetup.purchaseCost,
+          expiry_date: exportSetup.expiryDate,
+          supplier_name: exportSetup.supplierName
+        }
+      }
+    };
+    const blob = new Blob([`${JSON.stringify(config, null, 2)}\n`], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "connector.config.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <>
       <div className="section-header">
@@ -158,6 +216,94 @@ export default function ConnectPage() {
           <p className="muted small">{t("pharmacyConnect.eachStepChecked")}</p>
         </section>
       ) : null}
+
+      <section className="panel panel-highlight">
+        <div className="section-header">
+          <div>
+            <h3>{t("pharmacyConnect.existingSystemSetup")}</h3>
+            <p className="muted small">{t("pharmacyConnect.existingSystemSetupHint")}</p>
+          </div>
+          <Badge status tone={runs.length > 0 ? "success" : keys.some((key) => key.is_active) ? "warning" : "neutral"}>
+            {runs.length > 0
+              ? t("pharmacyConnect.syncActive")
+              : keys.some((key) => key.is_active)
+                ? t("pharmacyConnect.readyForFirstSync")
+                : t("pharmacyConnect.setupRequired")}
+          </Badge>
+        </div>
+
+        <ol className="checklist">
+          <li className={exportSetup.path ? "done" : ""}>
+            <span className="check">{exportSetup.path ? "✓" : "1"}</span>
+            <div>
+              <strong>{t("pharmacyConnect.exportInventory")}</strong>
+              <p className="muted small">{t("pharmacyConnect.exportInventoryHint")}</p>
+            </div>
+          </li>
+          <li className={keys.some((key) => key.is_active) ? "done" : ""}>
+            <span className="check">{keys.some((key) => key.is_active) ? "✓" : "2"}</span>
+            <div>
+              <strong>{t("pharmacyConnect.createConnectionKey")}</strong>
+              <p className="muted small">{t("pharmacyConnect.createConnectionKeyHint")}</p>
+            </div>
+          </li>
+          <li className={runs.length > 0 ? "done" : ""}>
+            <span className="check">{runs.length > 0 ? "✓" : "3"}</span>
+            <div>
+              <strong>{t("pharmacyConnect.installAndTest")}</strong>
+              <p className="muted small">{t("pharmacyConnect.installAndTestHint")}</p>
+            </div>
+          </li>
+        </ol>
+
+        <div className="form-grid">
+          <Field label={t("pharmacyConnect.exportFilePath")} hint={t("pharmacyConnect.exportFilePathHint")}>
+            <input value={exportSetup.path} onChange={(event) => updateExportSetup("path", event.target.value)} />
+          </Field>
+          <Field label={t("pharmacyConnect.delimiter")}>
+            <select value={exportSetup.delimiter} onChange={(event) => updateExportSetup("delimiter", event.target.value)}>
+              <option value=",">{t("pharmacyConnect.comma")}</option>
+              <option value=";">{t("pharmacyConnect.semicolon")}</option>
+              <option value="\t">{t("pharmacyConnect.tab")}</option>
+            </select>
+          </Field>
+          <Field label={t("pharmacyConnect.productCodeColumn")}>
+            <input value={exportSetup.externalCode} onChange={(event) => updateExportSetup("externalCode", event.target.value)} />
+          </Field>
+          <Field label={t("pharmacyConnect.descriptionColumn")}>
+            <input value={exportSetup.name} onChange={(event) => updateExportSetup("name", event.target.value)} />
+          </Field>
+          <Field label={t("pharmacyConnect.quantityColumn")}>
+            <input value={exportSetup.quantity} onChange={(event) => updateExportSetup("quantity", event.target.value)} />
+          </Field>
+          <Field label={t("pharmacyConnect.sellingPriceColumn")}>
+            <input value={exportSetup.sellingPrice} onChange={(event) => updateExportSetup("sellingPrice", event.target.value)} />
+          </Field>
+          <Field label={t("pharmacyConnect.purchaseCostColumn")}>
+            <input value={exportSetup.purchaseCost} onChange={(event) => updateExportSetup("purchaseCost", event.target.value)} />
+          </Field>
+          <Field label={t("pharmacyConnect.expiryColumn")}>
+            <input value={exportSetup.expiryDate} onChange={(event) => updateExportSetup("expiryDate", event.target.value)} />
+          </Field>
+          <Field label={t("pharmacyConnect.supplierColumn")}>
+            <input value={exportSetup.supplierName} onChange={(event) => updateExportSetup("supplierName", event.target.value)} />
+          </Field>
+          <Field label={t("pharmacyConnect.minimumRows")} hint={t("pharmacyConnect.minimumRowsHint")}>
+            <input
+              type="number"
+              min="1"
+              value={exportSetup.minimumRows}
+              onChange={(event) => updateExportSetup("minimumRows", event.target.value)}
+            />
+          </Field>
+        </div>
+        <div className="actions">
+          <Button type="button" onClick={downloadConnectorConfig}>
+            {t("pharmacyConnect.downloadConfig")}
+          </Button>
+        </div>
+        <Notice tone="info">{t("pharmacyConnect.safeConnectionNote")}</Notice>
+      </section>
 
       {newSecret?.secret ? (
         <section className="panel panel-highlight">

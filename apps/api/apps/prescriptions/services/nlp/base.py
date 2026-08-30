@@ -8,6 +8,14 @@ from abc import ABC, abstractmethod
 STRUCTURED_KEYS = ("patient_name", "patient_phone", "doctor_name", "prescription_date", "medications", "notes")
 MEDICATION_KEYS = ("name", "strength", "quantity", "directions", "duration", "refills")
 
+# Added to every medication row by apps.prescriptions.services.structured after the extractor
+# runs (and re-derived when a pharmacist edits `ocr_fields`): the catalog match for the
+# `name` the extractor read. `medicine_id` is a Medicine PK string or "" when nothing
+# matched; `catalog_name` is that row's display name; `match_confidence` is a 0-1 score.
+# An extractor never fills these in itself - they are the platform's reconciliation, not the
+# model's claim.
+MEDICATION_CATALOG_KEYS = ("medicine_id", "catalog_name", "match_confidence")
+
 
 class NlpExtractorError(Exception):
     """A structured-extraction backend failed (network, auth, rate limit, unparseable response, ...)."""

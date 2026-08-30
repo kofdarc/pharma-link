@@ -11,10 +11,21 @@ import { DevQuickLogin } from "@/components/site/DevQuickLogin";
 import { FormAlert, PasswordField, TextField } from "@/components/site/FormField";
 import { RxCard } from "@/components/product/Visuals";
 
+/**
+ * A `next` value is only honoured if it is a path on this site - a leading
+ * single slash and nothing that could jump to another origin - so the param
+ * cannot be used to bounce a freshly signed-in user off to an attacker's URL.
+ */
+function safeNext(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return null;
+  return raw;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const expired = searchParams.get("expired") === "1";
+  const next = safeNext(searchParams.get("next"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +42,10 @@ function LoginForm() {
         body: JSON.stringify({ email: email.trim(), password })
       });
       setToken(session.token);
-      router.push(ROLE_HOME[session.user.role] || "/home");
+      // Back to wherever the sign-in gate interrupted (checkout, most often),
+      // but only for a CUSTOMER - a staff `next` has no meaning on this site.
+      if (next && session.user.role === "CUSTOMER") router.push(next);
+      else router.push(ROLE_HOME[session.user.role] || "/home");
     } catch {
       setError("That email and password don't match an account. Check them and try again.");
     } finally {
@@ -54,6 +68,11 @@ function LoginForm() {
 
       <form className="hc-auth-form" onSubmit={submit} noValidate>
         {expired ? <FormAlert tone="info">Your session timed out. Sign in again to continue.</FormAlert> : null}
+        {!expired && next ? (
+          <FormAlert tone="info">
+            {next.startsWith("/checkout") ? "Sign in to place your order." : "Sign in to continue."} Your basket is saved.
+          </FormAlert>
+        ) : null}
         {error ? <FormAlert>{error}</FormAlert> : null}
 
         <TextField

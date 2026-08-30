@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import datetime as dt
 import hashlib
 import hmac
 import json
@@ -49,11 +50,11 @@ MAX_ATTEMPTS = 5
 def load_config(path: str) -> dict:
     with open(path, "r", encoding="utf-8") as handle:
         config = json.load(handle)
+    # Environment-only secrets are preferred on shared pharmacy PCs.
+    config["secret"] = os.environ.get("PHARMALINK_SECRET", config.get("secret", ""))
     for required in ("api_base_url", "key_id", "secret", "source"):
         if not config.get(required):
             raise SystemExit(f"Config is missing '{required}'. See connector.config.example.json.")
-    # An env var beats the file, so the secret never has to sit on disk in a shared folder.
-    config["secret"] = os.environ.get("PHARMALINK_SECRET", config["secret"])
     return config
 
 
@@ -121,6 +122,13 @@ def read_csv_source(source: dict) -> list[dict]:
     path = Path(source["path"])
     if not path.exists():
         raise SystemExit(f"Export file not found: {path}")
+    minimum_age = int(source.get("minimum_file_age_seconds", 0))
+    if minimum_age and time.time() - path.stat().st_mtime < minimum_age:
+        raise SystemExit(
+            f"Export file is too new ({path}). It may still be writing; "
+            f"wait at least {minimum_age} seconds and try again."
+        )
+    initial_stat = path.stat()
     columns = source.get("columns", {})
     rows = []
     with path.open("r", encoding=source.get("encoding", "utf-8-sig"), newline="") as handle:
@@ -140,6 +148,9 @@ def read_csv_source(source: dict) -> list[dict]:
                     "supplier_name": normalised.get(columns.get("supplier_name", "supplier").lower(), ""),
                 }
             )
+    final_stat = path.stat()
+    if (initial_stat.st_size, initial_stat.st_mtime_ns) != (final_stat.st_size, final_stat.st_mtime_ns):
+        raise SystemExit(f"Export file changed while it was being read: {path}. Will retry next cycle.")
     return rows
 
 
@@ -232,12 +243,71 @@ def read_mssql_source(source: dict) -> list[dict]:
 def read_source(source: dict) -> list[dict]:
     kind = source.get("type", "csv")
     if kind == "csv":
-        return read_csv_source(source)
-    if kind == "sqlite":
-        return read_sqlite_source(source)
-    if kind == "mssql":
-        return read_mssql_source(source)
-    raise SystemExit(f"Unsupported source type '{kind}'. Use 'csv', 'sqlite', or 'mssql'.")
+        rows = read_csv_source(source)
+    elif kind == "sqlite":
+        rows = read_sqlite_source(source)
+    elif kind == "mssql":
+        rows = read_mssql_source(source)
+    else:
+        raise SystemExit(f"Unsupported source type '{kind}'. Use 'csv', 'sqlite', or 'mssql'.")
+    if source.get("aggregate_duplicate_codes", False):
+        rows = aggregate_duplicate_rows(rows)
+    return rows
+
+
+def _parse_iso_date(value) -> dt.date | None:
+    if not value:
+        return None
+    try:
+        return dt.date.fromisoformat(str(value).strip()[:10])
+    except ValueError:
+        return None
+
+
+def aggregate_duplicate_rows(rows: list[dict]) -> list[dict]:
+    """Collapse batch-level exports into the aggregate product levels accepted by v1."""
+    grouped: dict[str, dict] = {}
+    for row in rows:
+        code = str(row.get("external_code") or "").strip()
+        if not code:
+            continue
+        if code not in grouped:
+            grouped[code] = dict(row)
+            continue
+        current = grouped[code]
+        current["quantity"] = _as_int(current.get("quantity")) + _as_int(row.get("quantity"))
+        if len(str(row.get("name") or "")) > len(str(current.get("name") or "")):
+            current["name"] = row.get("name")
+        for field in ("selling_price", "purchase_cost", "supplier_name"):
+            if current.get(field) in (None, "") and row.get(field) not in (None, ""):
+                current[field] = row.get(field)
+        current_expiry = _parse_iso_date(current.get("expiry_date"))
+        row_expiry = _parse_iso_date(row.get("expiry_date"))
+        if row_expiry and (current_expiry is None or row_expiry < current_expiry):
+            current["expiry_date"] = row_expiry.isoformat()
+    return list(grouped.values())
+
+
+def validate_source_safety(rows: list[dict], state: dict, source: dict) -> None:
+    """Refuse a likely partial export before missing products can be synchronized to zero."""
+    safety = source.get("safety") or {}
+    if not safety.get("enabled", False):
+        return
+    row_count = len(rows)
+    minimum_rows = int(safety.get("minimum_rows", 1))
+    if row_count < minimum_rows:
+        raise SystemExit(
+            f"Export safety check rejected {row_count} row(s); minimum_rows is {minimum_rows}. "
+            "The previous HealthConnect snapshot was preserved."
+        )
+    previous_count = int(state.get("source_row_count") or len(state.get("stock_snapshot", {})))
+    maximum_drop_fraction = float(safety.get("maximum_drop_fraction", 0.5))
+    if previous_count and row_count < previous_count * (1 - maximum_drop_fraction):
+        drop_percent = round((1 - row_count / previous_count) * 100)
+        raise SystemExit(
+            f"Export safety check rejected an unexpected {drop_percent}% row-count drop "
+            f"({previous_count} to {row_count}). The previous HealthConnect snapshot was preserved."
+        )
 
 
 def _as_int(value) -> int:
@@ -299,6 +369,7 @@ def do_check(config: dict) -> int:
 def do_sync(config: dict, state_path: str, *, full: bool = False) -> int:
     state = load_state(state_path)
     rows = read_source(config["source"])
+    validate_source_safety(rows, state, config["source"])
     changed, snapshot = compute_delta(rows, state.get("stock_snapshot", {}), full=full)
 
     if not changed:
@@ -319,11 +390,12 @@ def do_sync(config: dict, state_path: str, *, full: bool = False) -> int:
         if unmapped:
             LOG.warning("%s product code(s) still need a one-time mapping in the PharmaLink pharmacy workspace.", unmapped)
         state["stock_snapshot"] = snapshot
+    state["source_row_count"] = len(rows)
 
     orders = call(config, "GET", "/api/integration/v1/orders/?open=true")
     if orders:
         LOG.info("%s open platform order(s) waiting.", len(orders))
-        _write_orders_file(config, orders)
+    _write_orders_file(config, orders)
     state["last_sync"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     save_state(state_path, state)
     return 0
@@ -339,9 +411,23 @@ def _write_orders_file(config: dict, orders: list) -> None:
         return
     path = Path(target)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8-sig", newline="") as handle:
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with temporary.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["order", "status", "customer", "area", "scheduled_for", "handover_code", "item", "quantity"])
+        writer.writerow(
+            [
+                "order_reference",
+                "status",
+                "customer",
+                "customer_phone",
+                "area",
+                "delivery_address",
+                "scheduled_for",
+                "handover_code",
+                "item",
+                "quantity",
+            ]
+        )
         for order in orders:
             for line in order.get("lines", []):
                 writer.writerow(
@@ -349,13 +435,16 @@ def _write_orders_file(config: dict, orders: list) -> None:
                         order.get("order_reference", ""),
                         order.get("status", ""),
                         order.get("contact_name", ""),
+                        order.get("contact_phone", ""),
                         order.get("order_area", ""),
+                        order.get("delivery_address", ""),
                         order.get("scheduled_for", "") or "ASAP",
                         order.get("handover_code", ""),
                         (line.get("medicine_detail") or {}).get("display_name", ""),
                         line.get("quantity", ""),
                     ]
                 )
+    os.replace(temporary, path)
     LOG.info("Wrote %s open order(s) to %s", len(orders), path)
 
 

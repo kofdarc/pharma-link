@@ -47,7 +47,17 @@ interface Upload {
   created_at: string;
 }
 
-const EMPTY_MED: OcrMedication = { name: "", strength: "", quantity: null, directions: "", duration: "", refills: null };
+const EMPTY_MED: OcrMedication = {
+  name: "",
+  strength: "",
+  quantity: null,
+  directions: "",
+  duration: "",
+  refills: null,
+  medicine_id: "",
+  catalog_name: "",
+  match_confidence: 0
+};
 
 function statusTone(status: Upload["status"]) {
   if (status === "ACCEPTED") return "success" as const;
@@ -284,6 +294,11 @@ export default function PharmacyPrescriptionUploadsPage() {
                     <tr key={index}>
                       <td>
                         <input value={med.name} onChange={(event) => patchMed(index, { name: event.target.value })} />
+                        {med.medicine_id ? (
+                          <span className="med-match med-match-ok">In catalog: {med.catalog_name}</span>
+                        ) : (
+                          <span className="med-match med-match-none">Not matched to catalog - re-checks on save</span>
+                        )}
                       </td>
                       <td>
                         <input

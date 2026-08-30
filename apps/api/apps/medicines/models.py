@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.functions import Lower
 
@@ -112,9 +112,47 @@ class Medicine(UUIDTimeStampedModel):
     # responsible_party_country, exch_date, subsidy_percent, brand_generic.
     moph_extra = models.JSONField(default=dict, blank=True)
 
+    # --- NSSF (National Social Security Fund) reimbursement ---
+    # The NSSF publishes its own formulary of reimbursable drugs (cnss.gov.lb), separate
+    # from anything MoPH provides and unrelated to `moph_extra["subsidy_percent"]` (which
+    # is the Banque du Liban import subsidy). A medicine is "covered" when it appears on
+    # an NSSF list; the list also fixes a reference price (since 2024 the cheapest
+    # equivalent formulation) and a reimbursement rate (commonly 80%, 90/95% for
+    # registered chronic/incurable conditions). There is no shared NSSF API - these are
+    # populated by a platform admin or a one-off import of the NSSF PDF lists.
+    nssf_covered = models.BooleanField(default=False, db_index=True)
+    nssf_reference_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="NSSF reference (reimbursement-ceiling) price in the same currency as regulated_price.",
+    )
+    nssf_reimbursement_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="Share of the reference price the NSSF reimburses, as a percentage (e.g. 80.00).",
+    )
+    nssf_source_reference = models.CharField(
+        max_length=255, blank=True, help_text="Which NSSF list/decision (name + date) this coverage was taken from."
+    )
+    nssf_updated_at = models.DateTimeField(null=True, blank=True)
+
     @property
     def is_price_regulated(self) -> bool:
         return self.price_regime == PriceRegime.REGULATED and self.regulated_price is not None
+
+    @property
+    def nssf_patient_share_percentage(self) -> Decimal | None:
+        """The percentage of the reference price the patient still pays out of pocket,
+        or None when the reimbursement rate is unknown (covered but rate not on file)."""
+        if not self.nssf_covered or self.nssf_reimbursement_rate is None:
+            return None
+        return Decimal("100") - self.nssf_reimbursement_rate
 
     @property
     def is_controlled(self) -> bool:
@@ -137,6 +175,10 @@ class Medicine(UUIDTimeStampedModel):
     def clean(self):
         if self.price_regime == PriceRegime.REGULATED and self.regulated_price is None:
             raise ValidationError({"regulated_price": "A MoPH regulated product must carry its published price."})
+        if not self.nssf_covered and (self.nssf_reference_price is not None or self.nssf_reimbursement_rate is not None):
+            raise ValidationError(
+                {"nssf_covered": "Clear the NSSF reference price and reimbursement rate for a medicine that is not NSSF covered."}
+            )
 
     def validate_selling_price(self, selling_price) -> None:
         """MoPH prices are not a ceiling, they are the price. Free-priced products are left to the pharmacy."""

@@ -119,7 +119,7 @@ export function UploadedPrescriptions({
               <p className="hc-small">{upload.qualityWarnings.join(" ")}</p>
             ) : null}
 
-            <OcrReadout fields={upload.ocrFields} />
+            <OcrReadout fields={upload.ocrFields} lowConfidence={upload.ocrLowConfidence} />
 
             {upload.status === "pending" ? (
               upload.ocrReviewRequested ? (

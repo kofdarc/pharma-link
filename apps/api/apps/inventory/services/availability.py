@@ -202,6 +202,20 @@ def public_availability_search(
                     "agent": _moph_extra(medicine, "agent"),
                     "brand_generic": _moph_extra(medicine, "brand_generic"),
                     "market_status": medicine.market_status if medicine else "",
+                    # NSSF reimbursement, so a shopper sees whether the Fund covers it and
+                    # roughly what they would still pay. Reference price/rate are null when
+                    # the medicine is covered but that detail is not yet on file.
+                    "nssf_covered": bool(medicine and medicine.nssf_covered),
+                    "nssf_reference_price": (
+                        str(medicine.nssf_reference_price)
+                        if medicine and medicine.nssf_reference_price is not None
+                        else None
+                    ),
+                    "nssf_reimbursement_rate": (
+                        str(medicine.nssf_reimbursement_rate)
+                        if medicine and medicine.nssf_reimbursement_rate is not None
+                        else None
+                    ),
                 },
                 "pharmacy": {
                     "id": row["pharmacy_id"],

@@ -66,7 +66,7 @@ class RegexExtractor(StructuredExtractor):
             line = candidate.get("raw_line", "")
             medications.append(
                 {
-                    "name": candidate.get("medicine_name") or candidate.get("name_guess", ""),
+                    "name": candidate.get("medicine_brand") or candidate.get("name_guess", ""),
                     "strength": candidate.get("dosage_guess", ""),
                     "quantity": candidate.get("quantity_guess"),
                     "directions": _directions(line),

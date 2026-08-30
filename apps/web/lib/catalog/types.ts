@@ -58,6 +58,15 @@ export interface MedicineSummary {
    * labelled "from". Unset is treated as unregulated.
    */
   isPriceRegulated?: boolean;
+  /**
+   * NSSF (National Social Security Fund) reimbursement. `nssfCovered` is whether the
+   * medicine is on an NSSF reimbursable list; the reference price and rate come from
+   * that same list and are null when covered but not yet detailed, or when not covered.
+   * Unrelated to MoPH import subsidy.
+   */
+  nssfCovered?: boolean;
+  nssfReferencePrice?: number | null;
+  nssfReimbursementRate?: number | null;
   /** How many connected pharmacies may be able to fulfil it. Never stock depth. */
   sourcingCount: number;
   /**

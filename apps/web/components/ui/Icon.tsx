@@ -36,6 +36,7 @@ export type IconName =
   | "pharmacy"
   | "home"
   | "box"
+  | "cart"
   | "user"
   | "filters"
   | "refresh"
@@ -219,6 +220,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M12 3.4 20 7.6v8.8L12 20.6 4 16.4V7.6z" />
       <path d="M4 7.6 12 12l8-4.4" />
       <path d="M12 12v8.6" />
+    </>
+  ),
+  cart: (
+    <>
+      <path d="M4.5 5H7l2.15 9.4a1.8 1.8 0 0 0 1.75 1.4h6.85a1.8 1.8 0 0 0 1.75-1.35L21.5 8H7.6" />
+      <circle cx="10.5" cy="19.4" r="1.3" />
+      <circle cx="17.5" cy="19.4" r="1.3" />
     </>
   ),
   user: (

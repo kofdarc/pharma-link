@@ -45,6 +45,7 @@ export default function UploadPrescriptionPage() {
   const [checking, setChecking] = useState(false);
   const [reading, setReading] = useState(false);
   const [ocrPreview, setOcrPreview] = useState<OcrFields | null>(null);
+  const [ocrPreviewLowConfidence, setOcrPreviewLowConfidence] = useState(false);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -64,14 +65,19 @@ export default function UploadPrescriptionPage() {
     try {
       const body = new FormData();
       body.set("file", picked);
-      const res = await apiFetch<{ ocr_fields: ApiOcrFields | null }>("/shop/prescription-uploads/preview/", {
-        method: "POST",
-        body
-      });
+      const res = await apiFetch<{ ocr_fields: ApiOcrFields | null; low_confidence?: boolean }>(
+        "/shop/prescription-uploads/preview/",
+        {
+          method: "POST",
+          body
+        }
+      );
       setOcrPreview(toOcrFields(res.ocr_fields));
+      setOcrPreviewLowConfidence(Boolean(res.low_confidence));
     } catch {
       // The preview is a convenience - if it fails, the upload still OCRs server-side.
       setOcrPreview(null);
+      setOcrPreviewLowConfidence(false);
     } finally {
       setReading(false);
     }
@@ -82,6 +88,7 @@ export default function UploadPrescriptionPage() {
       setError("");
       setFindings([]);
       setOcrPreview(null);
+      setOcrPreviewLowConfidence(false);
       if (!picked) {
         setFile(null);
         return;
@@ -186,6 +193,7 @@ export default function UploadPrescriptionPage() {
           ) : null}
           <OcrReadout
             fields={ocrPreview}
+            lowConfidence={ocrPreviewLowConfidence}
             footnote="This is what we read from your photo. It goes to the pharmacy with the scan - if anything is wrong you can flag it once it is uploaded, and a pharmacist corrects it."
           />
 

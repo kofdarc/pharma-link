@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from apps.prescriptions.models import PrescriptionRecord
 from apps.prescriptions.services.nlp.base import MEDICATION_KEYS, STRUCTURED_KEYS
+from apps.prescriptions.services.structured import annotate_catalog_match
 
 
 class PrescriptionRecordSerializer(serializers.ModelSerializer):
@@ -56,7 +57,11 @@ def _clean_structured_fields(value) -> dict:
     """Coerce an incoming ``ocr_fields`` payload to the known shape - unknown keys dropped,
     medication rows reduced to the known columns, quantity/refills to int-or-null. The same
     guarantee apps.prescriptions.services.structured makes on the extraction side, applied
-    again here because a pharmacist's edit is just as much an untrusted client payload."""
+    again here because a pharmacist's edit is just as much an untrusted client payload.
+
+    The catalog-match keys (medicine_id/catalog_name/match_confidence) a client sends are
+    ignored and re-derived from the corrected name/strength, so fixing a misread drug name
+    re-links it to the right SKU."""
     if not isinstance(value, dict):
         raise serializers.ValidationError("ocr_fields must be an object.")
 
@@ -72,7 +77,7 @@ def _clean_structured_fields(value) -> dict:
             med[key] = str(med[key] or "").strip()[:200]
         med["quantity"] = _int_or_none(med["quantity"])
         med["refills"] = _int_or_none(med["refills"])
-        medications.append(med)
+        medications.append(annotate_catalog_match(med))
 
     cleaned = {key: value.get(key, "") for key in STRUCTURED_KEYS}
     for key in ("patient_name", "patient_phone", "doctor_name", "prescription_date", "notes"):
@@ -97,6 +102,10 @@ class ShopPrescriptionUploadSerializer(serializers.ModelSerializer):
     download_url = serializers.SerializerMethodField()
     quality_warnings = serializers.SerializerMethodField()
     is_expired = serializers.BooleanField(read_only=True)
+    # True when a read exists but is too weak to show the patient as a medication list - the
+    # UI shows a "a pharmacist will check your photo" notice instead. See
+    # PrescriptionRecord.ocr_is_low_confidence.
+    ocr_low_confidence = serializers.BooleanField(source="ocr_is_low_confidence", read_only=True)
 
     class Meta:
         model = PrescriptionRecord
@@ -108,6 +117,8 @@ class ShopPrescriptionUploadSerializer(serializers.ModelSerializer):
             "notes",
             "rejection_reason",
             "ocr_fields",
+            "ocr_confidence",
+            "ocr_low_confidence",
             "ocr_review_requested",
             "ocr_review_note",
             "file",
@@ -127,6 +138,8 @@ class ShopPrescriptionUploadSerializer(serializers.ModelSerializer):
             "prescription_date",
             "rejection_reason",
             "ocr_fields",
+            "ocr_confidence",
+            "ocr_low_confidence",
             "ocr_review_requested",
             "ocr_review_note",
             "file_name",
@@ -161,6 +174,7 @@ class PharmacyPrescriptionUploadSerializer(serializers.ModelSerializer):
     quality_warnings = serializers.SerializerMethodField()
     customer_email = serializers.EmailField(source="customer.email", read_only=True)
     is_expired = serializers.BooleanField(read_only=True)
+    ocr_low_confidence = serializers.BooleanField(source="ocr_is_low_confidence", read_only=True)
 
     class Meta:
         model = PrescriptionRecord
@@ -178,6 +192,8 @@ class PharmacyPrescriptionUploadSerializer(serializers.ModelSerializer):
             "ocr_fields",
             "ocr_text",
             "ocr_provider",
+            "ocr_confidence",
+            "ocr_low_confidence",
             "ocr_review_requested",
             "ocr_review_note",
             "quality_warnings",
@@ -195,6 +211,8 @@ class PharmacyPrescriptionUploadSerializer(serializers.ModelSerializer):
             "customer_email",
             "ocr_text",
             "ocr_provider",
+            "ocr_confidence",
+            "ocr_low_confidence",
             "ocr_review_requested",
             "ocr_review_note",
             "quality_warnings",

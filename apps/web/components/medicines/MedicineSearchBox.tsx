@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useId, useRef, useState } from "react";
+import { PackThumb } from "@/components/medicines/PackThumb";
 import { Icon } from "@/components/ui/Icon";
 import { suggestMedicines, type MedicineSuggestion } from "@/lib/catalog/service";
 
@@ -225,19 +226,19 @@ export function MedicineSearchBox({
                   commit(suggestion);
                 }}
               >
-                <span className="hc-ac-icon">
-                  <Icon name="pill" size={16} />
-                </span>
+                <PackThumb brand={suggestion.brand} image={suggestion.image} />
                 <span className="hc-ac-main">
                   <strong>{highlight([suggestion.brand, suggestion.strength].filter(Boolean).join(" "), value)}</strong>
                   <span>{suggestion.generic || suggestion.form}</span>
                 </span>
-                {suggestion.requiresPrescription ? (
-                  <span className="hc-chip hc-chip-rx">
-                    <Icon name="rx" size={12} />
-                    Rx
-                  </span>
-                ) : null}
+                <span
+                  className={`hc-prescription-status hc-prescription-status-compact ${
+                    suggestion.requiresPrescription ? "is-required" : "is-not-required"
+                  }`}
+                >
+                  <Icon name={suggestion.requiresPrescription ? "rx" : "check"} size={12} />
+                  {suggestion.requiresPrescription ? "Prescription required" : "Prescription not required"}
+                </span>
               </li>
             ))}
           </ul>

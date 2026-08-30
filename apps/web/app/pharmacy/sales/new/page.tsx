@@ -137,9 +137,24 @@ export default function NewSalePage() {
                 {medicines.map((medicine) => (
                   <option key={medicine.id} value={medicine.id}>
                     {medicine.display_name}
+                    {medicine.nssf_covered
+                      ? ` · ${t("pharmacySalesNew.nssfTag")}${medicine.nssf_reimbursement_rate ? ` ${medicine.nssf_reimbursement_rate}%` : ""}`
+                      : ""}
                   </option>
                 ))}
               </select>
+              {(() => {
+                const selected = medicines.find((medicine) => medicine.id === line.medicine);
+                if (!selected?.nssf_covered) return null;
+                return (
+                  <p className="muted" style={{ fontSize: "0.75rem", marginTop: 4 }}>
+                    {t("pharmacySalesNew.nssfLineNote", {
+                      rate: selected.nssf_reimbursement_rate ?? "?",
+                      reference: selected.nssf_reference_price ?? "?"
+                    })}
+                  </p>
+                );
+              })()}
             </Field>
             <Field label={t("pharmacySalesNew.quantity")}>
               <input type="number" min="1" value={line.quantity} onChange={(event) => setLines(lines.map((row, i) => (i === index ? { ...row, quantity: Number(event.target.value) } : row)))} required />

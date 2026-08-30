@@ -3,7 +3,7 @@ from datetime import date
 
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Q
+from django.db.models import F, Q
 from django.http import FileResponse
 from rest_framework import status
 from rest_framework.decorators import action
@@ -12,7 +12,12 @@ from rest_framework.viewsets import ModelViewSet
 
 from apps.accounts.permissions import IsPharmacyUserWithActivePharmacy, IsShopper
 from apps.audit.services import write_audit_log
-from apps.prescriptions.models import ALLOWED_PRESCRIPTION_MIME_TYPES, PrescriptionRecord, validate_prescription_file
+from apps.prescriptions.models import (
+    ALLOWED_PRESCRIPTION_MIME_TYPES,
+    OCR_LOW_CONFIDENCE_THRESHOLD,
+    PrescriptionRecord,
+    validate_prescription_file,
+)
 from apps.prescriptions.serializers import (
     PharmacyPrescriptionUploadSerializer,
     PrescriptionRecordSerializer,
@@ -69,18 +74,25 @@ def run_structured_extraction(record: PrescriptionRecord, *, actor_user) -> bool
     record.ocr_text = ocr_text
     record.ocr_fields = result.fields
     record.ocr_provider = result.provider
-    updated = ["ocr_text", "ocr_fields", "ocr_provider"]
+    record.ocr_confidence = result.confidence
+    updated = ["ocr_text", "ocr_fields", "ocr_provider", "ocr_confidence"]
 
-    for column in _SCALAR_FROM_OCR:
-        if not getattr(record, column) and result.fields.get(column):
-            setattr(record, column, result.fields[column][:255])
-            updated.append(column)
-    if not record.prescription_date and result.fields.get("prescription_date"):
-        try:
-            record.prescription_date = date.fromisoformat(result.fields["prescription_date"])
-            updated.append("prescription_date")
-        except ValueError:
-            pass
+    # Only carry the read into the scalar columns when the read is trustworthy. A weak read
+    # (mangled handwriting) would otherwise pin a garbled prescriber name or a misparsed date
+    # onto the record, where other surfaces treat it as fact. `[illegible]` is what the vision
+    # OCR provider writes for a word it won't guess - never a value to store.
+    if result.confidence >= OCR_LOW_CONFIDENCE_THRESHOLD:
+        for column in _SCALAR_FROM_OCR:
+            value = result.fields.get(column) or ""
+            if not getattr(record, column) and value and "[illegible]" not in value.lower():
+                setattr(record, column, value[:255])
+                updated.append(column)
+        if not record.prescription_date and result.fields.get("prescription_date"):
+            try:
+                record.prescription_date = date.fromisoformat(result.fields["prescription_date"])
+                updated.append("prescription_date")
+            except ValueError:
+                pass
 
     record.save(update_fields=updated)
     write_audit_log(
@@ -266,9 +278,15 @@ class ShopPrescriptionUploadViewSet(ModelViewSet):
 
         outcome = ocr_and_structure(file_obj, mime_type)
         if outcome is None:
-            return Response({"provider": "", "ocr_fields": None})
+            return Response({"provider": "", "ocr_fields": None, "low_confidence": False})
         _text, result = outcome
-        return Response({"provider": result.provider, "ocr_fields": result.fields})
+        return Response(
+            {
+                "provider": result.provider,
+                "ocr_fields": result.fields,
+                "low_confidence": result.confidence < OCR_LOW_CONFIDENCE_THRESHOLD,
+            }
+        )
 
     @action(detail=True, methods=["post"])
     def flag(self, request, pk=None):
@@ -318,7 +336,9 @@ class PharmacyPrescriptionUploadViewSet(ModelViewSet):
             PrescriptionRecord.objects.filter(customer__isnull=False)
             .filter(Q(pharmacy=pharmacy) | Q(pharmacy__isnull=True, status=PrescriptionRecord.UploadStatus.PENDING_REVIEW))
             .select_related("customer")
-            .order_by("-ocr_review_requested", "created_at")
+            # Patient-flagged first, then the weakest OCR reads (the ones a pharmacist has to
+            # retype from the scan), then oldest. Records with no read at all sort last.
+            .order_by("-ocr_review_requested", F("ocr_confidence").asc(nulls_last=True), "created_at")
         )
 
     def _claim(self, record):

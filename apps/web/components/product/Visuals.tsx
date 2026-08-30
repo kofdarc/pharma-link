@@ -44,7 +44,7 @@ export function SearchVisual() {
       </div>
 
       <div className="hc-pv-foot">
-        <span className="hc-chip hc-chip-rx">
+        <span className="hc-prescription-status is-required">
           <Icon name="rx" size={13} />
           Prescription required
         </span>

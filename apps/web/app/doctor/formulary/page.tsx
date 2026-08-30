@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/api-client";
 import { useTranslations } from "@/lib/i18n/context";
-import type { PublicInsurancePlan } from "@/types/api";
+import type { Medicine, PublicInsurancePlan } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
@@ -23,6 +23,27 @@ export default function DoctorFormularyPage() {
   const [plans, setPlans] = useState<PublicInsurancePlan[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  const [drugQuery, setDrugQuery] = useState("");
+  const [drugResults, setDrugResults] = useState<Medicine[] | null>(null);
+  const [drugBusy, setDrugBusy] = useState(false);
+  const [drugError, setDrugError] = useState("");
+
+  async function lookupDrug(event: FormEvent) {
+    event.preventDefault();
+    if (!drugQuery.trim()) return;
+    setDrugBusy(true);
+    setDrugError("");
+    try {
+      const result = await apiFetch<Medicine[]>(`/medicines/search/?q=${encodeURIComponent(drugQuery.trim())}`);
+      setDrugResults(result);
+    } catch (exception) {
+      setDrugError((exception as ApiError).message || t("doctorFormulary.lookupFailed"));
+      setDrugResults(null);
+    } finally {
+      setDrugBusy(false);
+    }
+  }
 
   async function lookup(event: FormEvent) {
     event.preventDefault();
@@ -97,6 +118,57 @@ export default function DoctorFormularyPage() {
           </Table>
         )
       ) : null}
+
+      <div className="section-header" style={{ marginTop: 32 }}>
+        <div>
+          <h2>{t("doctorFormulary.nssfTitle")}</h2>
+          <p className="muted">{t("doctorFormulary.nssfSubtitle")}</p>
+        </div>
+      </div>
+
+      {drugError ? <Notice tone="danger">{drugError}</Notice> : null}
+
+      <form className="panel form-grid" onSubmit={lookupDrug}>
+        <Field label={t("doctorFormulary.nssfSearchLabel")}>
+          <input value={drugQuery} onChange={(event) => setDrugQuery(event.target.value)} placeholder={t("doctorFormulary.nssfSearchPlaceholder")} />
+        </Field>
+        <Button type="submit" disabled={drugBusy}>
+          {drugBusy ? t("doctorFormulary.checking") : t("doctorFormulary.nssfCheck")}
+        </Button>
+      </form>
+
+      {drugResults !== null ? (
+        drugResults.length === 0 ? (
+          <EmptyState title={t("doctorFormulary.nssfNoMatch")} detail={t("doctorFormulary.nssfNoMatchHint")} />
+        ) : (
+          <Table>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>{t("doctorFormulary.nssfMedicine")}</th>
+                  <th>{t("doctorFormulary.nssfCoverage")}</th>
+                  <th>{t("doctorFormulary.nssfRate")}</th>
+                  <th>{t("doctorFormulary.nssfReferencePrice")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drugResults.map((medicine) => (
+                  <tr key={medicine.id}>
+                    <td>{medicine.display_name}</td>
+                    <td>{medicine.nssf_covered ? t("doctorFormulary.nssfCovered") : t("doctorFormulary.nssfNotCovered")}</td>
+                    <td>{medicine.nssf_covered && medicine.nssf_reimbursement_rate ? `${medicine.nssf_reimbursement_rate}%` : "—"}</td>
+                    <td>{medicine.nssf_covered && medicine.nssf_reference_price ? `$${medicine.nssf_reference_price}` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Table>
+        )
+      ) : null}
+
+      <p className="muted" style={{ marginTop: 12, fontSize: "0.8125rem" }}>
+        {t("doctorFormulary.nssfDisclaimer")}
+      </p>
     </>
   );
 }

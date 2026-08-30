@@ -558,6 +558,32 @@
   color: #3f5561;
 }
 
+/* A quiet, consistent prescription indicator. */
+.hc-prescription-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 560;
+  white-space: nowrap;
+}
+
+.hc-prescription-status svg {
+  flex: none;
+}
+
+.hc-prescription-status.is-required {
+  color: var(--hc-brand-deep);
+}
+
+.hc-prescription-status.is-not-required {
+  color: var(--hc-muted);
+}
+
+.hc-prescription-status-compact {
+  font-size: 0.75rem;
+}
+
 .hc-chip-ok {
   background: var(--hc-ok-wash);
   color: var(--hc-ok);
@@ -577,6 +603,17 @@
   background: transparent;
   border-color: var(--hc-line-2);
   color: var(--hc-ink-2);
+}
+
+/* NSSF reimbursement - a positive, factual signal, so it borrows the brand
+   colour rather than the availability palette. */
+.hc-chip-nssf {
+  color: var(--hc-brand-deep);
+  font-weight: 560;
+}
+
+.hc-chip-nssf svg {
+  flex: none;
 }
 
 /* Statuses read as compact metadata, not as filled controls. This modifier is

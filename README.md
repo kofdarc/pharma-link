@@ -79,6 +79,9 @@ Pharmacies keep their existing software and product codes. A connector built wit
 Python standard library reads existing POS exports and sends only changed records through
 signed requests. Staff can map unknown codes once and reuse those mappings afterward.
 
+For the safe export-based SoftPharm workflow, see the
+[SoftPharm connector setup](docs/SOFTPHARM_CONNECTOR.md).
+
 <br>
 
 ## For doctors

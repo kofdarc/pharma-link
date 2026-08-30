@@ -84,6 +84,15 @@ class SearchMedicinesTests(TestCase):
         self.assertNotIn(self.panadol, results)
         self.assertNotIn(self.augmentin, results)
 
+    def test_typeahead_returns_an_absolute_product_image_url(self):
+        self.panadol.image = "medicines/panadol.webp"
+        self.panadol.save(update_fields=["image"])
+
+        response = self.client.get("/api/medicines/search/?q=Panadol")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["image"], "http://testserver/media/medicines/panadol.webp")
+
 
 class BestCatalogMatchTests(TestCase):
     def setUp(self):

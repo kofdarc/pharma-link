@@ -70,6 +70,10 @@ METADATA_LINE_PATTERN = re.compile(
     "^(?:" + "|".join(re.escape(prefix) for prefix in METADATA_LINE_PREFIXES) + r")\b", re.IGNORECASE | re.UNICODE
 )
 MIN_LINE_LENGTH = 3
+# Clinic letterhead / footer boilerplate - a URL, an email, or a bare domain. Never a drug
+# line, and on a scanned letterhead it's the noise most likely to survive OCR intact and get
+# mistaken for a medication name.
+BOILERPLATE_LINE_PATTERN = re.compile(r"https?://|www\.|\S+@\S+\.\S|\.(?:com|net|org|co|lb|gov)\b", re.IGNORECASE)
 
 
 def _is_metadata_line(line: str) -> bool:
@@ -77,6 +81,8 @@ def _is_metadata_line(line: str) -> bool:
     if len(lowered) < MIN_LINE_LENGTH:
         return True
     if not any(char.isalpha() for char in lowered):
+        return True
+    if BOILERPLATE_LINE_PATTERN.search(lowered):
         return True
     return bool(METADATA_LINE_PATTERN.match(lowered))
 
@@ -106,6 +112,23 @@ def _prefer_strength_variant(medicine, dosage_guess: str):
     return medicine
 
 
+def match_medicine(name: str, strength: str = ""):
+    """
+    Resolve a free-text drug name (whatever OCR or a vision/LLM extractor read off the page)
+    to a catalog ``Medicine``, using the same fuzzy/alias matching search uses plus the
+    dose-aware sibling preference. Returns ``(medicine_or_none, confidence)`` where confidence
+    is a 0-1 score; ``(None, score)`` when nothing clears the threshold.
+
+    Shared by ``extract_candidate_lines`` (the regex pipeline) and
+    ``apps.prescriptions.services.structured`` (every extractor's output), so a medication
+    row lands linked to a real SKU no matter which extractor produced it - and so a
+    pharmacist correcting the name on review gets it re-linked.
+    """
+    medicine, confidence = best_catalog_match(name or "")
+    medicine = _prefer_strength_variant(medicine, strength)
+    return medicine, confidence
+
+
 def extract_candidate_lines(raw_text: str) -> list[dict]:
     candidates = []
     for raw_line in raw_text.splitlines():
@@ -127,14 +150,23 @@ def extract_candidate_lines(raw_text: str) -> list[dict]:
         if not name_candidate:
             continue
 
-        medicine, confidence = best_catalog_match(name_candidate)
-        medicine = _prefer_strength_variant(medicine, dosage)
+        medicine, confidence = match_medicine(name_candidate, dosage)
+        if medicine is None and not dosage and quantity is None:
+            # No catalog match, no dose, no quantity: nothing here says "drug". On a clean
+            # printed script every real line clears this bar; on a mangled handwriting scan
+            # this is what stops the clinic tagline, an address fragment or a garbled name
+            # from being served to the patient as an invented medication.
+            continue
         candidates.append(
             {
                 "raw_line": line,
                 "name_guess": name_candidate,
                 "medicine_id": str(medicine.id) if medicine else None,
                 "medicine_name": str(medicine) if medicine else "",
+                # Bare brand, no strength/form - what a downstream re-match (or a pharmacist's
+                # edit box) can resolve again cleanly, unlike the "Panadol 500mg Tablet" that
+                # str(Medicine) produces.
+                "medicine_brand": medicine.brand_name if medicine else "",
                 "confidence": confidence,
                 "quantity_guess": quantity,
                 "dosage_guess": dosage,

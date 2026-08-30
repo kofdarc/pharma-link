@@ -24,6 +24,9 @@ class MedicineSerializer(serializers.ModelSerializer):
     country = serializers.SerializerMethodField()
     agent = serializers.SerializerMethodField()
     brand_generic = serializers.SerializerMethodField()
+    # Percentage of the NSSF reference price the patient still pays; null when the
+    # medicine is covered but no rate is on file yet. Derived, never written.
+    nssf_patient_share_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
 
     class Meta:
         model = Medicine
@@ -50,6 +53,12 @@ class MedicineSerializer(serializers.ModelSerializer):
             "requires_prescription",
             "drug_schedule",
             "is_price_regulated",
+            "nssf_covered",
+            "nssf_reference_price",
+            "nssf_reimbursement_rate",
+            "nssf_source_reference",
+            "nssf_updated_at",
+            "nssf_patient_share_percentage",
             "presentation",
             "country",
             "agent",
@@ -59,7 +68,16 @@ class MedicineSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "display_name", "is_price_regulated", "regulated_price_updated_at"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "display_name",
+            "is_price_regulated",
+            "regulated_price_updated_at",
+            "nssf_updated_at",
+            "nssf_patient_share_percentage",
+        ]
 
     def get_display_name(self, obj) -> str:
         return str(obj)
@@ -86,12 +104,24 @@ class MedicineSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"regulated_price": "A MoPH regulated product must carry its published price."})
         if regime == PriceRegime.FREE:
             attrs["regulated_price"] = None
+
+        covered = attrs.get("nssf_covered", getattr(self.instance, "nssf_covered", False))
+        if not covered:
+            # A medicine that is not on an NSSF list carries no reference price or rate;
+            # null them rather than rejecting, so unchecking the box just works.
+            if "nssf_covered" in attrs or self.instance is None:
+                attrs["nssf_reference_price"] = None
+                attrs["nssf_reimbursement_rate"] = None
         return attrs
+
+    _NSSF_FIELDS = ("nssf_covered", "nssf_reference_price", "nssf_reimbursement_rate", "nssf_source_reference")
 
     def create(self, validated_data):
         aliases = validated_data.pop("aliases", [])
         if validated_data.get("regulated_price") is not None:
             validated_data["regulated_price_updated_at"] = timezone.now()
+        if any(field in validated_data for field in self._NSSF_FIELDS):
+            validated_data["nssf_updated_at"] = timezone.now()
         medicine = Medicine.objects.create(**validated_data)
         for alias in aliases:
             MedicineAlias.objects.create(medicine=medicine, **alias)
@@ -101,6 +131,8 @@ class MedicineSerializer(serializers.ModelSerializer):
         aliases = validated_data.pop("aliases", None)
         if "regulated_price" in validated_data and validated_data["regulated_price"] != instance.regulated_price:
             validated_data["regulated_price_updated_at"] = timezone.now()
+        if any(field in validated_data and validated_data[field] != getattr(instance, field) for field in self._NSSF_FIELDS):
+            validated_data["nssf_updated_at"] = timezone.now()
         for key, value in validated_data.items():
             setattr(instance, key, value)
         instance.save()

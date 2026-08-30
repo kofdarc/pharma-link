@@ -7,16 +7,16 @@ import { RxCard, SearchVisual } from "@/components/product/Visuals";
 import { Icon, type IconName } from "@/components/ui/Icon";
 
 export const metadata = {
-  title: "HealthConnect — healthcare, finally connected",
+  title: "HealthConnect: healthcare, finally connected",
   description:
-    "Find medication across connected pharmacies, handle prescription requirements, and get what you need without calling pharmacy after pharmacy."
+    "Find medication across pharmacies near you, handle prescription requirements, and get your medicine delivered with automatic refills on your schedule."
 };
 
 const CAPABILITIES: { icon: IconName; title: string; body: string }[] = [
   {
     icon: "search",
     title: "Find medication",
-    body: "Search once by brand or generic name and see what is actually available across connected pharmacies — not a list of shops to call."
+    body: "Search once by brand or generic name and see what is actually available across connected pharmacies. You do not get a list of shops to call."
   },
   {
     icon: "shield",
@@ -37,26 +37,52 @@ const STEPS = [
   { title: "Receive", body: "Your medication is prepared and delivered, with the order traceable throughout." }
 ];
 
-const TRUST: { icon: IconName; title: string; body: string }[] = [
+const REASONS: { icon: IconName; title: string; items: string[] }[] = [
   {
-    icon: "rx",
-    title: "Secure prescriptions",
-    body: "A prescription code on its own reveals nothing. Dispensing needs the accompanying key, and every attempt is recorded."
+    icon: "stethoscope",
+    title: "Prescribers",
+    items: [
+      "Issue prescriptions digitally instead of a handwritten slip that can be lost, altered or faxed back and forth.",
+      "Approve or deny a pharmacy's renewal request from one queue, without a phone call chasing you down between patients.",
+      "Prescribe against the same medicine catalog pharmacies dispense from, so what you write and what's on the shelf line up.",
+      "Every prescription you issue and every renewal decision is written to a reviewable record. There is no need to explain yourself from memory.",
+      "More time for patient care, with less paperwork chasing pharmacies for stock or confirming what was actually dispensed."
+    ]
   },
   {
-    icon: "network",
-    title: "Connected pharmacies",
-    body: "Pharmacies join with the software they already run, so what you see reflects their real counter."
+    icon: "pharmacy",
+    title: "Pharmacists",
+    items: [
+      "Scan a prescription's code and key to confirm it is genuine and unclaimed before you dispense. No signature is taken on faith.",
+      "Pull structured drug, dose and quantity lines off a photographed paper prescription instead of retyping it by hand.",
+      "Keep the point-of-sale system you already run. HealthConnect syncs stock and sales through it instead of asking you to replace it.",
+      "Request a renewal straight from the counter when a patient's script has run out, instead of calling the clinic.",
+      "A plain-language insights digest flags what needs attention, including reorder-now items, dead stock and unmet demand, instead of making you build the spreadsheet yourself.",
+      "More time for patient consultations and less time on transcription and stock-chasing."
+    ]
   },
   {
-    icon: "lock",
-    title: "Protected information",
-    body: "Your details are visible only to the people fulfilling your order, and pharmacies never expose their stock depth to you."
+    icon: "people",
+    title: "Patients",
+    items: [
+      "Search once and see what is actually available across every connected pharmacy, instead of calling pharmacy after pharmacy.",
+      "One order can be sourced from more than one pharmacy and still arrive as a single delivery.",
+      "Fewer lost or damaged prescriptions. Your script lives on your phone, not a slip of paper.",
+      "Decreased risk of a prescription being seen by the wrong person, with no fax line, no unsecured email and every lookup logged.",
+      "Set up a recurring refill for an ongoing medication so it is ready before you run out.",
+      "Improved patient safety because a pharmacy can only dispense against a prescription confirmed valid and unclaimed."
+    ]
   },
   {
-    icon: "checkCircle",
-    title: "Traceable fulfilment",
-    body: "Every dispense, correction and hand-over is written to an append-only record that can be reviewed."
+    icon: "shield",
+    title: "Health care system",
+    items: [
+      "Reduce duplicate or inappropriately filled prescriptions. A script can be claimed exactly once across the network, in full or in part.",
+      "Reduce fraud and potential for abuse because every access to a prescription is logged, with lockouts after repeated failed attempts.",
+      "Improve medication cost management through tracked insurance claim adjudication, from submission to payment.",
+      "Reduce shortages by making reorder points, dead stock and expiry exposure visible before they are discovered at the register.",
+      "Keep catalog pricing aligned to Ministry of Public Health rates when pharmacies import their stock."
+    ]
   }
 ];
 
@@ -72,8 +98,8 @@ export default function LandingPage() {
             <div className="hc-hero-copy">
               <ConnectedHeadline />
               <p className="hc-lead">
-                Find medication across connected pharmacies, handle prescription requirements, and get what you need — without
-                calling pharmacy after pharmacy.
+                Find medication across pharmacies near you, handle prescription requirements, and get your medicine delivered.
+                Set up automatic refills weekly, monthly, or on the schedule that works for you.
               </p>
               <div className="hc-actions">
                 <Link href="/search" className="hc-btn hc-btn-primary hc-btn-lg">
@@ -84,10 +110,6 @@ export default function LandingPage() {
                   See how it works
                 </Link>
               </div>
-              <p className="hc-hero-note">
-                <Icon name="refresh" size={16} />
-                For medicines you take regularly, set up a recurring order so it arrives before you run out.
-              </p>
             </div>
 
             <div className="hc-hero-visual">
@@ -109,15 +131,15 @@ export default function LandingPage() {
                 <p className="hc-card-label">Today</p>
                 <div className="hc-call">
                   <Icon name="phoneOff" size={17} className="hc-call-x" />
-                  <em>Pharmacy one</em> — out of stock
+                  <em>Pharmacy one</em>: out of stock
                 </div>
                 <div className="hc-call">
                   <Icon name="phoneOff" size={17} className="hc-call-x" />
-                  <em>Pharmacy two</em> — out of stock
+                  <em>Pharmacy two</em>: out of stock
                 </div>
                 <div className="hc-call">
                   <Icon name="phoneOff" size={17} className="hc-call-x" />
-                  <em>Pharmacy three</em> — closed
+                  <em>Pharmacy three</em>: closed
                 </div>
                 <p className="hc-call-more" aria-hidden="true">
                   · · ·
@@ -169,7 +191,7 @@ export default function LandingPage() {
               <h2 className="hc-h2">A prescription that can&apos;t be lost, copied or reused.</h2>
               <p className="hc-body">
                 When your physician prescribes through HealthConnect you receive a prescription you can keep on your phone. The
-                pharmacy scans it, dispenses what you need, and anything left stays claimable — once, and only once.
+                pharmacy scans it, dispenses what you need, and anything left stays claimable. It can be claimed once, and only once.
               </p>
               <p className="hc-body">
                 The code alone does not open the prescription: a pharmacy needs the key that comes with it, and every lookup is
@@ -209,19 +231,30 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* --- trust -------------------------------------------------------- */}
+        {/* --- reasons ------------------------------------------------------ */}
         <section className="hc-section hc-band">
           <div className="hc-wrap">
             <SectionHeading
-              title="Health information deserves more than a login screen."
-              lead="HealthConnect carries prescriptions and medication history, so access is narrow by default and everything consequential leaves a record."
+              title="Reasons to use HealthConnect."
+              lead="Every participant in the medication journey gets something concrete from being connected."
             />
-            <div className="hc-trust-grid">
-              {TRUST.map((item) => (
-                <div className="hc-trust" key={item.title}>
-                  <Icon name={item.icon} size={22} />
-                  <h3 className="hc-h3">{item.title}</h3>
-                  <p className="hc-body">{item.body}</p>
+            <div className="hc-reasons-grid">
+              {REASONS.map((role) => (
+                <div className="hc-reason-card" key={role.title}>
+                  <div className="hc-reason-head">
+                    <span className="hc-reason-icon">
+                      <Icon name={role.icon} size={19} />
+                    </span>
+                    <h3 className="hc-h3">{role.title}</h3>
+                  </div>
+                  <ul className="hc-reason-list">
+                    {role.items.map((item) => (
+                      <li key={item.slice(0, 40)}>
+                        <Icon name="check" size={15} />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>

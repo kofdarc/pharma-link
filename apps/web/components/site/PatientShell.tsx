@@ -65,7 +65,7 @@ export function PatientShell({ children, user }: { children: React.ReactNode; us
                 aria-current={current("/cart")}
                 aria-label={ready && count > 0 ? `Basket, ${count} in it` : "Basket"}
               >
-                <Icon name="box" size={19} />
+                <Icon name="cart" size={19} />
                 {ready && count > 0 ? (
                   <span className="hc-cartbtn-count hc-num" aria-hidden="true">
                     {count > 9 ? "9+" : count}

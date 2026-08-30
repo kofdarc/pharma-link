@@ -15,6 +15,7 @@ actually configure a SQL Server source.
 from __future__ import annotations
 
 import os
+import csv
 import sqlite3
 import sys
 import tempfile
@@ -69,6 +70,117 @@ class CsvSourceTests(unittest.TestCase):
     def test_missing_file_raises_system_exit(self):
         with self.assertRaises(SystemExit):
             connector.read_csv_source({"path": "/nonexistent/path.csv"})
+
+    def test_rejects_export_that_may_still_be_writing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "stock.csv"
+            path.write_text("code,quantity\nX1,1\n", encoding="utf-8")
+            with self.assertRaises(SystemExit) as ctx:
+                connector.read_csv_source({"path": str(path), "minimum_file_age_seconds": 10})
+        self.assertIn("too new", str(ctx.exception))
+
+
+class SoftPharmAggregationTests(unittest.TestCase):
+    def test_duplicate_batch_rows_are_summed_and_earliest_expiry_is_kept(self):
+        rows = connector.aggregate_duplicate_rows(
+            [
+                {
+                    "external_code": "SP-1",
+                    "name": "Panadol",
+                    "quantity": 4,
+                    "selling_price": 2.5,
+                    "purchase_cost": None,
+                    "expiry_date": "2027-12-31",
+                    "supplier_name": "",
+                },
+                {
+                    "external_code": "SP-1",
+                    "name": "Panadol 500 mg tablets",
+                    "quantity": 6,
+                    "selling_price": 2.5,
+                    "purchase_cost": 1.5,
+                    "expiry_date": "2027-06-30",
+                    "supplier_name": "Supplier",
+                },
+            ]
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["quantity"], 10)
+        self.assertEqual(rows[0]["expiry_date"], "2027-06-30")
+        self.assertEqual(rows[0]["name"], "Panadol 500 mg tablets")
+        self.assertEqual(rows[0]["purchase_cost"], 1.5)
+
+    def test_read_source_aggregates_only_when_enabled(self):
+        raw_rows = [
+            {"external_code": "SP-1", "quantity": 2},
+            {"external_code": "SP-1", "quantity": 3},
+        ]
+        with mock.patch.object(connector, "read_csv_source", return_value=raw_rows):
+            rows = connector.read_source({"type": "csv", "aggregate_duplicate_codes": True})
+        self.assertEqual(rows[0]["quantity"], 5)
+
+
+class SourceSafetyTests(unittest.TestCase):
+    def test_empty_export_is_rejected_without_changing_state(self):
+        state = {"stock_snapshot": {"A": "one", "B": "two"}, "source_row_count": 2}
+        with self.assertRaises(SystemExit) as ctx:
+            connector.validate_source_safety([], state, {"safety": {"enabled": True, "minimum_rows": 1}})
+        self.assertIn("previous HealthConnect snapshot was preserved", str(ctx.exception))
+        self.assertEqual(state["source_row_count"], 2)
+
+    def test_large_unexpected_drop_is_rejected(self):
+        rows = [{"external_code": str(index)} for index in range(4)]
+        with self.assertRaises(SystemExit) as ctx:
+            connector.validate_source_safety(
+                rows,
+                {"source_row_count": 10},
+                {"safety": {"enabled": True, "minimum_rows": 1, "maximum_drop_fraction": 0.5}},
+            )
+        self.assertIn("60% row-count drop", str(ctx.exception))
+
+    def test_expected_small_drop_is_allowed(self):
+        rows = [{"external_code": str(index)} for index in range(8)]
+        connector.validate_source_safety(
+            rows,
+            {"source_row_count": 10},
+            {"safety": {"enabled": True, "minimum_rows": 1, "maximum_drop_fraction": 0.5}},
+        )
+
+
+class OrderExportTests(unittest.TestCase):
+    def test_writes_manual_entry_worksheet_atomically(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "incoming-orders.csv"
+            connector._write_orders_file(
+                {"orders_out_file": str(path)},
+                [
+                    {
+                        "order_reference": "HC-10",
+                        "status": "CONFIRMED",
+                        "contact_name": "Customer",
+                        "contact_phone": "+9611000000",
+                        "order_area": "Beirut",
+                        "delivery_address": "Street 1",
+                        "scheduled_for": None,
+                        "handover_code": "123456",
+                        "lines": [{"medicine_detail": {"display_name": "Panadol"}, "quantity": 2}],
+                    }
+                ],
+            )
+            with path.open(encoding="utf-8-sig", newline="") as handle:
+                contents = list(csv.reader(handle))
+            self.assertFalse(path.with_suffix(".csv.tmp").exists())
+        self.assertEqual(contents[0][0], "order_reference")
+        self.assertEqual(contents[1], ["HC-10", "CONFIRMED", "Customer", "+9611000000", "Beirut", "Street 1", "ASAP", "123456", "Panadol", "2"])
+
+    def test_empty_order_list_clears_stale_worksheet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "incoming-orders.csv"
+            path.write_text("stale order", encoding="utf-8")
+            connector._write_orders_file({"orders_out_file": str(path)}, [])
+            with path.open(encoding="utf-8-sig", newline="") as handle:
+                contents = list(csv.reader(handle))
+        self.assertEqual(len(contents), 1)
 
 
 class SqliteSourceTests(unittest.TestCase):

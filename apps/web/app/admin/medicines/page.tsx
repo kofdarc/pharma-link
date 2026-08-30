@@ -20,12 +20,15 @@ export default function AdminMedicinesPage() {
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
+  const [nssfFilter, setNssfFilter] = useState<"all" | "covered" | "not">("all");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  function load(pageNum = page, search = query) {
+  function load(pageNum = page, search = query, nssf = nssfFilter) {
     const params = new URLSearchParams({ page: String(pageNum) });
     if (search.trim()) params.set("search", search.trim());
+    if (nssf === "covered") params.set("nssf_covered", "true");
+    if (nssf === "not") params.set("nssf_covered", "false");
     apiFetch<Paginated<Medicine>>(`/admin/medicines/?${params.toString()}`)
       .then((payload) => {
         setItems(payload.results);
@@ -35,14 +38,24 @@ export default function AdminMedicinesPage() {
   }
 
   useEffect(() => {
-    load(1, query);
+    load(1, query, nssfFilter);
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [query, nssfFilter]);
 
   function goToPage(nextPage: number) {
     setPage(nextPage);
     load(nextPage, query);
+  }
+
+  async function saveNssf(id: string, patch: Partial<Pick<Medicine, "nssf_covered" | "nssf_reference_price" | "nssf_reimbursement_rate" | "nssf_source_reference">>) {
+    try {
+      const updated = await apiFetch<Medicine>(`/admin/medicines/${id}/`, { method: "PATCH", body: JSON.stringify(patch) });
+      setItems((rows) => rows.map((row) => (row.id === id ? updated : row)));
+      setMessage(t("adminMedicines.nssfSaved"));
+    } catch {
+      setError(t("adminMedicines.nssfSaveFailed"));
+    }
   }
 
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
@@ -56,6 +69,7 @@ export default function AdminMedicinesPage() {
       .filter(Boolean)
       .map((alias) => ({ alias, alias_type: "OTHER" }));
     const image = form.get("image");
+    const nssfCovered = form.get("nssf_covered") === "on";
     try {
       const created = await apiFetch<Medicine>("/admin/medicines/", {
         method: "POST",
@@ -66,6 +80,10 @@ export default function AdminMedicinesPage() {
           form: form.get("form"),
           manufacturer: form.get("manufacturer"),
           is_active: true,
+          nssf_covered: nssfCovered,
+          nssf_reimbursement_rate: nssfCovered ? form.get("nssf_reimbursement_rate") || null : null,
+          nssf_reference_price: nssfCovered ? form.get("nssf_reference_price") || null : null,
+          nssf_source_reference: nssfCovered ? form.get("nssf_source_reference") || "" : "",
           aliases
         })
       });
@@ -112,6 +130,13 @@ export default function AdminMedicinesPage() {
         <Field label={t("adminMedicines.searchLabel")}>
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("adminMedicines.searchPlaceholder")} />
         </Field>
+        <Field label={t("adminMedicines.nssfFilterLabel")}>
+          <select value={nssfFilter} onChange={(event) => setNssfFilter(event.target.value as "all" | "covered" | "not")}>
+            <option value="all">{t("adminMedicines.nssfFilterAll")}</option>
+            <option value="covered">{t("adminMedicines.nssfFilterCovered")}</option>
+            <option value="not">{t("adminMedicines.nssfFilterNot")}</option>
+          </select>
+        </Field>
       </div>
       <form className="panel form-grid" onSubmit={create}>
         <Field label={t("adminMedicines.brandName")}>
@@ -135,6 +160,21 @@ export default function AdminMedicinesPage() {
         <Field label={t("adminMedicines.photo")}>
           <input name="image" type="file" accept="image/*" />
         </Field>
+        <Field label={t("adminMedicines.nssfCovered")}>
+          <label className="actions" style={{ gap: 8 }}>
+            <input name="nssf_covered" type="checkbox" />
+            <span className="muted">{t("adminMedicines.nssfCoveredHint")}</span>
+          </label>
+        </Field>
+        <Field label={t("adminMedicines.nssfRate")}>
+          <input name="nssf_reimbursement_rate" type="number" step="0.01" min="0" max="100" placeholder="80" />
+        </Field>
+        <Field label={t("adminMedicines.nssfReferencePrice")}>
+          <input name="nssf_reference_price" type="number" step="0.01" min="0" />
+        </Field>
+        <Field label={t("adminMedicines.nssfSource")}>
+          <input name="nssf_source_reference" placeholder={t("adminMedicines.nssfSourcePlaceholder")} />
+        </Field>
         <Button type="submit">{t("adminMedicines.addMedicine")}</Button>
       </form>
       {message ? <Notice tone="success">{message}</Notice> : null}
@@ -150,6 +190,7 @@ export default function AdminMedicinesPage() {
               <th>{t("adminMedicines.variantCol")}</th>
               <th>{t("adminMedicines.aliasesCol")}</th>
               <th>{t("adminMedicines.statusCol")}</th>
+              <th>{t("adminMedicines.nssfCol")}</th>
             </tr>
           </thead>
           <tbody>
@@ -171,6 +212,51 @@ export default function AdminMedicinesPage() {
                   <Badge status tone={statusTone(item.is_active ? "Active" : "Inactive")}>
                     {item.is_active ? t("adminMedicines.active") : t("adminMedicines.inactive")}
                   </Badge>
+                </td>
+                <td>
+                  <div style={{ display: "grid", gap: 6, minWidth: 180 }}>
+                    <label className="actions" style={{ gap: 6 }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(item.nssf_covered)}
+                        onChange={(event) => saveNssf(item.id, { nssf_covered: event.target.checked })}
+                      />
+                      <span>{item.nssf_covered ? t("adminMedicines.nssfOn") : t("adminMedicines.nssfOff")}</span>
+                    </label>
+                    {item.nssf_covered ? (
+                      <div className="actions" style={{ gap: 6 }}>
+                        <input
+                          key={`rate-${item.id}-${item.nssf_reimbursement_rate ?? ""}`}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          defaultValue={item.nssf_reimbursement_rate ?? ""}
+                          aria-label={t("adminMedicines.nssfRate")}
+                          placeholder="%"
+                          style={{ width: 64 }}
+                          onBlur={(event) => {
+                            const next = event.target.value || null;
+                            if (next !== (item.nssf_reimbursement_rate ?? null)) saveNssf(item.id, { nssf_reimbursement_rate: next });
+                          }}
+                        />
+                        <input
+                          key={`ref-${item.id}-${item.nssf_reference_price ?? ""}`}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          defaultValue={item.nssf_reference_price ?? ""}
+                          aria-label={t("adminMedicines.nssfReferencePrice")}
+                          placeholder={t("adminMedicines.nssfRefShort")}
+                          style={{ width: 84 }}
+                          onBlur={(event) => {
+                            const next = event.target.value || null;
+                            if (next !== (item.nssf_reference_price ?? null)) saveNssf(item.id, { nssf_reference_price: next });
+                          }}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ))}

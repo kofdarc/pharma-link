@@ -1,6 +1,11 @@
+# Copywriting
+
+- Never use em dashes in project copy, interface text, marketing content, documentation, or other writing.
+- Rewrite with periods, commas, colons, parentheses, or separate sentences instead.
+
 # AWS Guidance
 
-- Prefer the AWS MCP Server for AWS interactions — it provides sandboxed
+- Prefer the AWS MCP Server for AWS interactions because it provides sandboxed
   execution, observability, and audit logging. If unavailable, use the
   AWS CLI directly.
 - Before starting a task, check whether a relevant AWS skill is available.

@@ -1,44 +1,58 @@
+"use client";
+
 import Link from "next/link";
 import { BrandLogo } from "@/components/ui/BrandMark";
+import { useTranslations } from "@/lib/i18n/context";
 
 /**
  * Links that have no route yet render as plain text, not as links to nowhere.
  * Building placeholder Help/Contact/Privacy/Terms pages was out of scope for
  * this slice, and a dead <a> is worse than an honest label.
  */
-type FooterLink = { label: string; href?: string };
+type FooterLink = { labelKey: string; href?: string };
 
-const GROUPS: { title: string; links: FooterLink[] }[] = [
+const GROUPS: { id: string; titleKey: string; links: FooterLink[] }[] = [
   {
-    title: "HealthConnect",
+    id: "healthconnect",
+    titleKey: "publicFooter.healthConnect",
     links: [
-      { label: "About", href: "/about" },
-      { label: "How it works", href: "/how-it-works" }
+      { labelKey: "publicFooter.about", href: "/about" },
+      { labelKey: "publicFooter.howItWorks", href: "/how-it-works" }
     ]
   },
   {
-    title: "Patients",
+    id: "patients",
+    titleKey: "publicFooter.patients",
     links: [
-      { label: "Search medicines", href: "/search" },
-      { label: "Sign in", href: "/login" },
-      { label: "Create an account", href: "/register" }
+      { labelKey: "publicFooter.searchMedicines", href: "/search" },
+      { labelKey: "common.signIn", href: "/login" },
+      { labelKey: "publicFooter.createAccount", href: "/register" }
     ]
   },
   {
-    title: "Professionals",
+    id: "professionals",
+    titleKey: "publicFooter.professionals",
     links: [
-      { label: "Pharmacies", href: "/pharmacy-signup" },
-      { label: "Physicians", href: "/activate" },
-      { label: "Dispense a prescription", href: "/rx" }
+      { labelKey: "publicFooter.pharmacies", href: "/pharmacy-signup" },
+      { labelKey: "publicFooter.physicians", href: "/activate" },
+      { labelKey: "publicFooter.dispensePrescription", href: "/rx" }
     ]
   },
   {
-    title: "Support & legal",
-    links: [{ label: "Help" }, { label: "Contact" }, { label: "Privacy" }, { label: "Terms" }]
+    id: "support-legal",
+    titleKey: "publicFooter.supportLegal",
+    links: [
+      { labelKey: "publicFooter.help" },
+      { labelKey: "publicFooter.contact" },
+      { labelKey: "publicFooter.privacy" },
+      { labelKey: "publicFooter.terms" }
+    ]
   }
 ];
 
 export function SiteFooter() {
+  const t = useTranslations();
+
   return (
     <footer className="hc-footer">
       <div className="hc-wrap">
@@ -48,17 +62,17 @@ export function SiteFooter() {
               <BrandLogo />
             </Link>
             <p className="hc-small">
-              Medication search, secure prescriptions and delivery across connected pharmacies in Lebanon.
+              {t("publicFooter.description")}
             </p>
           </div>
 
           {GROUPS.map((group) => (
-            <nav key={group.title} aria-labelledby={`footer-${group.title.replace(/\W+/g, "-").toLowerCase()}`}>
-              <h2 id={`footer-${group.title.replace(/\W+/g, "-").toLowerCase()}`}>{group.title}</h2>
+            <nav key={group.id} aria-labelledby={`footer-${group.id}`}>
+              <h2 id={`footer-${group.id}`}>{t(group.titleKey)}</h2>
               <ul>
                 {group.links.map((link) => (
-                  <li key={link.label}>
-                    {link.href ? <Link href={link.href}>{link.label}</Link> : <span>{link.label}</span>}
+                  <li key={link.labelKey}>
+                    {link.href ? <Link href={link.href}>{t(link.labelKey)}</Link> : <span>{t(link.labelKey)}</span>}
                   </li>
                 ))}
               </ul>
@@ -67,8 +81,8 @@ export function SiteFooter() {
         </div>
 
         <div className="hc-footer-base">
-          <p className="hc-small">© {new Date().getFullYear()} HealthConnect. A student project built at the American University of Beirut.</p>
-          <p className="hc-small">HealthConnect does not provide medical advice.</p>
+          <p className="hc-small">© {new Date().getFullYear()} {t("publicFooter.projectCredit")}</p>
+          <p className="hc-small">{t("publicFooter.medicalDisclaimer")}</p>
         </div>
       </div>
     </footer>

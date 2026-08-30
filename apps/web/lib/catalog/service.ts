@@ -23,6 +23,7 @@ export interface MedicineSuggestion {
   strength: string;
   generic: string;
   form: string;
+  image?: string | null;
   requiresPrescription: boolean;
 }
 
@@ -120,6 +121,9 @@ function groupByMedicine(rows: PublicAvailability[]): MedicineSummary[] {
         availability,
         fromPrice: price,
         isPriceRegulated: row.is_price_regulated,
+        nssfCovered: Boolean(medicine.nssf_covered),
+        nssfReferencePrice: parsePrice(medicine.nssf_reference_price ?? null),
+        nssfReimbursementRate: parsePrice(medicine.nssf_reimbursement_rate ?? null),
         sourcingCount: canFulfil ? 1 : 0,
         nearestKm: distance,
         nearestPharmacy: distance === null ? "" : row.pharmacy.name,
@@ -178,6 +182,7 @@ export async function suggestMedicines(query: string, signal?: AbortSignal): Pro
       strength: medicine.strength || "",
       generic: medicine.ingredients || medicine.generic_name || "",
       form: medicine.form || "",
+      image: medicine.image,
       requiresPrescription: Boolean(medicine.requires_prescription)
     }));
   } catch (error) {
@@ -250,6 +255,9 @@ async function fromCatalogueOnly(id: string, signal?: AbortSignal): Promise<Medi
     availability: "unavailable",
     fromPrice,
     isPriceRegulated: Boolean(record.is_price_regulated),
+    nssfCovered: Boolean(record.nssf_covered),
+    nssfReferencePrice: parsePrice(record.nssf_reference_price ?? null),
+    nssfReimbursementRate: parsePrice(record.nssf_reimbursement_rate ?? null),
     sourcingCount: 0,
     // No stocking pharmacy means nothing to measure a distance to, which is a
     // different thing from a distance we failed to compute - both read as null here.

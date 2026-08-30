@@ -4,19 +4,14 @@ import type { AvailabilityState } from "@/lib/catalog/types";
 /**
  * Prescription status, stated calmly.
  *
- * It is a fact about how the medicine is dispensed, not a warning, so it gets
- * the brand tint rather than a danger colour.
+ * It is a fact about how the medicine is dispensed, not a warning, so it reads
+ * as supporting metadata rather than a coloured status badge.
  */
 export function PrescriptionBadge({ required }: { required: boolean }) {
-  return required ? (
-    <span className="hc-chip hc-chip-rx">
-      <Icon name="rx" size={13} />
-      Prescription required
-    </span>
-  ) : (
-    <span className="hc-chip hc-chip-otc">
-      <Icon name="check" size={13} />
-      No prescription needed
+  return (
+    <span className={`hc-prescription-status ${required ? "is-required" : "is-not-required"}`}>
+      <Icon name={required ? "rx" : "check"} size={13} />
+      {required ? "Prescription required" : "Prescription not required"}
     </span>
   );
 }
@@ -48,4 +43,22 @@ export function availabilityLabel(state: AvailabilityState): string {
 
 export function MetaChip({ children }: { children: React.ReactNode }) {
   return <span className="hc-chip hc-chip-outline">{children}</span>;
+}
+
+/**
+ * Whether the National Social Security Fund reimburses this medicine.
+ *
+ * Only rendered when it is covered - an absent badge is not a claim that the NSSF
+ * refuses it, only that the platform has no coverage record. When the reimbursement
+ * rate is known it is shown inline ("NSSF 80%"), since that is the number a patient
+ * actually acts on.
+ */
+export function NssfBadge({ covered, rate }: { covered?: boolean; rate?: number | null }) {
+  if (!covered) return null;
+  return (
+    <span className="hc-chip hc-status hc-chip-nssf">
+      <Icon name="shield" size={13} />
+      {typeof rate === "number" ? `NSSF ${rate % 1 === 0 ? rate : rate.toFixed(2)}%` : "NSSF covered"}
+    </span>
+  );
 }

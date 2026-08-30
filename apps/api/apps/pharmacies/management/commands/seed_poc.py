@@ -3,6 +3,9 @@ Seeds a demo scenario that actually exercises the hard parts of the POC:
 
   - 5 Beirut pharmacies with real-ish coordinates, ratings and reliability
   - 20 REAL medicines, resolved from the synced MoPH catalog (see SEED_INGREDIENTS)
+  - 20 free-priced SUPPLEMENTS and parapharmacy products (see SEED_SUPPLEMENTS),
+    which are NOT in any national registry - this command is their only source;
+    each pharmacy stocks one of every supplement at its own free-set price
   - stock deliberately fragmented so some baskets CANNOT come from one pharmacy
   - 3 doctors from the "Order of Physicians" roster, one already activated
   - shopper orders in every lifecycle state, several multi-pharmacy, which is
@@ -12,10 +15,13 @@ Seeds a demo scenario that actually exercises the hard parts of the POC:
     something real to read
   - 3 drivers online, so the router has real choices to make
 
-Nothing here invents a medicine. The catalog is whatever `sync_moph_catalog`
-already loaded, and this command only picks products out of it - so a seeded
-demo and the live catalog can never disagree about what a medicine is or costs.
-Run `manage.py sync_moph_catalog` first; this command refuses to guess.
+Nothing here invents a MEDICINE. The medicine catalog is whatever
+`sync_moph_catalog` already loaded, and this command only picks those products
+out of it - so a seeded demo and the live catalog can never disagree about what
+a medicine is or costs. Run `manage.py sync_moph_catalog` first; this command
+refuses to guess for medicines. Supplements are the deliberate exception: there
+is no MoPH registry for them, so the demo (like any pharmacy) builds that part
+of the catalog from its own shelf reality, free-priced.
 """
 
 from __future__ import annotations
@@ -40,7 +46,14 @@ from apps.eprescriptions.services.qr import prescription_url
 from apps.integrations.models import SkuMapping
 from apps.integrations.services.keys import create_integration_key
 from apps.inventory.services.stock import create_inventory_batch
-from apps.medicines.models import MarketStatus, Medicine, PriceRegime
+from apps.medicines.models import (
+    DrugSchedule,
+    MarketStatus,
+    Medicine,
+    MedicineAlias,
+    PriceRegime,
+    ProductCategory,
+)
 from apps.orders.models import DeliveryAddress, Order, OrderFulfillment, RecurringOrder
 from apps.orders.services.lifecycle import (
     accept_fulfillment,
@@ -121,6 +134,38 @@ PREFERRED_FORMS = ["Tablet", "Capsule", "Caplet"]
 # product, and must never reach a seeded basket.
 SANE_PRICE = (Decimal("0.25"), Decimal("500"))
 
+# Supplements and parapharmacy are NOT in the MoPH catalogue - Lebanon has no
+# national registry for them, so this command is the only source of these rows.
+# Unlike the medicines above they are free-priced: each pharmacy sets its own
+# selling price, so the catalog row carries no regulated_price at all. Each
+# entry is (brand_name, generic_name, form, aliases) - the seed creates the
+# Medicine as category=SUPPLEMENT / PARAPHARMACY with price_regime=FREE, and
+# every seeded pharmacy stocks one of each. The aliases make them match in
+# search and `best_catalog_match` (imports, OCR, POS sync).
+SEED_SUPPLEMENTS = [
+    # brand, generic, form, aliases (first is the canonical name)
+    ("PharmaLink Creatine Monohydrate", "Creatine", "Powder", ["creatine", "creatine monohydrate"]),
+    ("PharmaLink Creatine Capsules", "Creatine", "Capsule", ["creatine capsules"]),
+    ("PharmaLink Whey Protein", "Whey Protein", "Powder", ["whey", "whey protein"]),
+    ("PharmaLink Vitamin D3", "Vitamin D3", "Capsule", ["vitamin d", "vitamin d3", "vitamine d"]),
+    ("PharmaLink Vitamin C", "Vitamin C", "Effervescent", ["vitamin c", "vitamine c"]),
+    ("PharmaLink Omega-3", "Fish Oil Omega-3", "Capsule", ["omega 3", "omega3", "fish oil"]),
+    ("PharmaLink Magnesium", "Magnesium", "Tablet", ["magnesium"]),
+    ("PharmaLink Zinc", "Zinc", "Tablet", ["zinc"]),
+    ("PharmaLink Multivitamin", "Multivitamin", "Tablet", ["multivitamin", "multi vitamin"]),
+    ("PharmaLink B-Complex", "Vitamin B Complex", "Tablet", ["b complex", "vitamin b"]),
+    ("PharmaLink Collagen", "Collagen", "Powder", ["collagen"]),
+    ("PharmaLink Probiotic", "Probiotic", "Capsule", ["probiotic"]),
+    ("PharmaLink Iron", "Iron Supplement", "Capsule", ["iron"]),
+    ("PharmaLink Calcium", "Calcium", "Tablet", ["calcium"]),
+    ("PharmaLink Vitamin B12", "Vitamin B12", "Tablet", ["b12", "vitamin b12"]),
+    ("PharmaLink Turmeric", "Turmeric", "Capsule", ["turmeric", "curcumin"]),
+    ("PharmaLink Ashwagandha", "Ashwagandha", "Capsule", ["ashwagandha"]),
+    ("PharmaLink Melatonin", "Melatonin", "Tablet", ["melatonin"]),
+    ("PharmaLink Glucosamine", "Glucosamine", "Capsule", ["glucosamine"]),
+    ("PharmaLink Biotin", "Biotin", "Tablet", ["biotin", "vitamin b7"]),
+]
+
 DOCTORS = [
     ("LB-MD-10421", "Rima Khalil", "Family medicine", "rima.khalil@doctors.test", "Clinique du Levant", "Achrafieh", True),
     ("LB-MD-20876", "Samir Aoun", "Cardiology", "samir.aoun@doctors.test", "Beirut Heart Center", "Hamra", False),
@@ -166,7 +211,8 @@ class Command(BaseCommand):
         pharmacies = self._pharmacies()
         owners = self._pharmacy_users(User, pharmacies)
         medicines = self._catalog()
-        self._stock(pharmacies, medicines, owners)
+        supplements = self._supplements()
+        self._stock(pharmacies, medicines, owners, supplements)
         self._integration(pharmacies[0], owners[pharmacies[0].id], medicines)
         doctors = self._doctors(User)
         shoppers, addresses = self._shoppers(User)
@@ -176,7 +222,7 @@ class Command(BaseCommand):
         # medicine has to point at a real one.
         prescriptions = self._prescriptions(doctors, medicines, shoppers)
         self._orders(shoppers, addresses, medicines, owners, prescriptions)
-        self._refills(shoppers, addresses, medicines, prescriptions)
+        self._refills(shoppers, addresses, medicines, supplements, prescriptions)
         self._drivers(User)
 
         self.stdout.write(self.style.SUCCESS("\nHealthConnect POC scenario seeded."))
@@ -305,7 +351,41 @@ class Command(BaseCommand):
                 return found
         return candidates.order_by("regulated_price").first()
 
-    def _stock(self, pharmacies, medicines, owners):
+    def _supplements(self) -> dict[str, Medicine]:
+        """
+        Create the demo's supplement / parapharmacy catalog.
+
+        These are NOT in the MoPH catalogue and have no national registry, so the
+        seed is their only source (see SEED_SUPPLEMENTS). They are free-priced:
+        the catalog row carries no regulated_price and every pharmacy that stocks
+        one sets its own selling price. Each gets a MedicineAlias so search,
+        imports and OCR can resolve the common name. Idempotent via update_or_create
+        keyed on brand_name, mirroring how the rest of the command behaves.
+        """
+        supplements: dict[str, Medicine] = {}
+        for brand, generic, form, aliases in SEED_SUPPLEMENTS:
+            medicine, _ = Medicine.objects.update_or_create(
+                brand_name=brand,
+                defaults={
+                    "generic_name": generic,
+                    "form": form,
+                    "category": ProductCategory.SUPPLEMENT,
+                    "price_regime": PriceRegime.FREE,
+                    "is_active": True,
+                    "market_status": MarketStatus.MARKETED,
+                    "requires_prescription": False,
+                    "drug_schedule": DrugSchedule.NONE,
+                },
+            )
+            for alias in aliases:
+                MedicineAlias.objects.get_or_create(medicine=medicine, alias=alias)
+            supplements[brand] = medicine
+        self.stdout.write(f"Supplements: {len(supplements)} free-priced products created")
+        for brand, medicine in supplements.items():
+            self.stdout.write(f"  {medicine.generic_name:<20} {medicine} (price set per pharmacy)")
+        return supplements
+
+    def _stock(self, pharmacies, medicines, owners, supplements=None):
         """
         Fragmented on purpose. No single pharmacy stocks everything, so realistic baskets
         must be split - which is exactly the case the router has to handle well.
@@ -350,6 +430,31 @@ class Command(BaseCommand):
                         "batch_number": f"{ingredient[:3].upper()}-{random.randint(2400, 2699)}",
                         "initial_quantity": quantity,
                         "expiry_date": timezone.localdate() + timedelta(days=random.choice([25, 55, 120, 240, 400])),
+                        "supplier_name": random.choice(["Beirut Medical Supply", "Levant Pharma", "Mediterranean Health"]),
+                        "purchase_cost": (selling * Decimal("0.68")).quantize(Decimal("0.01")),
+                        "selling_price": selling,
+                        "low_stock_threshold": random.choice([4, 6, 8]),
+                    },
+                )
+                created += 1
+
+            # Every pharmacy carries one of every supplement, so each is findable
+            # and orderable everywhere. Supplements are free-priced, so each
+            # pharmacy picks its own selling price for its batch (the same random
+            # per-pharmacy range the free-priced medicine lines above use).
+            for brand, medicine in (supplements or {}).items():
+                if pharmacy.inventory_batches.filter(medicine=medicine, is_archived=False).exists():
+                    continue
+                selling = (Decimal("12.00") + Decimal(random.randint(-250, 350)) / 100).quantize(Decimal("0.01"))
+                quantity = random.choice([6, 12, 18, 25, 40])
+                create_inventory_batch(
+                    user=user,
+                    pharmacy=pharmacy,
+                    data={
+                        "medicine": medicine,
+                        "batch_number": f"SUP-{random.randint(2400, 2699)}",
+                        "initial_quantity": quantity,
+                        "expiry_date": timezone.localdate() + timedelta(days=random.choice([120, 240, 400, 550])),
                         "supplier_name": random.choice(["Beirut Medical Supply", "Levant Pharma", "Mediterranean Health"]),
                         "purchase_cost": (selling * Decimal("0.68")).quantize(Decimal("0.01")),
                         "selling_price": selling,
@@ -556,9 +661,11 @@ class Command(BaseCommand):
                 comment=random.choice(["Arrived earlier than the window.", "Everything correct, well packed."]),
             )
 
-    def _refills(self, shoppers, addresses, medicines, prescriptions):
+    def _refills(self, shoppers, addresses, medicines, supplements, prescriptions):
         """
-        Repeat schedules for the chronic-medication story.
+        Repeat schedules for the chronic-medication story plus one for a free-priced
+        supplement (creatine), which demonstrates a recurring order that needs no
+        prescription - the client's "creatine every month" case.
 
         One active, one paused and one already running, so /refills renders each
         state. The cardiac schedule carries the prescription the doctor issued,
@@ -592,7 +699,28 @@ class Command(BaseCommand):
                 next_run_at=timezone.now() + timedelta(days=random.choice([1, 6, 19])),
             )
             created += 1
-        self.stdout.write(f"Refill schedules: {created} ({sum(1 for s in schedules if s[4])} active)")
+
+        # A free-priced supplement refill (creatine) for a shopper who isn't already
+        # on the chronic schedule - placed through the same RecurringOrder flow. No
+        # prescription: supplements are not regulated, so _check_prescription_requirements
+        # never demands cover for them.
+        creatine = next((m for m in supplements.values() if "Creatine" in m.generic_name), None)
+        shopper_index = 0
+        if creatine is not None and shopper_index < len(shoppers) and not RecurringOrder.objects.filter(customer=shoppers[shopper_index]).exists():
+            RecurringOrder.objects.create(
+                customer=shoppers[shopper_index],
+                address=addresses[shopper_index],
+                label="Daily creatine tub",
+                items=[{"medicine": str(creatine.id), "quantity": 1}],
+                interval_days=30,
+                preferred_hour=random.choice([10, 15, 19]),
+                is_active=True,
+                prescription=None,
+                next_run_at=timezone.now() + timedelta(days=random.choice([1, 6, 19])),
+            )
+            created += 1
+
+        self.stdout.write(f"Refill schedules: {created} ({RecurringOrder.objects.filter(is_active=True).count()} active)")
 
     def _payment_methods(self, shoppers):
         """A saved card and cash per shopper, so checkout has something to pre-select."""

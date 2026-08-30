@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { AvailabilityBadge, MetaChip, PrescriptionBadge } from "@/components/medicines/Badges";
+import { AvailabilityBadge, MetaChip, NssfBadge, PrescriptionBadge } from "@/components/medicines/Badges";
 import { PackThumb } from "@/components/medicines/PackThumb";
 import { formatPrice, sourcingLine } from "@/components/medicines/MedicineResult";
 import { StateBlock } from "@/components/medicines/SearchStates";
@@ -15,6 +15,24 @@ import { medicineLabel, type MedicineDetail } from "@/lib/catalog/types";
 import { useBasket } from "@/lib/basket";
 
 const MAX_QUANTITY = 10;
+
+/**
+ * Rough out-of-pocket estimate for an NSSF-covered medicine: the Fund pays its rate
+ * against the cheaper of the shelf price and the NSSF reference price, and the patient
+ * pays the rest plus anything the shelf price runs over the reference. Needs a rate and
+ * at least one price to say anything, so returns null otherwise.
+ */
+function nssfEstimate(medicine: MedicineDetail): number | null {
+  if (!medicine.nssfCovered || typeof medicine.nssfReimbursementRate !== "number") return null;
+  const shelf = medicine.fromPrice;
+  const reference = medicine.nssfReferencePrice;
+  const basis = typeof reference === "number" ? reference : shelf;
+  if (typeof basis !== "number") return null;
+  const reimbursableBase = typeof shelf === "number" ? Math.min(shelf, basis) : basis;
+  const reimbursed = (medicine.nssfReimbursementRate / 100) * reimbursableBase;
+  const total = typeof shelf === "number" ? shelf : basis;
+  return Math.max(0, Number((total - reimbursed).toFixed(2)));
+}
 
 export default function MedicationDetailPage() {
   const params = useParams<{ id: string }>();
@@ -136,6 +154,7 @@ export default function MedicationDetailPage() {
               <div className="hc-med-chips">
                 <AvailabilityBadge state={medicine.availability} />
                 <PrescriptionBadge required={medicine.requiresPrescription} />
+                <NssfBadge covered={medicine.nssfCovered} rate={medicine.nssfReimbursementRate} />
                 {medicine.form ? <MetaChip>{medicine.form}</MetaChip> : null}
                 {medicine.packSize ? <MetaChip>{medicine.packSize}</MetaChip> : null}
               </div>
@@ -199,6 +218,58 @@ export default function MedicationDetailPage() {
               <p className="hc-small" style={{ marginTop: 18 }}>
                 Product pricing and details are sourced from the <a href="https://moph.gov.lb/en/Drugs/index/3/3974/lebanon-national-drugs-database" target="_blank" rel="noopener noreferrer">Lebanon National Drugs Database</a> maintained by the Ministry of Public Health (MoPH).
               </p>
+            </section>
+
+            <section className="hc-med-section">
+              <h2 className="hc-h3">Insurance (NSSF)</h2>
+              {medicine.nssfCovered ? (
+                <div className="hc-card hc-card-quiet" style={{ marginTop: 14 }}>
+                  <div className="hc-rxnotice-head">
+                    <Icon name="shield" size={17} />
+                    Reimbursed by the National Social Security Fund
+                  </div>
+                  <dl className="hc-spec hc-spec-nested" style={{ marginTop: 12 }}>
+                    <div className="hc-spec-row">
+                      <dt>Reimbursement rate</dt>
+                      <dd>
+                        {typeof medicine.nssfReimbursementRate === "number" ? (
+                          `${medicine.nssfReimbursementRate % 1 === 0 ? medicine.nssfReimbursementRate : medicine.nssfReimbursementRate.toFixed(2)}% of the reference price`
+                        ) : (
+                          <span className="hc-spec-empty">On the NSSF list; rate not on file</span>
+                        )}
+                      </dd>
+                    </div>
+                    <div className="hc-spec-row">
+                      <dt>NSSF reference price</dt>
+                      <dd>
+                        {typeof medicine.nssfReferencePrice === "number" ? (
+                          formatPrice(medicine.nssfReferencePrice)
+                        ) : (
+                          <span className="hc-spec-empty">Not on file</span>
+                        )}
+                      </dd>
+                    </div>
+                    {nssfEstimate(medicine) !== null ? (
+                      <div className="hc-spec-row">
+                        <dt>Estimated you pay</dt>
+                        <dd>
+                          {formatPrice(nssfEstimate(medicine) as number)}
+                          <span className="hc-spec-empty"> · estimate before any private top-up cover</span>
+                        </dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                  <p className="hc-small" style={{ marginTop: 10 }}>
+                    Since 2024 the NSSF reimburses against the cheapest equivalent formulation, so a more expensive brand
+                    leaves a larger share with you. Any private or employer top-up cover applies on top of this.
+                  </p>
+                </div>
+              ) : (
+                <p className="hc-small" style={{ marginTop: 10 }}>
+                  This medicine is not on the platform&apos;s NSSF reimbursable list. That is not confirmation the Fund
+                  refuses it — coverage may simply not be recorded here yet. Check with your pharmacy or the NSSF.
+                </p>
+              )}
             </section>
 
             {medicine.requiresPrescription ? (

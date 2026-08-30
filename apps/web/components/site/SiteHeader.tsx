@@ -8,15 +8,17 @@ import { BrandLogo } from "@/components/ui/BrandMark";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useOptionalUser } from "@/lib/auth";
 import { useBasket } from "@/lib/basket";
+import { useTranslations } from "@/lib/i18n/context";
 
 const LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/how-it-works", label: "How it works" },
-  { href: "/about", label: "About" },
-  { href: "/search", label: "Search medicines" }
+  { href: "/", labelKey: "publicHeader.home" },
+  { href: "/how-it-works", labelKey: "publicHeader.howItWorks" },
+  { href: "/about", labelKey: "publicHeader.about" },
+  { href: "/search", labelKey: "publicHeader.searchMedicines" }
 ];
 
 export function SiteHeader() {
+  const t = useTranslations();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // Resolves after mount. Signed-out is the right first paint for a public
@@ -36,10 +38,10 @@ export function SiteHeader() {
           <BrandLogo />
         </Link>
 
-        <nav className="hc-nav" aria-label="Main">
+        <nav className="hc-nav" aria-label={t("publicHeader.mainNavigation")}>
           {LINKS.map((link) => (
             <Link key={link.href} href={link.href} aria-current={current(link.href)}>
-              {link.label}
+              {t(link.labelKey)}
             </Link>
           ))}
         </nav>
@@ -50,9 +52,13 @@ export function SiteHeader() {
             href="/cart"
             className="hc-cartbtn"
             aria-current={current("/cart")}
-            aria-label={ready && count > 0 ? `Basket, ${count} in it` : "Basket"}
+            aria-label={
+              ready && count > 0
+                ? t("publicHeader.basketWithCount", { count })
+                : t("publicHeader.basket")
+            }
           >
-            <Icon name="box" size={19} />
+            <Icon name="cart" size={19} />
             {ready && count > 0 ? (
               <span className="hc-cartbtn-count hc-num" aria-hidden="true">
                 {count > 9 ? "9+" : count}
@@ -62,15 +68,15 @@ export function SiteHeader() {
           {user ? (
             <Link href="/home" className="hc-btn hc-btn-secondary hc-btn-sm">
               <Icon name="home" size={16} />
-              My HealthConnect
+              {t("publicHeader.myHealthConnect")}
             </Link>
           ) : (
             <>
               <Link href="/login" className="hc-btn hc-btn-quiet hc-btn-sm hc-desktop-only">
-                Sign in
+                {t("common.signIn")}
               </Link>
               <Link href="/register" className="hc-btn hc-btn-primary hc-btn-sm">
-                Get started
+                {t("publicHeader.getStarted")}
               </Link>
             </>
           )}
@@ -79,7 +85,7 @@ export function SiteHeader() {
             className="hc-burger"
             aria-expanded={open}
             aria-controls="hc-mobile-nav"
-            aria-label={open ? "Close menu" : "Open menu"}
+            aria-label={open ? t("publicHeader.closeMenu") : t("publicHeader.openMenu")}
             onClick={() => setOpen((value) => !value)}
           >
             <Icon name={open ? "close" : "menu"} size={20} />
@@ -94,21 +100,21 @@ export function SiteHeader() {
           </div>
           {LINKS.map((link) => (
             <Link key={link.href} href={link.href} aria-current={current(link.href)}>
-              {link.label}
+              {t(link.labelKey)}
             </Link>
           ))}
           <div className="hc-mobile-cta">
             {user ? (
               <Link href="/home" className="hc-btn hc-btn-primary hc-btn-block">
-                Go to my HealthConnect
+                {t("publicHeader.goToMyHealthConnect")}
               </Link>
             ) : (
               <>
                 <Link href="/login" className="hc-btn hc-btn-secondary hc-btn-block">
-                  Sign in
+                  {t("common.signIn")}
                 </Link>
                 <Link href="/register" className="hc-btn hc-btn-primary hc-btn-block">
-                  Get started
+                  {t("publicHeader.getStarted")}
                 </Link>
               </>
             )}

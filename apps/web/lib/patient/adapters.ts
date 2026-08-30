@@ -222,7 +222,10 @@ export function toOcrFields(ocr: ApiOcrFields | null | undefined): OcrFields | n
       quantity: med.quantity ?? null,
       directions: med.directions ?? "",
       duration: med.duration ?? "",
-      refills: med.refills ?? null
+      refills: med.refills ?? null,
+      medicineId: med.medicine_id ?? "",
+      catalogName: med.catalog_name ?? "",
+      matchConfidence: med.match_confidence ?? null
     })),
     notes: ocr.notes ?? ""
   };
@@ -239,6 +242,7 @@ export function toPrescriptionUpload(record: ApiPrescriptionUpload): Prescriptio
     qualityWarnings: record.quality_warnings ?? [],
     filePath: (record.download_url ?? "").replace(/^\/api/, ""),
     ocrFields: toOcrFields(record.ocr_fields),
+    ocrLowConfidence: Boolean(record.ocr_low_confidence),
     ocrReviewRequested: Boolean(record.ocr_review_requested),
     ocrReviewNote: record.ocr_review_note ?? ""
   };

@@ -11,6 +11,13 @@
     "path": "C:/PharmacyPOS/exports/stock.csv",
     "encoding": "utf-8-sig",
     "delimiter": ",",
+    "minimum_file_age_seconds": 10,
+    "aggregate_duplicate_codes": false,
+    "safety": {
+      "enabled": true,
+      "minimum_rows": 10,
+      "maximum_drop_fraction": 0.5
+    },
     "columns": {
       "external_code": "code",
       "name": "description",

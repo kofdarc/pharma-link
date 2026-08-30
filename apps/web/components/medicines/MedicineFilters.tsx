@@ -32,7 +32,7 @@ const BASE_GROUPS: [Group<"availability">, Group<"prescription">, Group<"product
     options: [
       { value: "any", label: "Any" },
       { value: "required", label: "Prescription required" },
-      { value: "none", label: "No prescription needed" }
+      { value: "none", label: "Prescription not required" }
     ]
   },
   {

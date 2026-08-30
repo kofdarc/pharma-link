@@ -71,6 +71,29 @@ class ExtractionTests(TestCase):
 
         self.assertEqual(candidates[0]["medicine_id"], str(self.panadol.id))
 
+    def test_noise_lines_with_no_match_dose_or_quantity_are_dropped(self):
+        # A garbled handwriting scan of a clinic letterhead: only the one real drug line
+        # carries a dose or quantity or matches the catalog - the rest is dropped rather
+        # than served to the patient as invented medications.
+        text = (
+            "Smile Designing Teeth Whitening\n"
+            "THE WHITE TUSK Dental Implants\n"
+            "www.thewhitetusk.com\n"
+            "info@thewhitetusk.com\n"
+            "Panadol 500mg x30\n"
+            "1 0 1 x 5days\n"
+        )
+
+        candidates = extract_candidate_lines(text)
+
+        self.assertEqual(len(candidates), 1)
+        self.assertIn("Panadol", candidates[0]["raw_line"])
+
+    def test_an_unmatched_line_is_kept_when_it_has_a_dose_or_quantity(self):
+        candidates = extract_candidate_lines("Squiggle Brand 250mg\nOther Squiggle x14")
+
+        self.assertEqual(len(candidates), 2)
+
     def test_empty_text_yields_no_candidates(self):
         self.assertEqual(extract_candidate_lines(""), [])
 

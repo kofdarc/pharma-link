@@ -151,6 +151,32 @@ class PharmacyPrescriptionUploadTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(b"".join(response.streaming_content)[:8], b"\x89PNG\r\n\x1a\n")
 
+    def test_pharmacist_name_correction_relinks_the_catalog_match(self):
+        from decimal import Decimal
+
+        from apps.medicines.models import Medicine, PriceRegime, ProductCategory
+
+        brufen = Medicine.objects.create(
+            brand_name="Brufen",
+            generic_name="Ibuprofen",
+            strength="400mg",
+            form="Tablet",
+            category=ProductCategory.MEDICINE,
+            price_regime=PriceRegime.REGULATED,
+            regulated_price=Decimal("3.10"),
+        )
+        data = self._upload()
+        self.client.force_authenticate(self.staff_a)
+        patched = self.client.patch(
+            f"{PHARM_URL}{data['id']}/",
+            {"ocr_fields": {"medications": [{"name": "Bru fen", "strength": "400mg"}]}},
+            format="json",
+        )
+        self.assertEqual(patched.status_code, 200, patched.data)
+        med = patched.data["ocr_fields"]["medications"][0]
+        self.assertEqual(med["medicine_id"], str(brufen.id))
+        self.assertIn("Brufen", med["catalog_name"])
+
 
 def _results(response):
     body = response.data

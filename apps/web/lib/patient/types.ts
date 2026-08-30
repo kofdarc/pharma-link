@@ -63,6 +63,11 @@ export interface OcrMedication {
   directions: string;
   duration: string;
   refills: number | null;
+  /** The catalog Medicine this row was reconciled to server-side ("" if unmatched),
+   * its display name, and the 0-1 match score. */
+  medicineId: string;
+  catalogName: string;
+  matchConfidence: number | null;
 }
 
 /** What OCR read off the uploaded scan. The patient sees this read-only and can
@@ -91,6 +96,9 @@ export interface PrescriptionUpload {
   filePath: string;
   /** The structured OCR read, or null if extraction was off or produced nothing. */
   ocrFields: OcrFields | null;
+  /** A read exists but is too weak to trust: the UI withholds the parsed medication list
+   * and shows a "a pharmacist will check your photo" notice instead. */
+  ocrLowConfidence: boolean;
   /** The patient flagged the OCR read as wrong. */
   ocrReviewRequested: boolean;
   ocrReviewNote: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AUTH_EXPIRED_EVENT, apiFetch, clearToken, getToken } from "./api-client";
 import { ROLE_HOME } from "./constants";
 import { clearBasket } from "./basket";
@@ -67,13 +67,20 @@ export function useOptionalUser() {
 
 export function useRequireRole(roles: UserRole[]) {
   const router = useRouter();
+  const pathname = usePathname();
   const state = useCurrentUser();
 
   useEffect(() => {
     if (state.loading) return;
-    if (!state.user) router.replace("/login");
-    else if (!roles.includes(state.user.role)) router.replace(ROLE_HOME[state.user.role] || "/login");
-  }, [roles, router, state.loading, state.user]);
+    // Signed out: send them to sign in, but remember where they were headed so
+    // login can drop them back here (e.g. cart -> checkout -> login -> checkout).
+    if (!state.user) {
+      const next = pathname && pathname !== "/login" ? `?next=${encodeURIComponent(pathname)}` : "";
+      router.replace(`/login${next}`);
+    } else if (!roles.includes(state.user.role)) {
+      router.replace(ROLE_HOME[state.user.role] || "/login");
+    }
+  }, [roles, router, pathname, state.loading, state.user]);
 
   // A 401 on some later request (not the initial /auth/me/ load) means the token expired
   // mid-session. Redirect with a flag so /login can explain why, instead of the page just

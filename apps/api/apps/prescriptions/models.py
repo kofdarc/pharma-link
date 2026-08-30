@@ -12,6 +12,12 @@ from apps.prescriptions.storage import EncryptedPrescriptionStorage
 ALLOWED_PRESCRIPTION_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
 ALLOWED_PRESCRIPTION_MIME_TYPES = {"application/pdf", "image/jpeg", "image/png"}
 
+# Below this structured-OCR confidence (apps.prescriptions.services.structured.extraction_confidence)
+# a patient upload is treated as "couldn't read it": the parsed medication list is withheld from
+# the patient behind a "a pharmacist will check your photo" notice, and the scalar columns
+# (doctor_name / patient_name / ...) are not auto-filled from the read.
+OCR_LOW_CONFIDENCE_THRESHOLD = 0.45
+
 
 def prescription_upload_path(instance, filename: str) -> str:
     safe_suffix = Path(filename).suffix.lower()
@@ -82,8 +88,10 @@ class PrescriptionRecord(UUIDTimeStampedModel):
         default=dict,
         blank=True,
         help_text="Structured read of `ocr_text`: {patient_name, patient_phone, doctor_name, prescription_date, "
-        "medications: [{name, strength, quantity, directions, duration, refills}], notes}. Shown to the patient "
-        "read-only on a paper upload and editable by a pharmacist on review. Empty when extraction is off or failed.",
+        "medications: [{name, strength, quantity, directions, duration, refills, medicine_id, catalog_name, "
+        "match_confidence}], notes}. Each medication's name is reconciled against the medicine catalog server-side "
+        "(medicine_id/catalog_name/match_confidence). Shown to the patient read-only on a paper upload and editable "
+        "by a pharmacist on review. Empty when extraction is off or failed.",
     )
     ocr_provider = models.CharField(
         max_length=40, blank=True, help_text="Which extractor produced `ocr_fields` ('regex', 'openai_compatible', ...)."
@@ -92,6 +100,14 @@ class PrescriptionRecord(UUIDTimeStampedModel):
         default=False, help_text="The patient flagged the OCR read as wrong; a pharmacist should re-check it before accepting."
     )
     ocr_review_note = models.CharField(max_length=500, blank=True, help_text="What the patient said was wrong with the OCR read.")
+    ocr_confidence = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="0-1 reliability of the structured read: mostly the share of medication rows that "
+        "linked to a real catalog SKU. Null when no extraction ran. Below "
+        "OCR_LOW_CONFIDENCE_THRESHOLD the patient sees a 'a pharmacist will check your photo' "
+        "notice instead of the parsed medication list, and scalar fields are not auto-filled from it.",
+    )
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="prescription_records")
 
@@ -119,4 +135,11 @@ class PrescriptionRecord(UUIDTimeStampedModel):
         """No prescription_date at all means age can't be verified - treat as expired."""
         expiry = self.effective_valid_until
         return expiry is None or timezone.localdate() > expiry
+
+    @property
+    def ocr_is_low_confidence(self) -> bool:
+        """There is a structured read, but too weak to put in front of the patient as-is. A
+        record with no extraction at all (`ocr_confidence` is None) is 'no read', not 'low
+        confidence' - callers see that from `ocr_fields` being empty."""
+        return self.ocr_confidence is not None and self.ocr_confidence < OCR_LOW_CONFIDENCE_THRESHOLD
 

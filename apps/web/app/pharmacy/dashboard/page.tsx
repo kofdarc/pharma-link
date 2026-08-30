@@ -69,6 +69,17 @@ export default function PharmacyDashboardPage() {
           <strong>{data.metrics.sales_today}</strong>
         </div>
       </section>
+      <section className="panel panel-highlight">
+        <div className="section-header">
+          <div>
+            <h2>{t("pharmacyDashboard.connectExistingSystem")}</h2>
+            <p className="muted small">{t("pharmacyDashboard.connectExistingSystemHint")}</p>
+          </div>
+          <LinkButton href="/pharmacy/connect" variant="primary">
+            {t("pharmacyDashboard.openConnectionSetup")}
+          </LinkButton>
+        </div>
+      </section>
       {data.metrics.inventory_batches === 0 ? <EmptyState title={t("pharmacyDashboard.noInventoryYet")} /> : null}
       <section className="split-grid">
         <div className="panel">

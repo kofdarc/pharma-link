@@ -58,6 +58,20 @@ export interface Medicine {
   regulated_price_reference?: string;
   requires_prescription?: boolean;
   is_price_regulated?: boolean;
+  /** True when the medicine is on an NSSF (National Social Security Fund) reimbursable
+   *  list. Unrelated to MoPH import subsidy. */
+  nssf_covered?: boolean;
+  /** NSSF reference (reimbursement-ceiling) price, decimal string. Null when covered but
+   *  the figure is not yet on file, or when not covered. */
+  nssf_reference_price?: string | null;
+  /** Percentage of the reference price the NSSF reimburses, decimal string, e.g. "80.00". */
+  nssf_reimbursement_rate?: string | null;
+  /** Which NSSF list/decision the coverage was taken from. */
+  nssf_source_reference?: string;
+  nssf_updated_at?: string | null;
+  /** Percentage the patient still pays out of pocket (100 - rate); null when the rate is
+   *  unknown. Server-derived, read-only. */
+  nssf_patient_share_percentage?: string | null;
   /** Pack presentation from the MoPH source, e.g. "30" or "100ml" — count or volume
    *  depending on the product; count-only values need a unit from `form` to read as a
    *  pack size. */
@@ -110,6 +124,9 @@ export interface PublicAvailability {
     | "agent"
     | "brand_generic"
     | "market_status"
+    | "nssf_covered"
+    | "nssf_reference_price"
+    | "nssf_reimbursement_rate"
   > & {
     category?: ProductCategory;
     requires_prescription?: boolean;
@@ -180,6 +197,11 @@ export interface OcrMedication {
   directions: string;
   duration: string;
   refills: number | null;
+  /** Server-side reconciliation of `name` against the medicine catalog: the matched
+   * Medicine id ("" if nothing matched), that row's display name, and a 0-1 score. */
+  medicine_id: string;
+  catalog_name: string;
+  match_confidence: number;
 }
 
 /** The structured read of an uploaded scan: what OCR + extraction pulled off the
@@ -201,6 +223,10 @@ export interface PrescriptionUpload {
   notes: string;
   rejection_reason: string;
   ocr_fields?: OcrFields;
+  /** 0-1 reliability of the structured read; null when no extraction ran. */
+  ocr_confidence?: number | null;
+  /** A read exists but is too weak to show as a medication list - show a fallback notice. */
+  ocr_low_confidence?: boolean;
   ocr_review_requested?: boolean;
   ocr_review_note?: string;
   file_name?: string;

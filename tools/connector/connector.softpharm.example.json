@@ -1,0 +1,37 @@
+{
+  "api_base_url": "https://healthconnect.dev",
+  "key_id": "msk_REPLACE_ME",
+  "interval_seconds": 300,
+  "chunk_size": 500,
+  "timeout_seconds": 30,
+  "orders_out_file": "C:/HealthConnect/incoming-orders.csv",
+  "source": {
+    "type": "csv",
+    "path": "C:/SoftPharmExports/stock.csv",
+    "encoding": "utf-8-sig",
+    "delimiter": ",",
+    "minimum_file_age_seconds": 10,
+    "aggregate_duplicate_codes": true,
+    "safety": {
+      "enabled": true,
+      "minimum_rows": 10,
+      "maximum_drop_fraction": 0.5
+    },
+    "columns": {
+      "external_code": "item code",
+      "name": "item description",
+      "quantity": "available quantity",
+      "selling_price": "selling price",
+      "purchase_cost": "cost",
+      "expiry_date": "expiry date",
+      "supplier_name": "supplier"
+    }
+  },
+  "_instructions": [
+    "This template does not claim that the example column names are official SoftPharm names.",
+    "Replace every columns value with the exact heading in the pharmacy's real SoftPharm CSV export.",
+    "Set PHARMALINK_SECRET in the Windows environment; do not add the secret to this file.",
+    "Keep aggregate_duplicate_codes enabled when the export contains one row per batch or expiry.",
+    "Set safety.minimum_rows below the pharmacy's normal unique-product count, but above any plausible partial export."
+  ]
+}
