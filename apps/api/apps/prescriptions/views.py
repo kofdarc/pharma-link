@@ -21,7 +21,6 @@ from apps.prescriptions.models import (
 from apps.prescriptions.serializers import (
     PharmacyPrescriptionUploadSerializer,
     PrescriptionRecordSerializer,
-    PrescriptionUploadFlagSerializer,
     ShopPrescriptionUploadSerializer,
 )
 from apps.prescriptions.services.extraction import extract_candidate_lines
@@ -218,10 +217,8 @@ class ShopPrescriptionUploadViewSet(ModelViewSet):
 
     On upload the scan is OCR'd and read into structured fields (``ocr_fields`` -
     patient, prescriber, date, medications with directions/duration/refills). The
-    patient sees that read-only and can `flag` it if the OCR got something wrong;
-    they never edit it. The record is created unattached (no `pharmacy`) and
-    PENDING_REVIEW; a pharmacy claims, corrects, and accepts or rejects it
-    (PharmacyPrescriptionUploadViewSet) before it can back a dispense.
+    patient sees that read-only and keeps control of the encrypted source file.
+    The record is not exposed through a pharmacy workspace endpoint.
     """
 
     serializer_class = ShopPrescriptionUploadSerializer
@@ -312,39 +309,6 @@ class ShopPrescriptionUploadViewSet(ModelViewSet):
                 "low_confidence": result.confidence < OCR_LOW_CONFIDENCE_THRESHOLD,
             }
         )
-
-    @action(detail=True, methods=["post"])
-    def flag(self, request, pk=None):
-        """The patient says the OCR read is wrong. Records the flag (plus an optional note)
-        for the reviewing pharmacy - it does not change the OCR fields, which stay a
-        pharmacist's to correct."""
-        record = self.get_object()
-        if record.status != PrescriptionRecord.UploadStatus.PENDING_REVIEW:
-            return Response(
-                {"detail": "This upload has already been reviewed."}, status=status.HTTP_409_CONFLICT
-            )
-
-        payload = PrescriptionUploadFlagSerializer(data=request.data)
-        payload.is_valid(raise_exception=True)
-        note = payload.validated_data["note"].strip()
-
-        record.ocr_review_requested = True
-        record.ocr_review_note = note
-        findings = list(record.quality_findings or [])
-        findings.append(
-            {"code": "patient_flagged_ocr", "message": note or "Patient flagged the scanned details as inaccurate.", "severity": "warn"}
-        )
-        record.quality_findings = findings
-        record.save(update_fields=["ocr_review_requested", "ocr_review_note", "quality_findings"])
-        write_audit_log(
-            actor_user=request.user,
-            action="prescriptions.ocr_flagged",
-            entity_type="PrescriptionRecord",
-            entity_id=record.id,
-            summary="Patient flagged the OCR read for pharmacy review",
-        )
-        return Response(self.get_serializer(record).data)
-
 
 class PharmacyPrescriptionUploadViewSet(ModelViewSet):
     """The pharmacy's queue of patient paper uploads. A pharmacist can correct the OCR

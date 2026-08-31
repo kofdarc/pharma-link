@@ -9,19 +9,18 @@ import { formatDate } from "@/lib/patient/format";
 import type { PrescriptionUpload, PrescriptionUploadStatus } from "@/lib/patient/types";
 
 /**
- * Paper prescriptions the patient uploaded, each waiting on a pharmacy.
+ * Paper prescriptions the patient uploaded to their private account.
  *
  * Sits above the digital wallet on the Prescriptions screen and only appears
  * once there is something in it: an empty account should not carry an empty
  * section explaining a feature it has not used.
  *
- * Each card shows what OCR read off the photo, read-only. The patient cannot
- * edit it - if something is wrong they flag it and the pharmacy corrects it on
- * review.
+ * Each card shows what OCR read off the photo. Pharmacy workspaces cannot list
+ * or retrieve these records.
  */
 
 const STATUS: Record<PrescriptionUploadStatus, { label: string; chip: string; icon: IconName }> = {
-  pending: { label: "Pending review", chip: "hc-chip-limited", icon: "clock" },
+  pending: { label: "Private scan", chip: "hc-chip-limited", icon: "lock" },
   accepted: { label: "Accepted", chip: "hc-chip-ok", icon: "check" },
   rejected: { label: "Rejected", chip: "hc-chip-off", icon: "close" }
 };
@@ -29,18 +28,14 @@ const STATUS: Record<PrescriptionUploadStatus, { label: string; chip: string; ic
 export function UploadedPrescriptions({
   uploads,
   ready,
-  onRemove,
-  onFlag
+  onRemove
 }: {
   uploads: PrescriptionUpload[];
   ready: boolean;
   onRemove: (id: string) => void;
-  onFlag: (id: string, note: string) => void;
 }) {
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
-  const [flagId, setFlagId] = useState("");
-  const [flagNote, setFlagNote] = useState("");
 
   if (!ready || uploads.length === 0) return null;
 
@@ -69,21 +64,9 @@ export function UploadedPrescriptions({
     }
   }
 
-  async function submitFlag(id: string) {
-    setBusyId(id);
-    try {
-      await onFlag(id, flagNote.trim());
-      setFlagId("");
-      setFlagNote("");
-    } finally {
-      setBusyId("");
-    }
-  }
-
   return (
     <section className="hc-stack" aria-label="Uploaded prescriptions">
       <h2 className="hc-h3">Uploaded prescriptions</h2>
-      <p className="hc-small">Photos you sent in. A pharmacy checks each one before it can be used to dispense.</p>
 
       {error ? (
         <p className="hc-field-error">
@@ -121,56 +104,10 @@ export function UploadedPrescriptions({
 
             <OcrReadout fields={upload.ocrFields} lowConfidence={upload.ocrLowConfidence} />
 
-            {upload.status === "pending" ? (
-              upload.ocrReviewRequested ? (
-                <p className="hc-inline-note hc-inline-note-warn">
-                  <Icon name="info" size={15} />
-                  You flagged these details. A pharmacist will re-check them against your photo.
-                </p>
-              ) : flagId === upload.id ? (
-                <div className="hc-field">
-                  <label htmlFor={`flag-${upload.id}`}>What did we get wrong?</label>
-                  <input
-                    id={`flag-${upload.id}`}
-                    className="hc-input"
-                    value={flagNote}
-                    onChange={(event) => setFlagNote(event.target.value)}
-                    placeholder="e.g. the doctor's name, or a missing medication"
-                  />
-                  <div className="hc-rxcard-actions">
-                    <button
-                      type="button"
-                      className="hc-btn hc-btn-primary hc-btn-sm"
-                      disabled={busyId === upload.id}
-                      onClick={() => submitFlag(upload.id)}
-                    >
-                      Send to pharmacy
-                    </button>
-                    <button type="button" className="hc-btn hc-btn-secondary hc-btn-sm" onClick={() => setFlagId("")}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : null
-            ) : null}
-
             <div className="hc-rxcard-actions">
               {upload.filePath ? (
                 <button type="button" className="hc-btn hc-btn-secondary hc-btn-sm" onClick={() => view(upload)}>
                   View file
-                </button>
-              ) : null}
-              {upload.status === "pending" && !upload.ocrReviewRequested && flagId !== upload.id ? (
-                <button
-                  type="button"
-                  className="hc-btn hc-btn-secondary hc-btn-sm"
-                  onClick={() => {
-                    setFlagId(upload.id);
-                    setFlagNote("");
-                  }}
-                >
-                  <Icon name="alert" size={14} />
-                  Something look wrong?
                 </button>
               ) : null}
               {upload.status === "pending" ? (

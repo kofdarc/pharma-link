@@ -38,7 +38,6 @@ const NAV_TRANSLATION_KEYS: Record<string, string> = {
   "/pharmacy/clients": "nav.clients",
   "/pharmacy/imports": "nav.imports",
   "/pharmacy/sales": "nav.sales",
-  "/pharmacy/prescriptions": "nav.prescriptions",
   "/pharmacy/scan": "nav.scanQrScript",
   "/pharmacy/connect": "nav.connectSoftware",
   "/pharmacy/billing": "nav.billing",

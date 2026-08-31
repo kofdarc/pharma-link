@@ -50,9 +50,8 @@ export interface Prescription {
 /**
  * A photo or scan of a paper prescription the patient uploaded themselves.
  *
- * Separate from `Prescription`: it is not a digital record a doctor issued, it
- * is an image a pharmacy has to look at and verify before anything can be
- * dispensed against it. Until then it sits in `pending` review.
+ * Separate from `Prescription`: it is a private image and OCR read owned by the
+ * patient, not a digital record issued by a doctor.
  */
 export type PrescriptionUploadStatus = "pending" | "accepted" | "rejected";
 
@@ -75,8 +74,7 @@ export interface OcrMedication {
   matchConfidence: number | null;
 }
 
-/** What OCR read off the uploaded scan. The patient sees this read-only and can
- * flag it; a pharmacist corrects it on review. */
+/** What OCR read off the uploaded scan. The patient sees this read-only. */
 export interface OcrFields {
   patientName: string;
   patientPhone: string;

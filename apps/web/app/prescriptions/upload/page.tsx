@@ -8,7 +8,6 @@ import { PageHead } from "@/components/patient/Page";
 import { FormAlert } from "@/components/site/FormField";
 import { OcrReadout } from "@/components/prescriptions/OcrReadout";
 import { useToast } from "@/components/patient/Toast";
-import { Icon } from "@/components/ui/Icon";
 import { ApiError, apiFetch } from "@/lib/api-client";
 import { toOcrFields } from "@/lib/patient/adapters";
 import { usePrescriptionUploads } from "@/lib/patient/store";
@@ -24,14 +23,12 @@ const ACCEPT = ".pdf,.jpg,.jpeg,.png";
  *
  * A quick in-browser legibility check runs on the picked image and nudges the
  * patient to retake a dark or blurry one before it is sent. It is only a nudge:
- * the server re-checks and is the authority, and a pharmacist reviews every
- * upload by hand before anything is dispensed against it.
+ * the server re-checks and is the authority.
  *
  * The prescriber, date and medications are read off the photo by OCR - the
  * patient does not type them. A pre-submit `preview` call shows that read on
  * this page so they see it before uploading; the server re-runs OCR on submit
- * (authoritative), and the read stays editable only by a pharmacist. If it is
- * wrong the patient flags it from the Prescriptions screen.
+ * (authoritative). The stored scan remains private to the patient account.
  */
 export default function UploadPrescriptionPage() {
   const router = useRouter();
@@ -126,7 +123,7 @@ export default function UploadPrescriptionPage() {
       const created = await apiFetch<PrescriptionUpload>("/shop/prescription-uploads/", { method: "POST", body });
       refresh();
       const advice = created.quality_warnings?.[0];
-      notify(advice ? `Prescription uploaded. ${advice}` : "Prescription uploaded for review");
+      notify(advice ? `Prescription saved. ${advice}` : "Prescription saved privately");
       router.push("/prescriptions");
     } catch (exception) {
       const api = exception as ApiError;
@@ -141,7 +138,6 @@ export default function UploadPrescriptionPage() {
       <div className="hc-wrap hc-page">
         <PageHead
           title="Upload a paper prescription"
-          lead="Photograph or scan a prescription a doctor gave you on paper. We read the details off it for you, and a pharmacy reviews it before anything is dispensed."
           back={{ href: "/prescriptions", label: "Prescriptions" }}
         />
 
@@ -191,31 +187,22 @@ export default function UploadPrescriptionPage() {
               Reading the prescription…
             </p>
           ) : null}
-          <OcrReadout
-            fields={ocrPreview}
-            lowConfidence={ocrPreviewLowConfidence}
-            footnote="This is what we read from your photo. It goes to the pharmacy with the scan - if anything is wrong you can flag it once it is uploaded, and a pharmacist corrects it."
-          />
+          <OcrReadout fields={ocrPreview} lowConfidence={ocrPreviewLowConfidence} />
 
           <div className="hc-field">
             <label htmlFor="rx-note">
-              Note for the pharmacy<span className="hc-field-hint"> (optional)</span>
+              Private note<span className="hc-field-hint"> (optional)</span>
             </label>
             <input
               id="rx-note"
               className="hc-input"
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              placeholder="Anything the pharmacist should know"
+              placeholder="Anything you want to remember about this prescription"
             />
           </div>
 
           {error ? <FormAlert tone="error">{error}</FormAlert> : null}
-
-          <p className="hc-inline-note">
-            <Icon name="lock" size={15} />
-            Your prescription is encrypted and only shared with a pharmacy you order from.
-          </p>
 
           <div className="hc-actions">
             <button type="submit" className="hc-btn hc-btn-primary hc-btn-lg" disabled={!file || blocked || checking || submitting}>

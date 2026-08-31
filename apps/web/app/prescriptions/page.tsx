@@ -68,7 +68,6 @@ export default function PrescriptionsPage() {
           uploads={uploads.uploads}
           ready={uploads.ready}
           onRemove={(id) => uploads.remove(id).then(uploads.refresh)}
-          onFlag={(id, note) => uploads.flag(id, note).then(uploads.refresh)}
         />
 
         <Segmented

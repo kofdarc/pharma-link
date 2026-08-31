@@ -146,9 +146,8 @@ export function usePrescriptions() {
 }
 
 /**
- * Paper prescriptions the patient photographed and uploaded, each waiting on a
- * pharmacy to verify it. Distinct from `usePrescriptions`, which is the digital
- * records a doctor issued.
+ * Private paper-prescription scans owned by the patient. Distinct from
+ * `usePrescriptions`, which is the digital records a doctor issued.
  */
 export function usePrescriptionUploads() {
   const { data, ready, failed, refresh } = useCollection<PrescriptionUpload[]>(
@@ -162,12 +161,7 @@ export function usePrescriptionUploads() {
     announce();
   }, []);
 
-  const flag = useCallback(async (id: string, note: string) => {
-    await apiFetch(`/shop/prescription-uploads/${id}/flag/`, { method: "POST", body: JSON.stringify({ note }) });
-    announce();
-  }, []);
-
-  return { uploads: data, ready, failed, refresh, remove, flag };
+  return { uploads: data, ready, failed, refresh, remove };
 }
 
 // --- orders ----------------------------------------------------------------

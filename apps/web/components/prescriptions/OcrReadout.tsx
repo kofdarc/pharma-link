@@ -9,13 +9,13 @@ import type { OcrFields } from "@/lib/patient/types";
  *
  * When `lowConfidence` is set the read exists but is too weak to trust (a mangled
  * handwriting scan), so the parsed details are withheld and a short notice is shown
- * in their place - the scan still goes to a pharmacist either way.
+ * in their place so the patient knows to upload a clearer scan.
  */
 export function OcrReadout({
   fields,
   lowConfidence = false,
   title = "What we read from your prescription",
-  footnote = "These were read automatically. A pharmacist checks them against your photo before dispensing."
+  footnote = ""
 }: {
   fields: OcrFields | null;
   lowConfidence?: boolean;
@@ -27,9 +27,7 @@ export function OcrReadout({
       <div className="hc-details">
         <p className="hc-card-label">{title}</p>
         <p className="hc-small">
-          This prescription is handwritten, so we haven&apos;t shown the details here. Your photo
-          has been received and a pharmacist will read it directly and confirm everything with you
-          before dispensing.
+          Details could not be read reliably.
         </p>
       </div>
     );

@@ -58,7 +58,6 @@ class SaleCreateSerializer(serializers.Serializer):
     items = SaleCreateLineSerializer(many=True)
     payment_method = serializers.ChoiceField(choices=Sale.PaymentMethod.choices, required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True)
-    prescription_record_id = serializers.UUIDField(required=False)
     client = serializers.UUIDField(required=False, allow_null=True)
     insurance_policy = serializers.UUIDField(required=False, allow_null=True)
 

@@ -1,4 +1,5 @@
 import io
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -38,8 +39,6 @@ class ShopPrescriptionUploadTests(APITestCase):
         )
 
     def test_preview_returns_structured_fields_without_storing_anything(self):
-        from unittest.mock import patch
-
         from apps.prescriptions.services.ocr.base import OcrResult
 
         self.client.force_authenticate(self.shopper)
@@ -56,8 +55,6 @@ class ShopPrescriptionUploadTests(APITestCase):
         self.assertFalse(PrescriptionRecord.objects.filter(customer=self.shopper).exists())
 
     def test_preview_degrades_to_null_when_ocr_is_unavailable(self):
-        from unittest.mock import patch
-
         from apps.prescriptions.services.ocr.base import OcrProviderError
 
         self.client.force_authenticate(self.shopper)
@@ -78,7 +75,8 @@ class ShopPrescriptionUploadTests(APITestCase):
         self.client.force_authenticate(self.staff)
         self.assertEqual(self.client.post(f"{LIST_URL}preview/", {"file": _readable_scan()}, format="multipart").status_code, 403)
 
-    def test_shopper_uploads_a_paper_prescription_pending_review(self):
+    @patch("apps.prescriptions.views.run_structured_extraction", return_value=False)
+    def test_shopper_uploads_a_private_paper_prescription(self, _extract):
         self.client.force_authenticate(self.shopper)
         response = self.client.post(LIST_URL, {"file": _readable_scan(), "doctor_name": "Dr. Haddad"}, format="multipart")
         self.assertEqual(response.status_code, 201, response.data)
@@ -90,7 +88,8 @@ class ShopPrescriptionUploadTests(APITestCase):
         self.assertEqual(record.created_by_id, self.shopper.id)
         self.assertIsNone(record.pharmacy_id)
 
-    def test_upload_list_is_scoped_to_the_uploader(self):
+    @patch("apps.prescriptions.views.run_structured_extraction", return_value=False)
+    def test_upload_list_is_scoped_to_the_uploader(self, _extract):
         self.client.force_authenticate(self.shopper)
         created = self.client.post(LIST_URL, {"file": _readable_scan()}, format="multipart")
         record_id = created.data["id"]
@@ -121,11 +120,14 @@ class ShopPrescriptionUploadTests(APITestCase):
         self.client.force_authenticate(self.staff)
         self.assertEqual(self.client.get(LIST_URL).status_code, 403)
         self.assertEqual(self.client.post(LIST_URL, {"file": _readable_scan()}, format="multipart").status_code, 403)
+        self.assertEqual(self.client.get("/api/pharmacy/prescription-uploads/").status_code, 404)
+        self.assertEqual(self.client.get("/api/pharmacy/prescriptions/").status_code, 404)
 
     def test_anonymous_caller_is_rejected(self):
         self.assertEqual(self.client.get(LIST_URL).status_code, 401)
 
-    def test_owner_can_delete_a_pending_upload_but_not_an_accepted_one(self):
+    @patch("apps.prescriptions.views.run_structured_extraction", return_value=False)
+    def test_owner_can_delete_a_pending_upload_but_not_an_accepted_one(self, _extract):
         self.client.force_authenticate(self.shopper)
         record_id = self.client.post(LIST_URL, {"file": _readable_scan()}, format="multipart").data["id"]
 
@@ -136,7 +138,8 @@ class ShopPrescriptionUploadTests(APITestCase):
         self.assertEqual(self.client.delete(f"{LIST_URL}{record_id}/").status_code, 204)
         self.assertFalse(PrescriptionRecord.objects.filter(id=record_id).exists())
 
-    def test_owner_can_download_their_own_file(self):
+    @patch("apps.prescriptions.views.run_structured_extraction", return_value=False)
+    def test_owner_can_download_their_own_file(self, _extract):
         self.client.force_authenticate(self.shopper)
         record_id = self.client.post(LIST_URL, {"file": _readable_scan()}, format="multipart").data["id"]
         response = self.client.get(f"{LIST_URL}{record_id}/file/")
@@ -144,10 +147,10 @@ class ShopPrescriptionUploadTests(APITestCase):
         self.assertEqual(b"".join(response.streaming_content)[:8], b"\x89PNG\r\n\x1a\n")
 
     def test_pharmacy_only_actions_are_not_exposed_on_the_shop_endpoint(self):
-        # The patient side gets the OCR read (populated at upload time) and can `flag` it,
-        # but drug-line `extract`ion + catalog matching stays a pharmacy-side action.
+        # OCR is populated at upload time. No pharmacist review or legacy candidate
+        # extraction action is exposed on the patient endpoint.
         from apps.prescriptions.views import ShopPrescriptionUploadViewSet
 
         action_names = {a.__name__ for a in ShopPrescriptionUploadViewSet.get_extra_actions()}
         self.assertNotIn("extract", action_names)
-        self.assertEqual({"file", "flag", "preview"}, action_names)
+        self.assertEqual({"file", "preview"}, action_names)
