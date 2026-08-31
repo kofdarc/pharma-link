@@ -27,8 +27,9 @@ export function OcrReadout({
       <div className="hc-details">
         <p className="hc-card-label">{title}</p>
         <p className="hc-small">
-          We couldn&apos;t read this prescription clearly enough to show the details. A pharmacist
-          will check your photo before dispensing.
+          This prescription is handwritten, so we haven&apos;t shown the details here. Your photo
+          has been received and a pharmacist will read it directly and confirm everything with you
+          before dispensing.
         </p>
       </div>
     );
@@ -71,10 +72,16 @@ export function OcrReadout({
                 {med.strength ? ` ${med.strength}` : ""}
               </strong>
               {med.quantity != null ? ` · ${med.quantity}` : ""}
-              {med.directions ? (
+              {med.directions || med.dosePattern ? (
                 <>
                   <br />
-                  <span className="hc-small">{med.directions}</span>
+                  <span className="hc-small">
+                    {med.directions || med.dosePattern}
+                    {/* The prescriber's own shorthand, kept beside the plain reading so the
+                        patient can check it against the page rather than trusting the
+                        expansion. Suppressed when there is nothing to expand. */}
+                    {med.directions && med.dosePattern ? ` · written as ${med.dosePattern}` : ""}
+                  </span>
                 </>
               ) : null}
               {med.duration || med.refills != null ? (

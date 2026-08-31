@@ -194,6 +194,9 @@ export interface OcrMedication {
   name: string;
   strength: string;
   quantity: number | null;
+  /** Dosing notation verbatim from the page ("1-0-1"); `directions` holds the plain
+   * reading of it. Only the vision OCR providers fill this in. */
+  dose_pattern: string;
   directions: string;
   duration: string;
   refills: number | null;

@@ -51,6 +51,7 @@ const EMPTY_MED: OcrMedication = {
   name: "",
   strength: "",
   quantity: null,
+  dose_pattern: "",
   directions: "",
   duration: "",
   refills: null,

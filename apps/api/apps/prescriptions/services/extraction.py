@@ -87,6 +87,30 @@ def _is_metadata_line(line: str) -> bool:
     return bool(METADATA_LINE_PATTERN.match(lowered))
 
 
+# A line can be unmistakably a prescribed item without carrying a dose, a total quantity, or
+# a name the catalog knows. Two such markers, both common on real scripts:
+#   - a dosage-form prefix: "Tab. Enzoflam", "Cap Omeprazole", "Syr. Ibuprofen"
+#   - a dose-column pattern: "1-0-1", "1-1-1", "0-0-1" (morning-afternoon-night), the standard
+#     South-Asian notation, which also shows up on scripts written by doctors trained there
+# Without this, an out-of-catalog drug with no printed strength - "Tab. Enzoflam 1-0-1 x5days"
+# on a dental script - was silently dropped from the read entirely, so neither the patient nor
+# the reviewing pharmacist ever saw that it had been prescribed.
+DOSAGE_FORM_PREFIX = re.compile(
+    r"^\s*(?:tab|cap|syr|susp|inj|oint|cr[eè]me?|gtt|supp|neb|sach|adv|advice|rx)\b\.?:?\s+", re.IGNORECASE
+)
+DOSE_COLUMN_PATTERN = re.compile(r"\b[0-9½¼]+\s*[-–]\s*[0-9½¼]+\s*[-–]\s*[0-9½¼]+\b")
+# The "for how long" tail ("x5days", "x 1 week", "for 10 days"). Stripped before catalog
+# matching for the same reason the dose column is: it is not part of the drug's name, and
+# leaving it on drags a fuzzy match away from the actual brand.
+DURATION_TAIL = re.compile(
+    r"\b(?:x|for|pendant)\s*\d{1,3}\s*(?:days?|d|weeks?|wks?|months?|mos?|jours?|semaines?|mois)\b", re.IGNORECASE
+)
+
+
+def _looks_prescribed(line: str) -> bool:
+    return bool(DOSAGE_FORM_PREFIX.search(line or "") or DOSE_COLUMN_PATTERN.search(line or ""))
+
+
 def _normalize_strength(value: str) -> str:
     return re.sub(r"\s+", "", (value or "").lower())
 
@@ -144,18 +168,25 @@ def extract_candidate_lines(raw_text: str) -> list[dict]:
         dosage_match = DOSAGE_PATTERN.search(line)
         dosage = dosage_match.group(1) if dosage_match else ""
 
-        name_candidate = QUANTITY_PATTERN.sub(" ", line)
+        # Strip the dosage-form prefix and the dose column before matching: "Tab." and
+        # "1-0-1" are not part of the drug's name, and leaving them in drags the fuzzy
+        # catalog match off the actual brand.
+        name_candidate = DOSAGE_FORM_PREFIX.sub(" ", line)
+        name_candidate = DOSE_COLUMN_PATTERN.sub(" ", name_candidate)
+        name_candidate = DURATION_TAIL.sub(" ", name_candidate)
+        name_candidate = QUANTITY_PATTERN.sub(" ", name_candidate)
         name_candidate = DOSAGE_PATTERN.sub(" ", name_candidate)
         name_candidate = re.sub(r"[^\w]+", " ", name_candidate, flags=re.UNICODE).strip()
         if not name_candidate:
             continue
 
         medicine, confidence = match_medicine(name_candidate, dosage)
-        if medicine is None and not dosage and quantity is None:
-            # No catalog match, no dose, no quantity: nothing here says "drug". On a clean
-            # printed script every real line clears this bar; on a mangled handwriting scan
-            # this is what stops the clinic tagline, an address fragment or a garbled name
-            # from being served to the patient as an invented medication.
+        if medicine is None and not dosage and quantity is None and not _looks_prescribed(line):
+            # No catalog match, no dose, no quantity, and nothing else marking it as a
+            # prescribed item: nothing here says "drug". On a clean printed script every real
+            # line clears this bar; on a mangled handwriting scan this is what stops the
+            # clinic tagline, an address fragment or a garbled name from being served to the
+            # patient as an invented medication.
             continue
         candidates.append(
             {

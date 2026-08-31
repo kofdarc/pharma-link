@@ -60,6 +60,11 @@ export interface OcrMedication {
   name: string;
   strength: string;
   quantity: number | null;
+  /** Dosing notation exactly as written on the page ("1-0-1", "1 cp x 3/j"), where
+   * `directions` is the plain reading of it. Both are kept so the prescriber's own
+   * shorthand stays visible next to the expansion and a wrong expansion can never
+   * silently replace it. Only the vision providers fill this in; "" otherwise. */
+  dosePattern: string;
   directions: string;
   duration: string;
   refills: number | null;

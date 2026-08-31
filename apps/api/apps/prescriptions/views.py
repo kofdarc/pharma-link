@@ -27,8 +27,9 @@ from apps.prescriptions.serializers import (
 from apps.prescriptions.services.extraction import extract_candidate_lines
 from apps.prescriptions.services.ocr.base import OcrProviderError, UnsupportedFileType
 from apps.prescriptions.services.ocr.registry import get_provider
+from apps.prescriptions.services.ocr.vision_structured import render_text
 from apps.prescriptions.services.quality import check_scan_bytes, rejection_message
-from apps.prescriptions.services.structured import extract_structured
+from apps.prescriptions.services.structured import extract_structured, structured_from_vision
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,16 @@ _SCALAR_FROM_OCR = ("doctor_name", "patient_name", "patient_phone")
 
 
 def ocr_and_structure(file_obj, mime_type: str):
-    """OCR an open scan file with the configured provider and structure the text.
+    """OCR an open scan file with the configured provider and structure the result.
+
+    Two pipelines land here. A ``supports_structured`` provider (the vision ones) reads the
+    image straight into fields in one call - better on handwriting, because the page context
+    that makes a scrawl legible is still available when the fields are filled in. Every other
+    provider does pixels-to-text and hands that text to the configured NLP extractor.
+
+    The structured call degrading falls back to the two-stage path rather than failing: a
+    patient must never lose an upload because a gateway was down, and the provider's
+    ``extract_text`` renders the same read as plain text anyway.
 
     Returns ``(ocr_text, StructuredResult)``, or ``None`` if OCR itself failed (provider
     down, unreadable format) - the caller decides how to degrade. Used by both the upload
@@ -47,6 +57,21 @@ def ocr_and_structure(file_obj, mime_type: str):
     """
     try:
         provider = get_provider(settings.PRESCRIPTION_OCR_PROVIDER)
+    except ValueError:
+        logger.warning("Unknown PRESCRIPTION_OCR_PROVIDER %r", settings.PRESCRIPTION_OCR_PROVIDER, exc_info=True)
+        return None
+
+    if getattr(provider, "supports_structured", False):
+        try:
+            file_obj.seek(0)
+            raw = provider.extract_structured_fields(file_obj, mime_type=mime_type)
+            return render_text(raw), structured_from_vision(raw, provider.code)
+        except (OcrProviderError, UnsupportedFileType, ValueError, OSError):
+            logger.warning(
+                "Structured vision OCR failed on a prescription scan; falling back to text extraction", exc_info=True
+            )
+
+    try:
         file_obj.seek(0)
         ocr = provider.extract_text(file_obj, mime_type=mime_type)
     except (OcrProviderError, UnsupportedFileType, ValueError, OSError):

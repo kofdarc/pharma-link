@@ -32,9 +32,24 @@ class OcrProvider(ABC):
     Turning that text into candidate drug/dose/quantity lines is a separate, deterministic
     step (apps.prescriptions.services.extraction) that runs the same way regardless of which
     provider produced the text - this class's only job is pixels-to-text.
+
+    A vision-model provider can additionally set ``supports_structured`` and implement
+    ``extract_structured_fields`` to go straight from image to fields in one call, skipping
+    the separate text->fields stage. That is a better read on handwriting (the page context
+    that makes a scrawl legible is gone by the time it's flat text), but it is opt-in per
+    provider: classical engines like Tesseract can only ever do pixels-to-text.
     """
 
     code: str
+    # True only on providers that implement extract_structured_fields(). The pipeline
+    # (apps.prescriptions.views.ocr_and_structure) checks this to decide whether to run the
+    # separate NLP stage, and falls back to the two-stage path if the structured call fails.
+    supports_structured = False
 
     @abstractmethod
     def extract_text(self, file, *, mime_type: str) -> OcrResult: ...
+
+    def extract_structured_fields(self, file, *, mime_type: str) -> dict:
+        """Read a scan directly into the structured field shape. Only called when
+        ``supports_structured`` is True."""
+        raise NotImplementedError(f"{type(self).__name__} does not support structured extraction.")

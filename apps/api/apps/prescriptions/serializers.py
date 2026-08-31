@@ -73,7 +73,7 @@ def _clean_structured_fields(value) -> dict:
         if not isinstance(entry, dict):
             continue
         med = {key: entry.get(key, "") for key in MEDICATION_KEYS}
-        for key in ("name", "strength", "directions", "duration"):
+        for key in ("name", "strength", "dose_pattern", "directions", "duration"):
             med[key] = str(med[key] or "").strip()[:200]
         med["quantity"] = _int_or_none(med["quantity"])
         med["refills"] = _int_or_none(med["refills"])
