@@ -12,6 +12,7 @@ import { BrandLogo } from "@/components/ui/BrandMark";
 // Toast context is generic despite the folder name. The workspace shell provides it
 // so the background notification feed can surface newly arrived items.
 import { ToastProvider } from "@/components/patient/Toast";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { notificationCountForHref, useNotifications } from "@/lib/notifications/useNotifications";
 
 export type ShellMode = "pharmacy" | "admin" | "doctor" | "shop" | "driver";
@@ -151,6 +152,7 @@ function AppShellContent({
               </div>
             </div>
             <div className="actions">
+              <NotificationBell userId={user.id} />
               <LanguageSwitcher />
               <button
                 className="button button-secondary"
