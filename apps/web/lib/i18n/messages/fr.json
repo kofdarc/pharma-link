@@ -71,6 +71,34 @@
       "dispatch": {
         "title": "{count} commande(s) en attente d'un chauffeur",
         "body": "Ouvrez le tableau de répartition."
+      },
+      "incoming_prescription": {
+        "title": "Nouvelle ordonnance électronique {code}",
+        "body": "Pour {patient_name}"
+      },
+      "insurance_claim": {
+        "title": "Demande d'assurance à vérifier",
+        "body": "{holder_name} · {status_label}"
+      },
+      "insurance_rejected": {
+        "title": "Demande d'assurance rejetée",
+        "body": "Vérifiez la demande de {holder_name}."
+      },
+      "billing_attention": {
+        "title": "Facturation à vérifier",
+        "body": "Vérifiez les éléments impayés ou en retard."
+      },
+      "import_failed": {
+        "title": "Échec de l'importation",
+        "body": "{filename}"
+      },
+      "route_stop_failed": {
+        "title": "Arrêt de livraison à vérifier",
+        "body": "{label}"
+      },
+      "dispatch_exception": {
+        "title": "{count} livraison(s) à réaffecter",
+        "body": "Ouvrez le tableau de répartition pour les résoudre."
       }
     }
   },
@@ -1248,8 +1276,10 @@
   "doctorPrescriptionsNew": {
     "issuedTitle": "Ordonnance {code} émise",
     "emailedTo": "Envoyée par e-mail à {email} avec le code QR joint.",
+    "textedTo": "Envoyée par SMS au {phone}.",
+    "whatsappedTo": "Envoyée au {phone} sur WhatsApp.",
     "faxedTo": "L'envoi par e-mail n'a pas été possible, elle a donc été envoyée par fax à {fax}.",
-    "noEmailGiven": "Aucun e-mail ni fax n'a permis une remise numérique, partagez donc le code et le PIN ci-dessous directement.",
+    "noEmailGiven": "Aucun e-mail, téléphone ni fax n'a permis une remise numérique, partagez donc le code et le PIN ci-dessous directement.",
     "print": "Imprimer",
     "backToList": "Retour à la liste",
     "secretShownOnceNotice": "Le PIN et le lien QR ci-dessous ne sont affichés qu'une seule fois. Ils ne sont pas stockés sous forme récupérable et ne peuvent pas être réaffichés. S'ils sont perdus, annulez cette ordonnance et émettez-en une nouvelle.",
@@ -1303,6 +1333,8 @@
     "issued": "Émise",
     "validUntil": "Valide jusqu'au",
     "emailedToPatient": "Envoyée au patient par e-mail",
+    "textedToPatient": "Envoyée au patient par SMS",
+    "whatsappedToPatient": "Envoyée au patient sur WhatsApp",
     "faxedToPatient": "Envoyée au patient par fax (secours)",
     "yes": "Oui",
     "no": "Non",

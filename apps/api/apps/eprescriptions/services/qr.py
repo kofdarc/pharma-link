@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from io import BytesIO
 from urllib.parse import quote
 
 from django.conf import settings
@@ -24,3 +25,15 @@ def prescription_qr_svg(code: str, secret: str) -> str:
     qr.make(fit=True)
     image = qr.make_image(image_factory=qrcode.image.svg.SvgPathImage)
     return image.to_string(encoding="unicode")
+
+
+def prescription_qr_png(code: str, secret: str) -> bytes:
+    """Return a PNG QR for email clients, many of which do not render inline SVG."""
+    import qrcode
+
+    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=10, border=4)
+    qr.add_data(prescription_url(code, secret))
+    qr.make(fit=True)
+    output = BytesIO()
+    qr.make_image(fill_color="#0f172a", back_color="white").save(output, format="PNG")
+    return output.getvalue()

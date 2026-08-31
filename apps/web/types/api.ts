@@ -398,6 +398,8 @@ export interface Prescription {
   cancelled_at?: string | null;
   cancellation_reason?: string;
   email_sent_at?: string | null;
+  sms_sent_at?: string | null;
+  whatsapp_sent_at?: string | null;
   fax_sent_at?: string | null;
   is_expired: boolean;
   is_consumable: boolean;
@@ -1094,6 +1096,8 @@ export interface NotificationItem {
   id: string;
   kind: string;
   href: string;
+  /** Number of actionable records represented by this feed row. */
+  badge_count: number;
   occurred_at: string | null;
   params: Record<string, string | number>;
 }

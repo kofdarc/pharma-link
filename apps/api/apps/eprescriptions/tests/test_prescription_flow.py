@@ -110,8 +110,18 @@ class PrescriptionIssueTests(TestCase):
 
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("georges@example.test", mail.outbox[0].to)
-        # The QR travels as an attachment so the patient can show it offline.
-        self.assertTrue(any(name.endswith(".svg") for name, _content, _mime in mail.outbox[0].attachments))
+        message = mail.outbox[0]
+        html = message.alternatives[0].content
+        self.assertIn('src="cid:prescription-qr"', html)
+        self.assertIn('src="cid:healthconnect-logo"', html)
+        self.assertTrue(any(
+            isinstance(attachment, tuple) and attachment[0].endswith(".png")
+            for attachment in message.attachments
+        ))
+        self.assertTrue(any(
+            not isinstance(attachment, tuple) and attachment.get("Content-ID") == "<prescription-qr>"
+            for attachment in message.attachments
+        ))
 
 
 class PrescriptionAccessTests(TestCase):

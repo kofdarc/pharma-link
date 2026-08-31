@@ -135,6 +135,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             "cancellation_reason",
             "email_sent_at",
             "sms_sent_at",
+            "whatsapp_sent_at",
             "fax_sent_at",
             "is_expired",
             "is_consumable",

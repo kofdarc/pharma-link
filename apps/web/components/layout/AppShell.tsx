@@ -9,10 +9,10 @@ import { useTranslations } from "@/lib/i18n/context";
 import type { User } from "@/types/api";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { BrandLogo } from "@/components/ui/BrandMark";
-// Toast context is generic despite the folder name; the workspace shell has none of
-// its own, so it brings one for the notification bell to raise live items into.
+// Toast context is generic despite the folder name. The workspace shell provides it
+// so the background notification feed can surface newly arrived items.
 import { ToastProvider } from "@/components/patient/Toast";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { notificationCountForHref, useNotifications } from "@/lib/notifications/useNotifications";
 
 export type ShellMode = "pharmacy" | "admin" | "doctor" | "shop" | "driver";
 
@@ -78,19 +78,35 @@ export function AppShell({
   mode: ShellMode;
   children: React.ReactNode;
 }) {
+  return (
+    <ToastProvider>
+      <AppShellContent user={user} mode={mode}>{children}</AppShellContent>
+    </ToastProvider>
+  );
+}
+
+function AppShellContent({
+  user,
+  mode,
+  children
+}: {
+  user: User;
+  mode: ShellMode;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations();
   const nav = NAV_BY_MODE[mode];
   const [navOpen, setNavOpen] = useState(false);
+  const { items } = useNotifications(user.id);
 
   useEffect(() => {
     setNavOpen(false);
   }, [pathname]);
 
   return (
-    <ToastProvider>
-      <div className="app-shell">
+    <div className="app-shell">
         <button
           type="button"
           className="nav-backdrop"
@@ -104,11 +120,15 @@ export function AppShell({
             <BrandLogo tone="on-dark" />
           </Link>
           <nav>
-            {nav.map(([label, href]) => (
-              <Link key={href} href={href} className={pathname === href ? "active" : ""}>
-                {NAV_TRANSLATION_KEYS[href] ? t(NAV_TRANSLATION_KEYS[href]) : label}
-              </Link>
-            ))}
+            {nav.map(([label, href]) => {
+              const count = notificationCountForHref(items, href);
+              return (
+                <Link key={href} href={href} className={pathname === href ? "active" : ""}>
+                  <span>{NAV_TRANSLATION_KEYS[href] ? t(NAV_TRANSLATION_KEYS[href]) : label}</span>
+                  {count > 0 ? <span className="nav-count" aria-label={`${count} updates`}>{count > 99 ? "99+" : count}</span> : null}
+                </Link>
+              );
+            })}
           </nav>
         </aside>
         <main className="main-panel">
@@ -131,7 +151,6 @@ export function AppShell({
               </div>
             </div>
             <div className="actions">
-              <NotificationBell userId={user.id} />
               <LanguageSwitcher />
               <button
                 className="button button-secondary"
@@ -146,7 +165,6 @@ export function AppShell({
           </header>
           <div className="content">{children}</div>
         </main>
-      </div>
-    </ToastProvider>
+    </div>
   );
 }

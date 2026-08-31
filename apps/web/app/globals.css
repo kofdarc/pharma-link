@@ -316,6 +316,11 @@ textarea {
   grid-template-columns: 240px minmax(0, 1fr);
 }
 
+.hc-app.app-shell {
+  display: grid;
+  flex-direction: initial;
+}
+
 .sidebar {
   position: sticky;
   top: 0;
@@ -338,10 +343,29 @@ textarea {
 }
 
 .sidebar nav a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding: 10px 12px;
   border-radius: 8px;
   color: #dce7ef;
   font-weight: 650;
+}
+
+.nav-count {
+  display: inline-grid;
+  flex: 0 0 auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  place-items: center;
+  border-radius: 999px;
+  background: #f04438;
+  color: #fff !important;
+  font-size: 0.75rem !important;
+  font-weight: 750;
+  line-height: 1;
 }
 
 .sidebar nav a.active,

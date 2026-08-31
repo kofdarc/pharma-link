@@ -128,6 +128,18 @@ export default function DoctorPrescriptionDetailPage() {
             {prescription.email_sent_at ? t("doctorPrescriptionDetail.yes") : t("doctorPrescriptionDetail.no")}
           </strong>
         </div>
+        {prescription.sms_sent_at ? (
+          <div className="metric-card">
+            <span>{t("doctorPrescriptionDetail.textedToPatient")}</span>
+            <strong style={{ fontSize: "1.1rem" }}>{t("doctorPrescriptionDetail.yes")}</strong>
+          </div>
+        ) : null}
+        {prescription.whatsapp_sent_at ? (
+          <div className="metric-card">
+            <span>{t("doctorPrescriptionDetail.whatsappedToPatient")}</span>
+            <strong style={{ fontSize: "1.1rem" }}>{t("doctorPrescriptionDetail.yes")}</strong>
+          </div>
+        ) : null}
         {prescription.fax_sent_at ? (
           <div className="metric-card">
             <span>{t("doctorPrescriptionDetail.faxedToPatient")}</span>

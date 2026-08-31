@@ -40,11 +40,19 @@ function writeSeen(userId: string, ids: Set<string>): void {
 
 type Permission = NotificationPermission | "unsupported";
 
+export function notificationCountForHref(items: NotificationItem[], href: string): number {
+  return items.reduce(
+    (count, item) => count + (item.href === href || item.href.startsWith(`${href}/`) ? item.badge_count ?? 1 : 0),
+    0
+  );
+}
+
 export function useNotifications(userId: string | undefined) {
   const t = useTranslations();
   const router = useRouter();
   const { notify } = useToast();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [items, setItems] = useState<NotificationItem[]>([]);
   const [permission, setPermission] = useState<Permission>("unsupported");
   const seenRef = useRef<Set<string> | null>(null);
   const primedRef = useRef(false);
@@ -92,6 +100,7 @@ export function useNotifications(userId: string | undefined) {
         return; // a failed poll is a non-event - try again next tick
       }
       if (cancelled) return;
+      setItems(items);
 
       const seen = seenRef.current ?? new Set<string>();
       const fresh = items.filter((item) => !seen.has(item.id));
@@ -127,5 +136,5 @@ export function useNotifications(userId: string | undefined) {
 
   const clearUnread = useCallback(() => setUnreadCount(0), []);
 
-  return { unreadCount, permission, requestPermission, clearUnread };
+  return { items, unreadCount, permission, requestPermission, clearUnread };
 }

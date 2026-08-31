@@ -71,6 +71,34 @@
       "dispatch": {
         "title": "{count} orders awaiting a driver",
         "body": "Open the dispatch board to assign."
+      },
+      "incoming_prescription": {
+        "title": "New e-prescription {code}",
+        "body": "For {patient_name}"
+      },
+      "insurance_claim": {
+        "title": "Insurance claim needs attention",
+        "body": "{holder_name} · {status_label}"
+      },
+      "insurance_rejected": {
+        "title": "Insurance claim rejected",
+        "body": "Review the claim for {holder_name}."
+      },
+      "billing_attention": {
+        "title": "Billing needs attention",
+        "body": "Review unpaid or past-due items."
+      },
+      "import_failed": {
+        "title": "Import failed",
+        "body": "{filename}"
+      },
+      "route_stop_failed": {
+        "title": "Delivery stop needs attention",
+        "body": "{label}"
+      },
+      "dispatch_exception": {
+        "title": "{count} deliveries need reassignment",
+        "body": "Open the dispatch board to resolve them."
       }
     }
   },
@@ -1258,8 +1286,10 @@
   "doctorPrescriptionsNew": {
     "issuedTitle": "Prescription {code} issued",
     "emailedTo": "Emailed to {email} with the QR code attached.",
+    "textedTo": "Texted to {phone}.",
+    "whatsappedTo": "Sent to {phone} on WhatsApp.",
     "faxedTo": "Emailed delivery wasn't possible, so it was faxed to {fax} instead.",
-    "noEmailGiven": "No email or fax could deliver this digitally, so share the code and PIN below directly.",
+    "noEmailGiven": "No email, phone or fax could deliver this digitally, so share the code and PIN below directly.",
     "print": "Print",
     "backToList": "Back to list",
     "secretShownOnceNotice": "The PIN and QR link below are shown once. They are not stored in recoverable form and cannot be displayed again. If they are lost, cancel this prescription and issue a new one.",
@@ -1313,6 +1343,8 @@
     "issued": "Issued",
     "validUntil": "Valid until",
     "emailedToPatient": "Emailed to patient",
+    "textedToPatient": "Texted to patient",
+    "whatsappedToPatient": "Sent to patient on WhatsApp",
     "faxedToPatient": "Faxed to patient (email back-up)",
     "yes": "Yes",
     "no": "No",

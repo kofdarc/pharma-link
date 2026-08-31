@@ -23,8 +23,11 @@ from django.utils import timezone
 
 from apps.accounts.models import UserRole
 from apps.analytics.services import kpis
+from apps.billing.models import PharmacySubscription, PlatformServiceFee
 from apps.delivery.models import DeliveryRoute, RouteStop
 from apps.eprescriptions.models import Prescription, PrescriptionRenewalRequest
+from apps.imports.models import InventoryImport
+from apps.insurance.models import InsuranceClaim
 from apps.orders.models import Order, OrderFulfillment, RecurringOrder
 from apps.pharmacies.models import PharmacyApplication
 from apps.prescriptions.models import PrescriptionRecord
@@ -53,11 +56,12 @@ DECIDED_PRESCRIPTION_STATES = [
 TERMINAL_STOP_STATES = {RouteStop.Status.DONE, RouteStop.Status.FAILED, RouteStop.Status.SKIPPED}
 
 
-def _item(item_id: str, kind: str, href: str, occurred_at, **params) -> dict:
+def _item(item_id: str, kind: str, href: str, occurred_at, badge_count: int = 1, **params) -> dict:
     return {
         "id": item_id,
         "kind": kind,
         "href": href,
+        "badge_count": badge_count,
         "occurred_at": occurred_at.isoformat() if occurred_at else None,
         "params": {key: value for key, value in params.items() if value not in (None, "")},
     }
@@ -135,6 +139,23 @@ def _customer_feed(user) -> list[dict]:
                 error=r.last_error or None,
             )
         )
+
+    rejected_claims = InsuranceClaim.objects.filter(
+        policy__customer_user=user,
+        status=InsuranceClaim.Status.REJECTED,
+        updated_at__gte=since,
+    ).select_related("policy").order_by("-updated_at")[:MAX_ITEMS]
+    for claim in rejected_claims:
+        items.append(
+            _item(
+                f"customer-insurance-claim:{claim.id}:{claim.status}",
+                "insurance_rejected",
+                "/shop/insurance",
+                claim.updated_at,
+                holder_name=claim.policy.holder_name,
+                reason=claim.rejection_reason or None,
+            )
+        )
     return items
 
 
@@ -178,6 +199,76 @@ def _pharmacy_feed(user) -> list[dict]:
             )
         )
 
+    incoming_prescriptions = (
+        Prescription.objects.filter(target_pharmacy=pharmacy, status=Prescription.Status.ISSUED, valid_until__gte=now)
+        .select_related("doctor__user")
+        .order_by("-issued_at")[:MAX_ITEMS]
+    )
+    for rx in incoming_prescriptions:
+        items.append(
+            _item(
+                f"incoming-prescription:{rx.id}",
+                "incoming_prescription",
+                "/pharmacy/incoming-prescriptions",
+                rx.issued_at,
+                code=rx.code,
+                patient_name=rx.patient_name,
+            )
+        )
+
+    claims = InsuranceClaim.objects.filter(
+        pharmacy=pharmacy, status__in=[InsuranceClaim.Status.SUBMITTED, InsuranceClaim.Status.APPROVED]
+    ).select_related("policy").order_by("-updated_at")[:MAX_ITEMS]
+    for claim in claims:
+        items.append(
+            _item(
+                f"insurance-claim:{claim.id}:{claim.status}",
+                "insurance_claim",
+                "/pharmacy/insurance-claims",
+                claim.updated_at,
+                status_label=claim.get_status_display(),
+                holder_name=claim.policy.holder_name,
+            )
+        )
+
+    subscription = PharmacySubscription.objects.filter(pharmacy=pharmacy, status=PharmacySubscription.Status.PAST_DUE).first()
+    if subscription is not None:
+        items.append(
+            _item(
+                f"billing-subscription:{subscription.id}:{subscription.status}",
+                "billing_attention",
+                "/pharmacy/billing",
+                subscription.updated_at,
+                count=1,
+            )
+        )
+
+    unpaid_fees = PlatformServiceFee.objects.filter(
+        pharmacy=pharmacy, status__in=[PlatformServiceFee.Status.PENDING, PlatformServiceFee.Status.INVOICED]
+    ).order_by("-created_at")[:MAX_ITEMS]
+    for fee in unpaid_fees:
+        items.append(
+            _item(
+                f"billing-fee:{fee.id}:{fee.status}",
+                "billing_attention",
+                "/pharmacy/billing",
+                fee.updated_at,
+                count=1,
+            )
+        )
+
+    failed_imports = InventoryImport.objects.filter(pharmacy=pharmacy, status=InventoryImport.Status.FAILED).order_by("-updated_at")[:MAX_ITEMS]
+    for inventory_import in failed_imports:
+        items.append(
+            _item(
+                f"import-failed:{inventory_import.id}",
+                "import_failed",
+                f"/pharmacy/imports/{inventory_import.id}",
+                inventory_import.updated_at,
+                filename=inventory_import.original_filename,
+            )
+        )
+
     # Stock health is a standing condition rather than an event, so it is de-duped to
     # one notification per pharmacy per day via the date in the id.
     today = timezone.localdate().isoformat()
@@ -189,6 +280,7 @@ def _pharmacy_feed(user) -> list[dict]:
                 "stock_low",
                 "/pharmacy/inventory",
                 now,
+                badge_count=stock["low_stock_skus"],
                 count=stock["low_stock_skus"],
             )
         )
@@ -225,7 +317,7 @@ def _doctor_feed(user) -> list[dict]:
             _item(
                 f"renewal:{req.id}",
                 "renewal_request",
-                "/doctor/prescriptions",
+                "/doctor/renewal-requests",
                 req.created_at,
                 patient_name=req.prescription.patient_name,
                 pharmacy=req.requested_by_pharmacy.name,
@@ -264,13 +356,15 @@ def _driver_feed(user) -> list[dict]:
 
     offered = DeliveryRoute.objects.filter(driver=driver, status=DeliveryRoute.Status.OFFERED).order_by("-offered_at")
     for route in offered[:MAX_ITEMS]:
+        stop_count = route.stops.count()
         items.append(
             _item(
                 f"route-offered:{route.id}",
                 "route_offered",
                 "/driver",
                 route.offered_at or route.updated_at,
-                stops=route.stops.count(),
+                badge_count=stop_count,
+                stops=stop_count,
                 distance_km=str(route.planned_distance_km),
             )
         )
@@ -291,7 +385,24 @@ def _driver_feed(user) -> list[dict]:
                 "route_active",
                 "/driver",
                 active.started_at or active.accepted_at or active.updated_at,
+                badge_count=remaining,
                 stops=remaining,
+            )
+        )
+
+    failed_stops = RouteStop.objects.filter(
+        route__driver=driver,
+        status=RouteStop.Status.FAILED,
+        updated_at__gte=timezone.now() - timedelta(days=RECENT_DAYS),
+    ).order_by("-updated_at")[:MAX_ITEMS]
+    for stop in failed_stops:
+        items.append(
+            _item(
+                f"route-stop-failed:{stop.id}",
+                "route_stop_failed",
+                "/driver",
+                stop.updated_at,
+                label=stop.label,
             )
         )
     return items
@@ -330,7 +441,58 @@ def _admin_feed(user) -> list[dict]:
                 "dispatch",
                 "/admin/dispatch",
                 now,
+                badge_count=awaiting,
                 count=awaiting,
+            )
+        )
+
+    needs_redispatch = OrderFulfillment.objects.filter(status=OrderFulfillment.Status.DELIVERY_FAILED).count()
+    if needs_redispatch:
+        items.append(
+            _item(
+                f"dispatch-exceptions:{timezone.localdate().isoformat()}",
+                "dispatch_exception",
+                "/admin/dispatch",
+                now,
+                badge_count=needs_redispatch,
+                count=needs_redispatch,
+            )
+        )
+
+    claims = InsuranceClaim.objects.filter(status=InsuranceClaim.Status.SUBMITTED).select_related("policy").order_by("-created_at")[:MAX_ITEMS]
+    for claim in claims:
+        items.append(
+            _item(
+                f"admin-insurance-claim:{claim.id}",
+                "insurance_claim",
+                "/admin/insurance",
+                claim.created_at,
+                status_label=claim.get_status_display(),
+                holder_name=claim.policy.holder_name,
+            )
+        )
+
+    billing_items = PharmacySubscription.objects.filter(status=PharmacySubscription.Status.PAST_DUE).order_by("-updated_at")[:MAX_ITEMS]
+    for subscription in billing_items:
+        items.append(
+            _item(
+                f"admin-billing:{subscription.id}:{subscription.status}",
+                "billing_attention",
+                "/admin/billing",
+                subscription.updated_at,
+                count=1,
+            )
+        )
+
+    failed_imports = InventoryImport.objects.filter(status=InventoryImport.Status.FAILED).order_by("-updated_at")[:MAX_ITEMS]
+    for inventory_import in failed_imports:
+        items.append(
+            _item(
+                f"admin-import-failed:{inventory_import.id}",
+                "import_failed",
+                "/admin/imports",
+                inventory_import.updated_at,
+                filename=inventory_import.original_filename,
             )
         )
     return items

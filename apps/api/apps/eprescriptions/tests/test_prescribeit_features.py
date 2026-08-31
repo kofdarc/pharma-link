@@ -16,7 +16,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from apps.accounts.models import UserRole
@@ -354,15 +354,16 @@ class FaxBackupDeliveryTests(TestCase):
         self.assertEqual(prescription.status, Prescription.Status.ISSUED)
 
 
-class PatientSmsDeliveryTests(TestCase):
-    """A patient who gave a phone number is texted the prescription at issue time, in
-    addition to (not instead of) the email. SMS_PROVIDER is forced to "console" under test."""
+@override_settings(SMS_PROVIDER="console", WHATSAPP_PROVIDER="console")
+class PatientPhoneDeliveryTests(TestCase):
+    """A patient who gave a phone number is sent the prescription by SMS and WhatsApp at
+    issue time, in addition to (not instead of) the email."""
 
     def setUp(self):
         self.doctor = make_doctor()
         self.medicine = Medicine.objects.create(brand_name="Augmentin", strength="1g", form="Tablet", regulated_price="14.75")
 
-    def test_phone_on_file_gets_texted(self):
+    def test_phone_on_file_gets_texted_and_whatsapped(self):
         prescription, _secret, _pin = issue_prescription(
             doctor=self.doctor,
             patient={"patient_name": "Georges Haddad", "patient_phone": "+96170123456"},
@@ -370,8 +371,9 @@ class PatientSmsDeliveryTests(TestCase):
         )
 
         self.assertIsNotNone(prescription.sms_sent_at)
+        self.assertIsNotNone(prescription.whatsapp_sent_at)
 
-    def test_email_and_sms_both_go_out_and_fax_does_not(self):
+    def test_email_sms_and_whatsapp_all_go_out_and_fax_does_not(self):
         prescription, _secret, _pin = issue_prescription(
             doctor=self.doctor,
             patient={
@@ -385,9 +387,10 @@ class PatientSmsDeliveryTests(TestCase):
 
         self.assertIsNotNone(prescription.email_sent_at)
         self.assertIsNotNone(prescription.sms_sent_at)
+        self.assertIsNotNone(prescription.whatsapp_sent_at)
         self.assertIsNone(prescription.fax_sent_at)
 
-    def test_no_phone_means_no_sms(self):
+    def test_no_phone_means_no_sms_or_whatsapp(self):
         prescription, _secret, _pin = issue_prescription(
             doctor=self.doctor,
             patient={"patient_name": "Georges Haddad", "patient_email": "georges@example.test"},
@@ -395,8 +398,9 @@ class PatientSmsDeliveryTests(TestCase):
         )
 
         self.assertIsNone(prescription.sms_sent_at)
+        self.assertIsNone(prescription.whatsapp_sent_at)
 
-    def test_sms_failure_never_blocks_issuing(self):
+    def test_one_channel_failing_never_blocks_issuing_or_the_other_channel(self):
         with patch("apps.messaging.sms.service.send_sms", side_effect=RuntimeError("SNS down")):
             prescription, _secret, _pin = issue_prescription(
                 doctor=self.doctor,
@@ -405,6 +409,7 @@ class PatientSmsDeliveryTests(TestCase):
             )
 
         self.assertIsNone(prescription.sms_sent_at)
+        self.assertIsNotNone(prescription.whatsapp_sent_at)
         self.assertEqual(prescription.status, Prescription.Status.ISSUED)
 
 

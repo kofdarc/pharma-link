@@ -373,14 +373,26 @@ WHATSAPP_TEMPLATE_RENEWAL_DECISION = os.getenv("WHATSAPP_TEMPLATE_RENEWAL_DECISI
 WHATSAPP_TEMPLATE_PAYMENT_FAILED = os.getenv("WHATSAPP_TEMPLATE_PAYMENT_FAILED", "pharmalink_payment_failed_v1")
 
 # --- SMS (patient prescription delivery) -----------------------------------------------
-# When a doctor issues a prescription it is texted to the patient's phone alongside the
-# email. The console provider logs instead of calling AWS, so dev/test needs no AWS account.
-# Set SMS_PROVIDER="aws_sns" to send real messages via AWS SNS Publish (see
+# When a doctor issues a prescription it is sent to the patient's phone by SMS and WhatsApp
+# (WHATSAPP_* above), alongside the email. Each channel is independent and best-effort.
+# The console provider logs instead of calling AWS, so dev/test needs no AWS account. Set
+# SMS_PROVIDER="aws_sns" to send real messages via AWS SNS Publish (see
 # apps.messaging.sms.aws_sns and docs/DEPLOY_AWS.md); boto3 uses the environment / task-role
 # credentials just like the S3 config above.
+#
+# SMS_SENDER_ID sets the alphanumeric originator carriers show and, in markets like Lebanon,
+# is what makes a shared-route message deliverable at all (a message from a bare shared long
+# code is widely filtered). Max 11 alphanumeric chars. Ignored by SNS where sender IDs are
+# unsupported (US/CA), so it is safe to leave on by default.
 SMS_PROVIDER = os.getenv("SMS_PROVIDER", "console")
-SMS_SENDER_ID = os.getenv("SMS_SENDER_ID", "")  # alphanumeric origination ID; unsupported in some countries (e.g. US/CA)
+SMS_SENDER_ID = os.getenv("SMS_SENDER_ID", "HlthConnect")
 AWS_SNS_REGION_NAME = os.getenv("AWS_SNS_REGION_NAME", "eu-central-1")
+# SMS_PROVIDER="twilio" path: AWS SNS shared routes do not deliver to some countries at all
+# (Lebanon among them); Twilio has direct carrier coverage there. TWILIO_FROM is an
+# SMS-capable Twilio number in E.164, or a Messaging Service SID beginning "MG".
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_FROM = os.getenv("TWILIO_FROM", "")
 
 # --- In-app assistant ---------------------------------------------------------------------
 # The assistant answers by matching a message to one of a fixed set of intents, running one

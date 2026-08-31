@@ -54,7 +54,7 @@ export function DevQuickLogin() {
   return (
     <div className="hc-dev-quick-login" style={{ marginTop: 24, paddingTop: 16, borderTop: "1px dashed var(--hc-line)" }}>
       <p className="hc-small" style={{ marginBottom: 8 }}>
-        Demo accounts - quick sign in as a seeded role:
+        Demo accounts - quick sign in:
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {DEV_ACCOUNTS.map((account) => (

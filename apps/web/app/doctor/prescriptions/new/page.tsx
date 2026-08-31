@@ -29,6 +29,18 @@ interface DraftItem {
   allow_generic_substitution: boolean;
 }
 
+function deliverySummary(
+  issued: Prescription,
+  t: (key: string, vars?: Record<string, string | number>) => string
+): string {
+  const parts: string[] = [];
+  if (issued.email_sent_at) parts.push(t("doctorPrescriptionsNew.emailedTo", { email: issued.patient_email || "" }));
+  if (issued.sms_sent_at) parts.push(t("doctorPrescriptionsNew.textedTo", { phone: issued.patient_phone || "" }));
+  if (issued.whatsapp_sent_at) parts.push(t("doctorPrescriptionsNew.whatsappedTo", { phone: issued.patient_phone || "" }));
+  if (issued.fax_sent_at) parts.push(t("doctorPrescriptionsNew.faxedTo", { fax: issued.patient_fax || "" }));
+  return parts.length ? parts.join(" ") : t("doctorPrescriptionsNew.noEmailGiven");
+}
+
 function emptyItem(): DraftItem {
   return {
     key: Math.random().toString(36).slice(2),
@@ -256,13 +268,7 @@ export default function NewPrescriptionPage() {
         <div className="section-header">
           <div>
             <h1>{t("doctorPrescriptionsNew.issuedTitle", { code: issued.code })}</h1>
-            <p className="muted">
-              {issued.email_sent_at
-                ? t("doctorPrescriptionsNew.emailedTo", { email: issued.patient_email || "" })
-                : issued.fax_sent_at
-                  ? t("doctorPrescriptionsNew.faxedTo", { fax: issued.patient_fax || "" })
-                  : t("doctorPrescriptionsNew.noEmailGiven")}
-            </p>
+            <p className="muted">{deliverySummary(issued, t)}</p>
           </div>
           <div className="toolbar no-print">
             <Button type="button" variant="secondary" onClick={() => window.print()}>

@@ -88,6 +88,9 @@ class Prescription(UUIDTimeStampedModel):
     sms_sent_at = models.DateTimeField(
         null=True, blank=True, help_text="Set when the prescription was texted to the patient's phone at issue time."
     )
+    whatsapp_sent_at = models.DateTimeField(
+        null=True, blank=True, help_text="Set when the prescription was sent to the patient's phone over WhatsApp at issue time."
+    )
     fax_sent_at = models.DateTimeField(
         null=True, blank=True, help_text="Set when the fax back-up delivered this prescription because the digital send failed or had no email to use."
     )

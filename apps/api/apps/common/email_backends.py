@@ -12,7 +12,7 @@ class SESEmailBackend(BaseEmailBackend):
     """
     Sends mail through AWS SES v2 (`SendEmail` with a raw MIME payload) instead of SMTP.
 
-    Raw MIME is used deliberately: it preserves the HTML alternative and the QR-code SVG
+    Raw MIME is used deliberately: it preserves the HTML alternative, inline images, and QR
     attachment that apps.eprescriptions.services.mailer.send_prescription_email builds, which
     a templated SES send would drop. boto3 resolves credentials from the environment / task
     role exactly like the S3 storage config in config/settings.py - no SMTP secret to store.

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from email.mime.image import MIMEImage
+
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 
@@ -11,6 +13,7 @@ def send_email(
     text_body: str,
     html_body: str | None = None,
     attachments: list[tuple] | None = None,
+    inline_images: list[tuple[str, bytes, str, str]] | None = None,
 ) -> None:
     """
     Builds and sends one EmailMultiAlternatives message. Every mailer in the codebase
@@ -27,6 +30,16 @@ def send_email(
     )
     if html_body:
         message.attach_alternative(html_body, "text/html")
+    if inline_images:
+        # A multipart/related message lets HTML clients resolve cid: images without making
+        # an external request. This is more dependable for email than data URLs or SVG.
+        message.mixed_subtype = "related"
+        for filename, content, mime_type, content_id in inline_images:
+            _type, subtype = mime_type.split("/", 1)
+            image = MIMEImage(content, _subtype=subtype)
+            image.add_header("Content-ID", f"<{content_id}>")
+            image.add_header("Content-Disposition", "inline", filename=filename)
+            message.attach(image)
     for attachment in attachments or []:
         message.attach(*attachment)
     message.send(fail_silently=False)
