@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * The rotating strip of "things to ask", shared by the floating assistant and the analytics
- * "Ask" panel. Shows a random few of a pool and reshuffles them every several seconds while
- * `active`, so the surface always suggests something without listing everything. Rotation
+ * The rotating strip of "things to ask" used by the floating assistant. Shows a random few
+ * of a pool and reshuffles them every several seconds while `active`, so the surface always
+ * suggests something without listing everything. Rotation
  * holds while the pointer or keyboard focus is inside the strip, so a chip is never pulled
  * out from under a click, and stops entirely once `active` goes false (the person has said
  * something, or the surface closed).
@@ -16,17 +16,28 @@ import { useEffect, useRef, useState } from "react";
 
 const VISIBLE = 3;
 const CYCLE_MS = 6000;
+const EMPTY_POOL: readonly string[] = [];
 
-function sample(pool: readonly string[]): string[] {
+function shuffled(pool: readonly string[]): string[] {
   const copy = [...pool];
   for (let i = copy.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
-  return copy.slice(0, VISIBLE);
+  return copy;
 }
 
-export function useRotatingChips(pool: readonly string[], active: boolean) {
+function sample(pool: readonly string[], companionPool: readonly string[]): string[] {
+  if (companionPool.length === 0) return shuffled(pool).slice(0, VISIBLE);
+
+  // A contextual surface can reserve one chip for the assistant's broader capabilities.
+  // Deduplicate in case the two pools ever acquire the same wording.
+  const contextual = shuffled(pool).slice(0, VISIBLE - 1);
+  const companion = shuffled(companionPool).find((item) => !contextual.includes(item));
+  return shuffled(companion ? [...contextual, companion] : contextual);
+}
+
+export function useRotatingChips(pool: readonly string[], active: boolean, companionPool: readonly string[] = EMPTY_POOL) {
   const [chips, setChips] = useState<string[]>([]);
   // Bumped on every reshuffle so the caller can key the buttons off it and replay the
   // entrance animation.
@@ -39,7 +50,7 @@ export function useRotatingChips(pool: readonly string[], active: boolean) {
       return;
     }
 
-    setChips(sample(pool));
+    setChips(sample(pool, companionPool));
     setCycle((n) => n + 1);
 
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -47,11 +58,11 @@ export function useRotatingChips(pool: readonly string[], active: boolean) {
 
     const timer = window.setInterval(() => {
       if (paused.current) return;
-      setChips(sample(pool));
+      setChips(sample(pool, companionPool));
       setCycle((n) => n + 1);
     }, CYCLE_MS);
     return () => window.clearInterval(timer);
-  }, [pool, active]);
+  }, [pool, companionPool, active]);
 
   const holdHandlers = {
     onMouseEnter: () => {

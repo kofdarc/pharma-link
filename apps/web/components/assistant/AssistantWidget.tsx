@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { AUTH_CHANGED_EVENT } from "@/lib/api-client";
 import { useShopperLocation } from "@/lib/location";
 import { useAssistantChat } from "@/lib/assistant/use-assistant-chat";
+import { ANALYTICS_PROMPTS } from "@/lib/assistant/analytics-prompts";
 import { useRotatingChips } from "@/lib/assistant/use-rotating-chips";
 import { Icon } from "@/components/ui/Icon";
 
@@ -18,14 +19,12 @@ import { Icon } from "@/components/ui/Icon";
  * component does not know or care which role it is talking to; it renders whatever greeting
  * and suggestions the session endpoint hands back.
  *
- * The conversation itself lives in `useAssistantChat`, shared with the analytics "Ask"
- * panel; this file is just the floating launcher and dialog around it.
+ * The conversation itself lives in `useAssistantChat`; this file is the floating launcher
+ * and dialog around it.
  */
 
 /**
- * Screens where a floating panel would be in the way or actively unwelcome. `/pharmacy/
- * analytics` hosts its own dedicated "Ask" panel, so the floating one is suppressed there
- * rather than giving that screen two entry points into the same conversation.
+ * Screens where a floating panel would be in the way or actively unwelcome.
  */
 const HIDDEN_ON = [
   "/login",
@@ -35,8 +34,7 @@ const HIDDEN_ON = [
   "/verify-email",
   "/activate",
   "/checkout",
-  "/cart",
-  "/pharmacy/analytics"
+  "/cart"
 ];
 
 /** Stable empty reference so `useRotatingChips` doesn't reshuffle while the session loads. */
@@ -64,9 +62,14 @@ export function AssistantWidget() {
     enabled: open,
     position: location.position
   });
+  const generalSuggestions = session?.suggestions ?? EMPTY_POOL;
+  const onAnalytics = pathname === "/pharmacy/analytics";
   const { chips, cycle, holdHandlers } = useRotatingChips(
-    session?.suggestions ?? EMPTY_POOL,
-    open && turns.length <= 1 && !busy
+    onAnalytics ? ANALYTICS_PROMPTS : generalSuggestions,
+    open && turns.length <= 1 && !busy,
+    // Analytics is the current context, not the assistant's entire capability. Reserve one
+    // of the three rotating chips for the pharmacy persona's broader suggestions.
+    onAnalytics ? generalSuggestions : EMPTY_POOL
   );
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);

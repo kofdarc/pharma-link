@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useRef } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { CardSkeletons } from "@/components/patient/Page";
 import { useOrders } from "@/lib/patient/store";
@@ -12,16 +13,13 @@ import { orderPharmacies, orderTotal, type Order, type OrderPharmacy } from "@/l
  * The order receipt, as a document rather than a screen.
  *
  * `/orders/[id]` answers "where is my medication"; this answers "what did I pay
- * for, and who dispensed it". It opens on its own page with no app chrome so it
- * prints — or saves as a PDF — as a single clean page: the HealthConnect mark,
+ * for, and who dispensed it". It opens on its own page with no app chrome and
+ * downloads as a PDF document with the HealthConnect mark,
  * the order reference, each fulfilling pharmacy with how to reach it, the lines
  * that pharmacy supplied, and the totals the patient already agreed to.
  *
- * Print density lives entirely in `@media print` in `receipt.css`. An earlier
- * version measured the on-screen document from `beforeprint` and shrank it with
- * CSS `zoom` to force one page; that measurement never matched the print layout,
- * and Chrome rasterises a fractionally-zoomed element as a blank PDF page. A
- * long multi-pharmacy order now breaks across sheets at a row boundary instead.
+ * The PDF is rendered from the receipt itself so it preserves what is shown
+ * without sending the patient through a browser print dialog.
  */
 
 export default function OrderReceiptPage() {
@@ -56,6 +54,7 @@ export default function OrderReceiptPage() {
 }
 
 function Receipt({ order }: { order: Order }) {
+  const receiptRef = useRef<HTMLElement>(null);
   // Fall back to the pharmacy names carried on the lines when the order predates
   // per-fulfillment detail, so an older order still produces a receipt.
   const pharmacies: OrderPharmacy[] =
@@ -64,6 +63,35 @@ function Receipt({ order }: { order: Order }) {
       : orderPharmacies(order).map((name) => ({ name, area: "", phone: "", subtotal: 0 }));
   const multiPharmacy = pharmacies.length > 1;
   const total = orderTotal(order);
+
+  async function downloadReceipt() {
+    if (!receiptRef.current) return;
+
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import("html2canvas"),
+      import("jspdf"),
+    ]);
+    const canvas = await html2canvas(receiptRef.current, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+    });
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const imageWidth = pageWidth - margin * 2;
+    const imageHeight = (canvas.height * imageWidth) / canvas.width;
+    const printableHeight = pageHeight - margin * 2;
+    const image = canvas.toDataURL("image/jpeg", 0.98);
+
+    for (let offset = 0, page = 0; offset < imageHeight; offset += printableHeight, page += 1) {
+      if (page > 0) pdf.addPage();
+      pdf.addImage(image, "JPEG", margin, margin - offset, imageWidth, imageHeight);
+    }
+
+    pdf.save(`receipt-${safeFileName(order.id)}.pdf`);
+  }
 
   return (
     <div className="hc-rcpt">
@@ -75,17 +103,16 @@ function Receipt({ order }: { order: Order }) {
         <button
           type="button"
           className="hc-btn hc-btn-primary hc-btn-sm"
-          onClick={() => window.print()}
+          onClick={downloadReceipt}
         >
           <Icon name="receipt" size={16} />
-          Save as PDF
+          Download receipt
         </button>
       </div>
 
-      <article className="hc-rcpt-doc">
+      <article className="hc-rcpt-doc" ref={receiptRef}>
         <header className="hc-rcpt-head">
-          {/* Plain <img>: this page is printed, and next/image's wrapper and
-              lazy loading get in the way of a clean print snapshot. */}
+          {/* Plain <img> gives the PDF renderer the exact displayed asset. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/logo-primary.webp" alt="HealthConnect" className="hc-rcpt-logo" />
           <div className="hc-rcpt-meta">
@@ -219,4 +246,8 @@ function Receipt({ order }: { order: Order }) {
       </article>
     </div>
   );
+}
+
+function safeFileName(value: string) {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "-");
 }

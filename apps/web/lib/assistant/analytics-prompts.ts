@@ -1,15 +1,8 @@
 /**
- * The suggestion pool for the analytics "Ask" panel.
+ * The suggestion pool for analytics-focused assistant experiences.
  *
- * Kept separate from the persona's own `suggestions` (which are general pharmacy openers -
- * stock counts, order status, "is X over the counter") because on the analytics page the
- * person is interrogating their numbers, not asking for support. Every line here maps onto
- * one of the pharmacy assistant's analytics-facing intents: sales_summary, business_insights,
- * stock_alerts, stock_lookup. English only, like the persona suggestions themselves - the
- * assistant answers in English regardless of the UI locale.
- *
- * Module-level constant so `useRotatingChips` gets a stable reference and does not reshuffle
- * on every render.
+ * Kept separate from the persona's general pharmacy openers so it can be reused if a
+ * dedicated analytics chat surface is added again later.
  */
 export const ANALYTICS_PROMPTS: readonly string[] = [
   "How did we trade over the last 30 days?",
