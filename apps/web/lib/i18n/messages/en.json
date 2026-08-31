@@ -530,7 +530,10 @@
     "unavailable": "Unavailable",
     "active": "Active",
     "published": "Published",
-    "hidden": "Hidden"
+    "hidden": "Hidden",
+    "previous": "Previous",
+    "next": "Next",
+    "pageStatus": "Page {page} of {totalPages} · {count} batches"
   },
   "pharmacyInventoryNew": {
     "title": "Add inventory batch",

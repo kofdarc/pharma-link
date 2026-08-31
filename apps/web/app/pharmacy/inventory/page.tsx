@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
-import { apiFetch, asList } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { useTranslations } from "@/lib/i18n/context";
-import type { InventoryBatch } from "@/types/api";
+import type { InventoryBatch, Paginated } from "@/types/api";
 import { Badge, statusTone } from "@/components/ui/Badge";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,33 +12,65 @@ import { Field } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 import { Table } from "@/components/ui/Table";
 
+// Mirrors DRF's PAGE_SIZE in apps/api/config/settings.py. Only used to render the
+// "page X of Y" hint; navigation itself relies on the count returned per request.
+const PAGE_SIZE = 25;
+
+type AppliedFilters = { q: string; filter: string };
+
+// Up to 5 page numbers centred on the current page, clamped to [1, total].
+function pageWindow(current: number, total: number): number[] {
+  const span = 5;
+  let start = Math.max(1, current - Math.floor(span / 2));
+  const end = Math.min(total, start + span - 1);
+  start = Math.max(1, end - span + 1);
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+}
+
 export default function InventoryPage() {
   const t = useTranslations();
   const [items, setItems] = useState<InventoryBatch[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [count, setCount] = useState(0);
+  // Filters actually in effect. Only updated on submit, so paging through results
+  // never picks up half-typed search text.
+  const [applied, setApplied] = useState<AppliedFilters>({ q: "", filter: "" });
 
-  async function load(path = "/pharmacy/inventory/") {
+  const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+
+  async function load(nextPage: number, filters: AppliedFilters) {
     setError("");
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (filters.q) params.set("q", filters.q);
+    if (filters.filter) params.set(filters.filter, "true");
+    params.set("page", String(nextPage));
     try {
-      setItems(asList(await apiFetch<InventoryBatch[] | { results: InventoryBatch[] }>(path)));
+      const payload = await apiFetch<Paginated<InventoryBatch>>(`/pharmacy/inventory/?${params}`);
+      setItems(payload.results);
+      setCount(payload.count);
+      setPage(nextPage);
     } catch {
       setError(t("pharmacyInventory.loadError"));
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    load();
+    load(1, { q: "", filter: "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    const params = new URLSearchParams();
-    if (query) params.set("q", query);
-    if (filter) params.set(filter, "true");
-    load(`/pharmacy/inventory/?${params}`);
+    const filters = { q: query, filter };
+    setApplied(filters);
+    load(1, filters);
   }
 
   return (
@@ -68,12 +100,38 @@ export default function InventoryPage() {
             <option value="public">{t("pharmacyInventory.publicAvailability")}</option>
           </select>
         </Field>
-        <Button type="submit">{t("pharmacyInventory.apply")}</Button>
+        <Button type="submit" disabled={loading}>
+          {t("pharmacyInventory.apply")}
+        </Button>
+        {totalPages > 1 ? (
+          <div className="actions" style={{ marginInlineStart: "auto", alignItems: "center" }}>
+            {totalPages > 2 ? <span className="muted">{t("pharmacyInventory.pageStatus", { page, totalPages, count })}</span> : null}
+            <Button type="button" variant="secondary" disabled={loading || page <= 1} onClick={() => load(page - 1, applied)}>
+              {t("pharmacyInventory.previous")}
+            </Button>
+            {totalPages > 2
+              ? pageWindow(page, totalPages).map((n) => (
+                  <Button
+                    key={n}
+                    type="button"
+                    variant={n === page ? "primary" : "secondary"}
+                    disabled={loading || n === page}
+                    onClick={() => load(n, applied)}
+                  >
+                    {n}
+                  </Button>
+                ))
+              : null}
+            <Button type="button" variant="secondary" disabled={loading || page >= totalPages} onClick={() => load(page + 1, applied)}>
+              {t("pharmacyInventory.next")}
+            </Button>
+          </div>
+        ) : null}
       </form>
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      {items.length === 0 ? <EmptyState title={t("pharmacyInventory.noRecords")} /> : null}
+      {!loading && items.length === 0 ? <EmptyState title={t("pharmacyInventory.noRecords")} /> : null}
       <Table>
-        <table>
+        <table aria-busy={loading}>
           <thead>
             <tr>
               <th>{t("pharmacyInventory.medicine")}</th>

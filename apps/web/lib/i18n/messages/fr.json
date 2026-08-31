@@ -530,7 +530,10 @@
     "unavailable": "Indisponible",
     "active": "Actif",
     "published": "Publié",
-    "hidden": "Masqué"
+    "hidden": "Masqué",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "pageStatus": "Page {page} sur {totalPages} · {count} lots"
   },
   "pharmacyInventoryNew": {
     "title": "Ajouter un lot d'inventaire",

@@ -103,10 +103,7 @@ export default function PharmacyOrdersPage() {
             <tbody>
               {order.lines.map((line) => (
                 <tr key={line.id}>
-                  <td>
-                    {line.medicine_detail?.display_name || line.medicine}
-                    {line.is_price_regulated ? <span className="tag tag-regulated">{t("pharmacyOrders.mophPrice")}</span> : null}
-                  </td>
+                  <td>{line.medicine_detail?.display_name || line.medicine}</td>
                   <td>{line.quantity}</td>
                   <td>${line.unit_price}</td>
                   <td>${line.line_total}</td>

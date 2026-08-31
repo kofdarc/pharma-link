@@ -530,7 +530,10 @@
     "unavailable": "غير متوفر",
     "active": "نشط",
     "published": "منشور",
-    "hidden": "مخفي"
+    "hidden": "مخفي",
+    "previous": "السابق",
+    "next": "التالي",
+    "pageStatus": "الصفحة {page} من {totalPages} · {count} دفعة"
   },
   "pharmacyInventoryNew": {
     "title": "إضافة دفعة مخزون",
