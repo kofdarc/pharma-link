@@ -54,16 +54,37 @@ class StructuredResult:
         return self.fields == _EMPTY
 
 
+def _row_is_clearly_a_drug(med: dict) -> bool:
+    """A medication row that carries a name plus at least one other concrete prescribing
+    detail. That combination is only ever produced by a read that actually worked - garbled
+    OCR yields a bare name fragment and nothing else."""
+    if not (med.get("name") or "").strip():
+        return False
+    if "[illegible]" in str(med.get("name", "")).lower():
+        return False
+    return any((med.get(key) or "") != "" for key in ("strength", "dose_pattern", "directions", "duration")) or med.get(
+        "quantity"
+    ) is not None
+
+
 def extraction_confidence(fields: dict) -> float:
     """How much of a structured read to trust, 0-1: an equal blend of how cleanly the header
-    parsed (prescriber / patient / date) and how many medication rows resolved to a real
-    catalog SKU. A clean script scores high on at least one side; a mangled handwriting scan
-    scores low on both, which is the signal to withhold the read from the patient rather than
-    show a page of unlinked guesses.
+    parsed (prescriber / patient / date) and how well the medication rows came out. A clean
+    script scores high on at least one side; a mangled handwriting scan scores low on both,
+    which is the signal to withhold the read from the patient rather than show a page of
+    guesses.
 
-    An unmatched drug does not by itself sink the score - the catalog is not exhaustive, and a
-    fully parsed header is strong evidence the OCR worked. Both sides near zero is the case
-    this is built to catch."""
+    The medication side takes the *better* of two views: how many rows linked to a real
+    catalog SKU, and how many are clearly-parsed drug rows regardless of linkage. Catalog
+    linkage alone was the original measure and it conflated two unrelated failures - "we
+    couldn't read the page" and "we read it perfectly, but these drugs aren't stocked here".
+    A foreign or out-of-catalog prescription (an Indian dental script: Augmentin, Enzoflam,
+    Pan-D, Hexigel) scored 0 on a flawless read and was hidden from the patient. Parsed rows
+    are discounted against linked ones - a linked row is stronger evidence - but they no
+    longer score zero.
+
+    An unmatched drug therefore does not sink the score, and neither does an unlabelled
+    header. Both sides near zero is the case this is built to catch."""
     meds = fields.get("medications") or []
     header_hits = sum(1 for key in ("patient_name", "doctor_name", "prescription_date") if fields.get(key))
     header_score = header_hits / 3
@@ -71,7 +92,39 @@ def extraction_confidence(fields: dict) -> float:
         # Header-only read (no drug lines survived): lean on the header alone, discounted.
         return round(0.6 * header_score, 2)
     link_score = sum(1 for med in meds if med.get("medicine_id")) / len(meds)
-    return round(0.5 * link_score + 0.5 * header_score, 2)
+    parsed_score = sum(1 for med in meds if _row_is_clearly_a_drug(med)) / len(meds)
+    med_score = max(link_score, 0.8 * parsed_score)
+    return round(0.5 * med_score + 0.5 * header_score, 2)
+
+
+def vision_confidence(fields: dict) -> float:
+    """Confidence for a single-call vision read, which reports its own transcription quality
+    instead of leaving it to be inferred from catalog linkage.
+
+    The model's self-assessment is the base, scaled by how many medication rows it could read
+    legibly: a read the model rates 0.9 with every row legible keeps 0.9; the same rating with
+    half the rows marked illegible lands at ~0.56; with every row illegible it falls to ~0.23
+    and is withheld. The legibility term has to be able to sink an otherwise-confident rating
+    on its own - a model that says "0.9" while marking every drug unreadable has contradicted
+    itself, and the rows are the part that matters.
+
+    Catalog linkage deliberately plays no part here - whether a drug is stocked in Lebanon
+    says nothing about whether the page was read correctly."""
+    reported = fields.get("transcription_confidence")
+    try:
+        base = max(0.0, min(1.0, float(reported)))
+    except (TypeError, ValueError):
+        base = 0.0
+
+    meds = fields.get("medications") or []
+    if not meds:
+        # Nothing prescribed was read. Whatever the model claims, this is a weak result - a
+        # prescription with no drug lines is almost always a failed read, not an empty page -
+        # and the discount has to be steep enough that a confident-sounding 1.0 still lands
+        # below OCR_LOW_CONFIDENCE_THRESHOLD.
+        return round(0.35 * base, 2)
+    legible_ratio = sum(1 for med in meds if med.get("legible", True)) / len(meds)
+    return round(base * (0.25 + 0.75 * legible_ratio), 2)
 
 
 def extract_structured(ocr_text: str) -> StructuredResult:
@@ -90,6 +143,28 @@ def extract_structured(ocr_text: str) -> StructuredResult:
 
     fields = reconcile_medications(_normalise(RegexExtractor().extract(text)))
     return StructuredResult(fields=fields, provider=RegexExtractor.code, confidence=extraction_confidence(fields))
+
+
+def structured_from_vision(raw: dict, provider: str) -> StructuredResult:
+    """Turn a single-call vision read (apps.prescriptions.services.ocr.vision_structured)
+    into the same ``StructuredResult`` the two-stage path produces, so every downstream
+    reader - serializer, patient UI, pharmacy review form - sees one shape regardless of
+    which pipeline ran.
+
+    The vision shape carries a few fields the canonical one has no column for
+    (``patient_age``, ``clinic_name``): they are folded into ``notes`` rather than dropped,
+    since they are written on the page and a reviewing pharmacist should see them. Catalog
+    reconciliation still runs - the model reads the name, this repo decides which SKU it is.
+    """
+    fields = reconcile_medications(_normalise(raw))
+
+    context = " · ".join(
+        part for part in (raw.get("clinic_name") or "", f"Age {raw['patient_age']}" if raw.get("patient_age") else "") if part
+    )
+    if context:
+        fields["notes"] = f"{context}\n{fields['notes']}".strip() if fields["notes"] else context
+
+    return StructuredResult(fields=fields, provider=provider, confidence=vision_confidence(raw))
 
 
 def annotate_catalog_match(med: dict) -> dict:
@@ -125,6 +200,7 @@ def _normalise(raw: dict) -> dict:
         med = {key: entry.get(key, "") for key in MEDICATION_KEYS}
         med["name"] = str(med["name"] or "").strip()
         med["strength"] = str(med["strength"] or "").strip()
+        med["dose_pattern"] = str(med["dose_pattern"] or "").strip()
         med["directions"] = str(med["directions"] or "").strip()
         med["duration"] = str(med["duration"] or "").strip()
         med["quantity"] = med["quantity"] if isinstance(med["quantity"], int) else _int_or_none(med["quantity"])

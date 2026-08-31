@@ -159,3 +159,30 @@ class ExtractionTests(TestCase):
         candidates = extract_candidate_lines("Panadol 250mg x20")
 
         self.assertEqual(candidates[0]["medicine_id"], str(self.panadol.id))
+
+    def test_keeps_an_out_of_catalog_drug_that_has_no_printed_strength(self):
+        """A dosage-form prefix or a dose column is enough to mark a line as prescribed.
+
+        Regression: "Tab. Enzoflam 1-0-1 x5days" has no catalog match, no strength and no
+        parseable total quantity, so the old rule discarded it outright - neither the patient
+        nor the reviewing pharmacist ever saw that it had been prescribed. Seen in production
+        on a handwritten dental script.
+        """
+        candidates = extract_candidate_lines("Tab. Enzoflam 1-0-1 x5days")
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["name_guess"], "Enzoflam")
+
+    def test_strips_form_prefix_dose_column_and_duration_from_the_name(self):
+        """None of "Tab.", "1-0-1" or "x5days" belong in the name handed to catalog
+        matching - left in, they drag the fuzzy match off the real brand."""
+        candidates = extract_candidate_lines("Tab. Augmentin 625mg 1-0-1 x5days")
+
+        self.assertEqual(candidates[0]["name_guess"], "Augmentin")
+        self.assertEqual(candidates[0]["dosage_guess"], "625mg")
+
+    def test_still_drops_letterhead_noise(self):
+        """The looser rule must not start serving clinic branding as medications."""
+        text = "Smile Designing | Teeth Whitening\nTHE WHITE TUSK\nPh: +91 8108112511 | www.thewhitetusk.com"
+
+        self.assertEqual(extract_candidate_lines(text), [])

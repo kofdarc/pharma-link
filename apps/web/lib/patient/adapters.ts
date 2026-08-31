@@ -220,6 +220,7 @@ export function toOcrFields(ocr: ApiOcrFields | null | undefined): OcrFields | n
       name: med.name ?? "",
       strength: med.strength ?? "",
       quantity: med.quantity ?? null,
+      dosePattern: med.dose_pattern ?? "",
       directions: med.directions ?? "",
       duration: med.duration ?? "",
       refills: med.refills ?? null,

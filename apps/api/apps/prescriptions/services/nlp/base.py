@@ -4,9 +4,16 @@ from abc import ABC, abstractmethod
 
 # The shape every extractor returns. Keys are always present; values default to
 # "" / [] so a caller never has to guard for a missing key. `medications` is a
-# list of {name, strength, quantity, directions, duration, refills}.
+# list of {name, strength, quantity, dose_pattern, directions, duration, refills}.
+#
+# `dose_pattern` holds dosing notation exactly as written on the page ("1-0-1", "1 cp x 3/j")
+# while `directions` holds the plain reading of it ("1 tablet morning and night, after
+# meals"). Two fields rather than one because the verbatim notation is the record of what the
+# prescriber wrote and the expansion is a convenience - a pharmacist reviewing a row needs to
+# see both, and a wrong expansion must never overwrite the original. Only the vision
+# providers fill it in; the regex and text-NLP extractors leave it "".
 STRUCTURED_KEYS = ("patient_name", "patient_phone", "doctor_name", "prescription_date", "medications", "notes")
-MEDICATION_KEYS = ("name", "strength", "quantity", "directions", "duration", "refills")
+MEDICATION_KEYS = ("name", "strength", "quantity", "dose_pattern", "directions", "duration", "refills")
 
 # Added to every medication row by apps.prescriptions.services.structured after the extractor
 # runs (and re-derived when a pharmacist edits `ocr_fields`): the catalog match for the
