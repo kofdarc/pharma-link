@@ -44,6 +44,7 @@ import random
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
@@ -186,6 +187,8 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("  not enough stocked OTC/supplement lines to build a history - skipping."))
             return
 
+        self._align_regulated_prices(pharmacy, sellable)
+
         # Long-tailed popularity: a few clear class-A movers, a long C tail.
         rng.shuffle(sellable)
         weights = self._popularity_weights(len(sellable), rng)
@@ -311,9 +314,10 @@ class Command(BaseCommand):
                 prescription_record_id=prescription_record_id,
                 notes=SEED_TAG,
             )
-        except ValueError:
-            # A line outran its stock despite the top-up (a run of large baskets
-            # landing on one SKU). Skip this basket rather than abort the seed.
+        except (ValueError, ValidationError):
+            # A line outran its stock despite the top-up, or a regulated line
+            # still doesn't match the published price. Skip this basket rather
+            # than abort the whole seed.
             if prescription_record_id:
                 PrescriptionRecord.objects.filter(id=prescription_record_id, sale__isnull=True).delete()
             return None
@@ -354,6 +358,24 @@ class Command(BaseCommand):
                 continue
             out.append(medicine)
         return out
+
+    def _align_regulated_prices(self, pharmacy, sellable) -> None:
+        """
+        MoPH price refreshes update `Medicine.regulated_price` but not the
+        `selling_price` on batches booked before the change, so `create_sale`
+        rejects those lines. Snap any stocked regulated batch back to the
+        published price - which is what the pharmacy screens enforce anyway.
+        """
+        fixed = 0
+        for medicine in sellable:
+            if not medicine.is_price_regulated:
+                continue
+            stale = InventoryBatch.objects.filter(pharmacy=pharmacy, medicine=medicine, is_archived=False).exclude(
+                selling_price=medicine.regulated_price
+            )
+            fixed += stale.update(selling_price=medicine.regulated_price, updated_at=timezone.now())
+        if fixed:
+            self.stdout.write(f"  realigned {fixed} batch price(s) to the MoPH published price")
 
     def _popularity_weights(self, n, rng) -> list[float]:
         # Zipf-ish: weight ~ 1 / rank^1.1, with noise, normalised so a handful
