@@ -11,19 +11,27 @@ type Group<K extends keyof SearchFilters> = {
 };
 
 /**
- * Four axes, deliberately. Patients refine a medicine search by whether they
- * can get it, whether they need a prescription, whether they want the brand,
- * and what form it comes in. Price is a sort, not a filter — a range slider
+ * Five axes, deliberately. Patients refine a medicine search by whether they
+ * can get it, whether NSSF covers it, whether they need a prescription, whether
+ * they want the brand, and what form it comes in. Price is a sort, not a filter. A range slider
  * over "from" prices across a pharmacy network promises precision that the
  * sourcing model cannot honour.
  */
-const BASE_GROUPS: [Group<"availability">, Group<"prescription">, Group<"productType">] = [
+const BASE_GROUPS: [Group<"availability">, Group<"nssfCoverage">, Group<"prescription">, Group<"productType">] = [
   {
     key: "availability",
     legend: "Availability",
     options: [
       { value: "any", label: "Show everything" },
       { value: "available", label: "Available only" }
+    ]
+  },
+  {
+    key: "nssfCoverage",
+    legend: "NSSF coverage",
+    options: [
+      { value: "any", label: "Any" },
+      { value: "covered", label: "NSSF covered" }
     ]
   },
   {

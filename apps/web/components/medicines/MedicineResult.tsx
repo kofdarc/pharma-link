@@ -47,7 +47,6 @@ export function MedicineResult({ medicine }: { medicine: MedicineSummary }) {
         <div className="hc-result-meta">
           <AvailabilityBadge state={medicine.availability} />
           <PrescriptionBadge required={medicine.requiresPrescription} />
-          <NssfBadge covered={medicine.nssfCovered} rate={medicine.nssfReimbursementRate} />
           {medicine.form ? <MetaChip>{medicine.form}</MetaChip> : null}
           {medicine.packSize ? <MetaChip>{medicine.packSize}</MetaChip> : null}
         </div>
@@ -63,6 +62,7 @@ export function MedicineResult({ medicine }: { medicine: MedicineSummary }) {
           ) : (
             <p className="hc-result-sourcing">Price shown when available</p>
           )}
+          <NssfBadge covered={medicine.nssfCovered} rate={medicine.nssfReimbursementRate} />
           <p className="hc-result-sourcing">{sourcingLine(medicine)}</p>
           {distanceLine(medicine) ? <p className="hc-result-distance">{distanceLine(medicine)}</p> : null}
         </div>

@@ -329,6 +329,7 @@ export function availableForms(results: MedicineSummary[]): string[] {
 export function applyFilters(results: MedicineSummary[], filters: SearchFilters): MedicineSummary[] {
   return results.filter((entry) => {
     if (filters.availability === "available" && entry.availability === "unavailable") return false;
+    if (filters.nssfCoverage === "covered" && !entry.nssfCovered) return false;
     if (filters.prescription === "required" && !entry.requiresPrescription) return false;
     if (filters.prescription === "none" && entry.requiresPrescription) return false;
     if (filters.productType !== "any" && entry.productType !== filters.productType) return false;

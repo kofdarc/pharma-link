@@ -97,6 +97,7 @@ export type SortMode = "recommended" | "nearest" | "price" | "availability";
 
 export interface SearchFilters {
   availability: "any" | "available";
+  nssfCoverage: "any" | "covered";
   prescription: "any" | "required" | "none";
   productType: "any" | ProductType;
   form: string;
@@ -104,6 +105,7 @@ export interface SearchFilters {
 
 export const DEFAULT_FILTERS: SearchFilters = {
   availability: "any",
+  nssfCoverage: "any",
   prescription: "any",
   productType: "any",
   form: "any"

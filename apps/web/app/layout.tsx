@@ -9,6 +9,7 @@ import "./receipt.css";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { I18nProvider } from "@/lib/i18n/context";
+import { LocalizedContent } from "@/components/i18n/LocalizedContent";
 import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 
 // Inter carries the whole product; Fraunces is display-only (hero and section
@@ -58,10 +59,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${sans.variable} ${display.variable}`}>
       <body>
         <I18nProvider>
-          {children}
-          <AssistantWidget />
-          <RegisterServiceWorker />
-          <InstallPrompt />
+          <LocalizedContent>
+            {children}
+            <AssistantWidget />
+            <RegisterServiceWorker />
+            <InstallPrompt />
+          </LocalizedContent>
         </I18nProvider>
       </body>
     </html>

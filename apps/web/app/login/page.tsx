@@ -55,7 +55,7 @@ function LoginForm() {
 
   return (
     <AuthLayout
-      quote="Your prescriptions, orders and refills — in one place."
+      quote="Your prescriptions, orders and refills: in one place."
       points={[
         "See prescriptions your physician issued you",
         "Track an order from the pharmacy to your door",

@@ -255,8 +255,6 @@ function OrderDetailScreen() {
               ) : null}
               <Link
                 href={`/orders/${order.id}/receipt`}
-                target="_blank"
-                rel="noopener"
                 className="hc-btn hc-btn-secondary hc-btn-block"
               >
                 <Icon name="receipt" size={16} />
