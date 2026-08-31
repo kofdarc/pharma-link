@@ -1438,6 +1438,22 @@
     "nssfNotCovered": "Non renseigne",
     "nssfDisclaimer": "Les donnees de couverture sont tenues a jour par la plateforme a partir des listes CNSS publiees et peuvent etre en retard sur les revisions officielles. \"Non renseigne\" ne signifie pas que la Caisse refuse le medicament."
   },
+  "marketingHero": {
+    "headlineAccessible": "Vos soins de santé, connectés.",
+    "your": "Vos",
+    "healthcare": "Les soins de santé",
+    "finally": "enfin",
+    "connected": "connectés",
+    "medications": "médicaments",
+    "prescriptions": "ordonnances",
+    "physicians": "médecins",
+    "pharmacies": "pharmacies",
+    "amoxicillinTablet": "Amoxicilline · Comprimé",
+    "available": "Disponible",
+    "limited": "Disponibilité limitée",
+    "prescriptionRequired": "Ordonnance requise",
+    "connectedPharmacies": "{count} pharmacies connectées"
+  },
   "pharmacyIncoming": {
     "title": "Ordonnances électroniques reçues",
     "subtitle": "Ordonnances envoyées directement à votre pharmacie par les médecins.",

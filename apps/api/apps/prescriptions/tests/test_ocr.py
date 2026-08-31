@@ -132,6 +132,54 @@ class AnthropicOcrProviderTests(TestCase):
         request = mock_urlopen.call_args[0][0]
         self.assertEqual(request.get_header("X-api-key"), "test-key")
 
+    @override_settings(ANTHROPIC_API_KEY="test-key", ANTHROPIC_OCR_MODEL="claude-sonnet-5")
+    def test_requests_adaptive_thinking_for_handwriting(self):
+        response_body = json.dumps({"content": [{"type": "text", "text": "x"}]}).encode("utf-8")
+        fake_response = MagicMock()
+        fake_response.read.return_value = response_body
+        fake_response.__enter__.return_value = fake_response
+        fake_response.__exit__.return_value = False
+
+        with patch("urllib.request.urlopen", return_value=fake_response) as mock_urlopen:
+            AnthropicOcrProvider().extract_text(io.BytesIO(b"fake-image-bytes"), mime_type="image/jpeg")
+
+        payload = json.loads(mock_urlopen.call_args[0][0].data)
+        self.assertEqual(payload["thinking"], {"type": "adaptive"})
+        self.assertEqual(payload["output_config"], {"effort": "high"})
+        self.assertGreater(payload["max_tokens"], 1024)
+
+    @override_settings(ANTHROPIC_API_KEY="test-key", ANTHROPIC_OCR_MODEL="claude-sonnet-5")
+    def test_thinking_blocks_are_dropped_from_the_transcription(self):
+        response_body = json.dumps(
+            {
+                "content": [
+                    {"type": "thinking", "thinking": "the second stroke reads like an 'l'..."},
+                    {"type": "text", "text": "Amoxicilline 500mg"},
+                ]
+            }
+        ).encode("utf-8")
+        fake_response = MagicMock()
+        fake_response.read.return_value = response_body
+        fake_response.__enter__.return_value = fake_response
+        fake_response.__exit__.return_value = False
+
+        with patch("urllib.request.urlopen", return_value=fake_response):
+            result = AnthropicOcrProvider().extract_text(io.BytesIO(b"fake-image-bytes"), mime_type="image/jpeg")
+
+        self.assertEqual(result.text, "Amoxicilline 500mg")
+
+    @override_settings(ANTHROPIC_API_KEY="test-key", ANTHROPIC_OCR_MODEL="claude-sonnet-5")
+    def test_a_safety_refusal_raises_provider_error(self):
+        response_body = json.dumps({"stop_reason": "refusal", "content": []}).encode("utf-8")
+        fake_response = MagicMock()
+        fake_response.read.return_value = response_body
+        fake_response.__enter__.return_value = fake_response
+        fake_response.__exit__.return_value = False
+
+        with patch("urllib.request.urlopen", return_value=fake_response):
+            with self.assertRaises(OcrProviderError):
+                AnthropicOcrProvider().extract_text(io.BytesIO(b"fake-image-bytes"), mime_type="image/jpeg")
+
     @override_settings(ANTHROPIC_API_KEY="test-key")
     def test_http_error_raises_provider_error(self):
         error = HTTPError(url="", code=401, msg="unauthorized", hdrs=None, fp=io.BytesIO(b"bad key"))

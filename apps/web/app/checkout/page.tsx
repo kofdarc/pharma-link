@@ -12,7 +12,8 @@ import {
   DeliveryWindowSelector,
   PaymentSelector,
   PrescriptionVerificationSummary,
-  type DeliveryChoice
+  type DeliveryChoice,
+  type PaymentMethodId
 } from "@/components/checkout/CheckoutParts";
 import { Icon } from "@/components/ui/Icon";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -45,7 +46,9 @@ export default function CheckoutPage() {
   const { prescriptions } = usePrescriptions();
 
   const [addressId, setAddressId] = useState<string | null>(null);
-  const [paymentId, setPaymentId] = useState<string | null>(null);
+  // Payment method is a fixed local choice for now — nothing here is wired to a
+  // real gateway, so there is no saved-method list to reconcile against.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>("cod");
   const [when, setWhen] = useState<DeliveryChoice>({ kind: "asap" });
   const [addressOpen, setAddressOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("editing");
@@ -62,11 +65,9 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!account.ready) return;
     setAddressId((current) => current ?? account.addresses.find((entry) => entry.isDefault)?.id ?? account.addresses[0]?.id ?? null);
-    setPaymentId((current) => current ?? account.payments.find((entry) => entry.isDefault)?.id ?? account.payments[0]?.id ?? null);
-  }, [account.ready, account.addresses, account.payments]);
+  }, [account.ready, account.addresses]);
 
   const address = account.addresses.find((entry) => entry.id === addressId) ?? null;
-  const payment = account.payments.find((entry) => entry.id === paymentId) ?? null;
   const loading = !planReady || !account.ready || !basket.ready;
 
   if (placed) return <OrderPlaced order={placed} />;
@@ -103,10 +104,10 @@ export default function CheckoutPage() {
   }
 
   const total = plan.total;
-  const canPlace = Boolean(address && payment) && phase !== "placing";
+  const canPlace = Boolean(address) && phase !== "placing";
 
   async function place() {
-    if (!plan || !address || !payment || submitting.current) return;
+    if (!plan || !address || submitting.current) return;
     submitting.current = true;
     setPhase("placing");
     setFailure("");
@@ -126,7 +127,9 @@ export default function CheckoutPage() {
           address: address.id,
           fulfillment_type: "DELIVERY",
           scheduled_for: when.kind === "scheduled" ? windowStart(when.window) : null,
-          payment_method: payment.kind === "cash" ? "COD" : "MOCK_GATEWAY",
+          // Not wired to Whish yet — anything other than cash still runs through
+          // the demonstration gateway.
+          payment_method: paymentMethod === "cod" ? "COD" : "MOCK_GATEWAY",
           prescription_code: plan.lines.find((line) => line.prescriptionId)?.prescriptionId ?? ""
         })
       });
@@ -172,7 +175,7 @@ export default function CheckoutPage() {
             </CheckoutStep>
 
             <CheckoutStep index={3} title="Payment">
-              <PaymentSelector methods={account.payments} selectedId={paymentId} onSelect={setPaymentId} />
+              <PaymentSelector selectedId={paymentMethod} onSelect={setPaymentMethod} />
               <p className="hc-small">
                 This is a demonstration build. No payment is taken and no card details are stored.
               </p>

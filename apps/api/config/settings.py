@@ -269,13 +269,16 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "HealthConnect <no-reply@he
 # detection+recognition model instead of classical glyph matching) at the cost of a much
 # heavier dependency (PyTorch) and slower requests - see apps.prescriptions.services.ocr.
 # PRESCRIPTION_OCR_PROVIDER="anthropic" (+ ANTHROPIC_API_KEY) reads handwriting far better
-# than either free option, since it's a real vision-language model with drug-name world
-# knowledge - but that path sends the prescription image (which can carry patient/doctor
-# names) to Anthropic's API: don't switch it on without checking your data-handling/
-# compliance posture first.
+# than either free option: a frontier vision model with drug-name world knowledge, run with
+# adaptive thinking so it reasons over an unclear stroke before committing (see
+# apps.prescriptions.services.ocr.anthropic). That path sends the prescription image (which
+# can carry patient/doctor names) to Anthropic's API: don't switch it on without checking
+# your data-handling/compliance posture first.
 PRESCRIPTION_OCR_PROVIDER = os.getenv("PRESCRIPTION_OCR_PROVIDER", "tesseract")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-ANTHROPIC_OCR_MODEL = os.getenv("ANTHROPIC_OCR_MODEL", "claude-sonnet-5")
+# The strongest vision model is the point of this path - the handwriting it's for is exactly
+# where a smaller model gives up. Override to claude-sonnet-5 to trade some accuracy for cost.
+ANTHROPIC_OCR_MODEL = os.getenv("ANTHROPIC_OCR_MODEL", "claude-opus-5")
 
 # PRESCRIPTION_OCR_PROVIDER="openai_vision" sends the scan to a vision-language model on any
 # OpenAI-compatible /chat/completions endpoint that accepts image blocks (OpenRouter, a local
@@ -288,6 +291,17 @@ PRESCRIPTION_OCR_VISION_BASE_URL = os.getenv("PRESCRIPTION_OCR_VISION_BASE_URL",
 PRESCRIPTION_OCR_VISION_API_KEY = os.getenv("PRESCRIPTION_OCR_VISION_API_KEY", "")
 PRESCRIPTION_OCR_VISION_MODEL = os.getenv("PRESCRIPTION_OCR_VISION_MODEL", "")
 PRESCRIPTION_OCR_VISION_TIMEOUT_SECONDS = int(os.getenv("PRESCRIPTION_OCR_VISION_TIMEOUT_SECONDS", "45"))
+
+# PRESCRIPTION_OCR_PROVIDER="vision_structured" (OpenAI-compatible gateway, reuses the
+# PRESCRIPTION_OCR_VISION_* settings above) and "anthropic_structured" (Claude, reuses
+# ANTHROPIC_API_KEY / ANTHROPIC_OCR_MODEL) are the best reads available here on handwriting.
+# Both go from image straight to structured fields in ONE call instead of transcribing to
+# plain text and re-parsing that text with PRESCRIPTION_NLP_PROVIDER. The split is what
+# hurts on a scrawl: the page context that makes a stroke legible - layout, dose columns,
+# a brace tying "after meals" to two drugs - is gone by the time the text is flat, and rows
+# get lost. When one of these is selected PRESCRIPTION_NLP_PROVIDER is not consulted at all;
+# if the call fails the pipeline falls back to the two-stage path rather than losing the
+# upload. Same data-handling caveat as every other hosted provider - the image leaves the box.
 
 # --- Prescription structured extraction (NLP) ------------------------------------------
 # After OCR turns a scanned paper prescription into text, this step turns that text into

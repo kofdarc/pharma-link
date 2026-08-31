@@ -1444,6 +1444,17 @@
   grid-template-columns: auto auto minmax(0, 1fr);
 }
 
+/* Lets a brand logo (e.g. Whish) supply its own shape instead of the grey tile. */
+.hc-choice-icon-bare {
+  background: none;
+  border-radius: 0;
+}
+
+.hc-choice-icon-bare svg {
+  width: 34px;
+  height: 34px;
+}
+
 .hc-choice-body {
   display: grid;
   gap: 3px;

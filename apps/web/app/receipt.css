@@ -246,87 +246,69 @@
     border-radius: 0;
     padding: 0;
   }
+  /* Keep each pharmacy's block and the parties/totals grids intact across a
+     page break, but let the document itself flow. An earlier build put
+     `break-inside: avoid` on `.hc-rcpt-doc` and scaled it with CSS `zoom` to
+     force one page; Chrome then rasterised the whole sheet blank. A long
+     multi-pharmacy receipt now splits at a row boundary instead. */
+  .hc-rcpt-lines,
   .hc-rcpt-lines table,
-  .hc-rcpt-lines tr {
-    break-inside: avoid;
-  }
-  /* Don't let the browser split the receipt: a receipt is one page. If the
-     compact density below still overflows, the page shrinks it (see
-     `--rcpt-zoom`) rather than spilling onto a second sheet. */
-  .hc-rcpt-doc,
+  .hc-rcpt-lines tr,
   .hc-rcpt-parties,
   .hc-rcpt-totals {
     break-inside: avoid;
+  }
+
+  /* Compact density: the on-screen receipt is roomy; print tightens spacing so
+     a typical single-pharmacy order lands on one page without any scaling. */
+  .hc-rcpt-doc {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .hc-rcpt-head {
+    padding-bottom: 14px;
+  }
+  .hc-rcpt-logo {
+    height: 28px;
+  }
+  .hc-rcpt-meta h1 {
+    margin-bottom: 6px;
+    font-size: 17px;
+  }
+  .hc-rcpt-parties {
+    margin: 16px 0 4px;
+    gap: 20px;
+  }
+  .hc-rcpt-lines {
+    margin-top: 14px;
+  }
+  .hc-rcpt-lines h3 {
+    margin: 14px 0 4px;
+  }
+  .hc-rcpt-lines th {
+    padding: 6px 6px 6px 0;
+  }
+  .hc-rcpt-lines td {
+    padding: 7px 6px 7px 0;
+  }
+  .hc-rcpt-lines tfoot td {
+    padding-top: 7px;
+  }
+  .hc-rcpt-totals {
+    margin-top: 12px;
+  }
+  .hc-rcpt-totals > div {
+    padding: 4px 0;
+  }
+  .hc-rcpt-payment {
+    margin-top: 18px;
+  }
+  .hc-rcpt-foot {
+    margin-top: 22px;
+    padding-top: 12px;
   }
 }
 
 @page {
   margin: 12mm;
-}
-
-/* Compact density, plus a fit-to-page shrink.
-   The receipt page adds `is-compact` around printing and sets `--rcpt-zoom`
-   from script: it measures the compacted document and, only if it is still
-   taller than one page, scales it down (to a readable floor) so the receipt
-   stays a single page. A normal order never triggers the shrink. */
-.hc-rcpt.is-compact .hc-rcpt-doc {
-  zoom: var(--rcpt-zoom, 1);
-  padding: 0;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-head {
-  padding-bottom: 14px;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-logo {
-  height: 28px;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-meta h1 {
-  margin-bottom: 6px;
-  font-size: 17px;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-parties {
-  margin: 16px 0 4px;
-  gap: 20px;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-lines {
-  margin-top: 14px;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-lines h3 {
-  margin: 14px 0 4px;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-lines th {
-  padding: 6px 6px 6px 0;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-lines td {
-  padding: 7px 6px 7px 0;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-lines tfoot td {
-  padding-top: 7px;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-totals {
-  margin-top: 12px;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-totals > div {
-  padding: 4px 0;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-payment {
-  margin-top: 18px;
-}
-
-.hc-rcpt.is-compact .hc-rcpt-foot {
-  margin-top: 22px;
-  padding-top: 12px;
 }

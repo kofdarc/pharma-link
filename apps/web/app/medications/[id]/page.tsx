@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { AvailabilityBadge, MetaChip, NssfBadge, PrescriptionBadge } from "@/components/medicines/Badges";
@@ -40,6 +40,7 @@ function nssfEstimate(medicine: MedicineDetail): number | null {
 
 export default function MedicationDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const id = typeof params.id === "string" ? params.id : "";
   const basket = useBasket();
 
@@ -134,6 +135,18 @@ export default function MedicationDetailPage() {
   }
 
   const orderable = medicine.availability !== "unavailable";
+
+  const addCurrentToBasket = () => {
+    basket.add({
+      medicine: medicine.id,
+      name: medicineLabel(medicine),
+      generic: medicine.generic,
+      quantity,
+      requires_prescription: medicine.requiresPrescription,
+      unit_price: medicine.fromPrice
+    });
+  };
+
   // Same query the "Same composition" rail is built from, handed to /search so the
   // full list there is guaranteed to match the preview here.
   const sameCompositionHref = `/search?composition=${encodeURIComponent(medicine.id)}&ref=${encodeURIComponent(
@@ -407,14 +420,18 @@ export default function MedicationDetailPage() {
                   type="button"
                   className="hc-btn hc-btn-primary hc-btn-lg hc-btn-block"
                   onClick={() => {
-                    basket.add({
-                      medicine: medicine.id,
-                      name: medicineLabel(medicine),
-                      generic: medicine.generic,
-                      quantity,
-                      requires_prescription: medicine.requiresPrescription,
-                      unit_price: medicine.fromPrice
-                    });
+                    addCurrentToBasket();
+                    router.push("/cart/fulfillment");
+                  }}
+                >
+                  Buy now
+                </button>
+
+                <button
+                  type="button"
+                  className="hc-btn hc-btn-secondary hc-btn-lg hc-btn-block"
+                  onClick={() => {
+                    addCurrentToBasket();
                     setAdded(true);
                   }}
                 >

@@ -1438,6 +1438,22 @@
     "nssfNotCovered": "غير مسجّل",
     "nssfDisclaimer": "بيانات التغطية تحدّثها المنصّة من لوائح الضمان المنشورة وقد تتأخّر عن التعديلات الرسمية. \"غير مسجّل\" لا يعني أن الصندوق يرفض الدواء."
   },
+  "marketingHero": {
+    "headlineAccessible": "رعايتك الصحية، متصلة.",
+    "your": "رعايتك",
+    "healthcare": "الرعاية الصحية",
+    "finally": "أخيرًا",
+    "connected": "متصلة",
+    "medications": "أدويتك",
+    "prescriptions": "وصفاتك الطبية",
+    "physicians": "أطباؤك",
+    "pharmacies": "صيدلياتك",
+    "amoxicillinTablet": "أموكسيسيلين · أقراص",
+    "available": "متاح",
+    "limited": "توفر محدود",
+    "prescriptionRequired": "وصفة طبية مطلوبة",
+    "connectedPharmacies": "{count} صيدليات متصلة"
+  },
   "pharmacyIncoming": {
     "title": "الوصفات الإلكترونية الواردة",
     "subtitle": "وصفات أرسلها الأطباء مباشرة إلى صيدليتك.",

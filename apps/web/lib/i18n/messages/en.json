@@ -1456,6 +1456,22 @@
     "nssfNotCovered": "Not on file",
     "nssfDisclaimer": "Coverage data is maintained by the platform from the published NSSF lists and may lag official revisions. \"Not on file\" is not confirmation the Fund refuses a medicine."
   },
+  "marketingHero": {
+    "headlineAccessible": "Your healthcare, connected.",
+    "your": "Your",
+    "healthcare": "Healthcare",
+    "finally": "finally",
+    "connected": "connected",
+    "medications": "medications",
+    "prescriptions": "prescriptions",
+    "physicians": "physicians",
+    "pharmacies": "pharmacies",
+    "amoxicillinTablet": "Amoxicillin · Tablet",
+    "available": "Available",
+    "limited": "Limited",
+    "prescriptionRequired": "Prescription required",
+    "connectedPharmacies": "{count} connected pharmacies"
+  },
   "pharmacyIncoming": {
     "title": "Incoming e-prescriptions",
     "subtitle": "Prescriptions doctors sent directly to your pharmacy.",

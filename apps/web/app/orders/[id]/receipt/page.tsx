@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
@@ -18,15 +17,12 @@ import { orderPharmacies, orderTotal, type Order, type OrderPharmacy } from "@/l
  * the order reference, each fulfilling pharmacy with how to reach it, the lines
  * that pharmacy supplied, and the totals the patient already agreed to.
  *
- * A receipt is one page. `fitToPage` measures the document at print density and,
- * only if it would still overflow a sheet, scales it down to a readable floor so
- * a long multi-pharmacy order stays on a single page instead of splitting.
+ * Print density lives entirely in `@media print` in `receipt.css`. An earlier
+ * version measured the on-screen document from `beforeprint` and shrank it with
+ * CSS `zoom` to force one page; that measurement never matched the print layout,
+ * and Chrome rasterises a fractionally-zoomed element as a blank PDF page. A
+ * long multi-pharmacy order now breaks across sheets at a row boundary instead.
  */
-
-/** One portrait page (A4 or Letter) at 96dpi, less the 12mm `@page` margins. */
-const PAGE_BUDGET_PX = 950;
-/** As small as the receipt is allowed to shrink before it is left to break. */
-const MIN_ZOOM = 0.6;
 
 export default function OrderReceiptPage() {
   const params = useParams<{ id: string }>();
@@ -69,38 +65,8 @@ function Receipt({ order }: { order: Order }) {
   const multiPharmacy = pharmacies.length > 1;
   const total = orderTotal(order);
 
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  const fitToPage = useCallback(() => {
-    const root = rootRef.current;
-    const doc = root?.querySelector<HTMLElement>(".hc-rcpt-doc");
-    if (!root || !doc) return;
-    // Apply print density, measure it unscaled, then scale only if it overflows.
-    root.classList.add("is-compact");
-    doc.style.setProperty("--rcpt-zoom", "1");
-    const zoom = Math.min(1, Math.max(MIN_ZOOM, PAGE_BUDGET_PX / doc.scrollHeight));
-    doc.style.setProperty("--rcpt-zoom", zoom.toFixed(3));
-  }, []);
-
-  const resetFit = useCallback(() => {
-    const root = rootRef.current;
-    root?.classList.remove("is-compact");
-    root?.querySelector<HTMLElement>(".hc-rcpt-doc")?.style.removeProperty("--rcpt-zoom");
-  }, []);
-
-  useEffect(() => {
-    // Covers Cmd/Ctrl+P as well as the button. `afterprint` returns the
-    // on-screen document to its roomier density.
-    window.addEventListener("beforeprint", fitToPage);
-    window.addEventListener("afterprint", resetFit);
-    return () => {
-      window.removeEventListener("beforeprint", fitToPage);
-      window.removeEventListener("afterprint", resetFit);
-    };
-  }, [fitToPage, resetFit]);
-
   return (
-    <div className="hc-rcpt" ref={rootRef}>
+    <div className="hc-rcpt">
       <div className="hc-rcpt-bar hc-rcpt-noprint">
         <Link href={`/orders/${order.id}`} className="hc-textlink">
           <Icon name="arrowLeft" size={16} />
@@ -109,11 +75,7 @@ function Receipt({ order }: { order: Order }) {
         <button
           type="button"
           className="hc-btn hc-btn-primary hc-btn-sm"
-          onClick={() => {
-            // Safari does not reliably fire `beforeprint`; fit before asking.
-            fitToPage();
-            window.print();
-          }}
+          onClick={() => window.print()}
         >
           <Icon name="receipt" size={16} />
           Save as PDF

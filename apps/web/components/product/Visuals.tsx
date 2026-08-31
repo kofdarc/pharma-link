@@ -1,5 +1,8 @@
+"use client";
+
 import { Icon } from "@/components/ui/Icon";
 import { PackThumb } from "@/components/medicines/PackThumb";
+import { useTranslations } from "@/lib/i18n/context";
 
 /**
  * Fictional renderings of the real interface, used where a marketing page needs
@@ -9,6 +12,7 @@ import { PackThumb } from "@/components/medicines/PackThumb";
  */
 
 export function SearchVisual() {
+  const t = useTranslations();
   return (
     <div className="hc-pv">
       <div className="hc-pv-field">
@@ -22,11 +26,11 @@ export function SearchVisual() {
           <PackThumb brand="Augmentin" />
           <span className="hc-pv-row-main">
             <strong>Augmentin 1g</strong>
-            <span>Amoxicillin · Tablet</span>
+            <span>{t("marketingHero.amoxicillinTablet")}</span>
           </span>
           <span className="hc-chip hc-chip-ok hc-status">
             <span className="hc-dot" />
-            Available
+            {t("marketingHero.available")}
           </span>
         </div>
 
@@ -34,11 +38,11 @@ export function SearchVisual() {
           <PackThumb brand="Amoclav" />
           <span className="hc-pv-row-main">
             <strong>Amoclav 1g</strong>
-            <span>Amoxicillin · Tablet</span>
+            <span>{t("marketingHero.amoxicillinTablet")}</span>
           </span>
           <span className="hc-chip hc-chip-limited hc-status">
             <span className="hc-dot" />
-            Limited
+            {t("marketingHero.limited")}
           </span>
         </div>
       </div>
@@ -46,9 +50,9 @@ export function SearchVisual() {
       <div className="hc-pv-foot">
         <span className="hc-prescription-status is-required">
           <Icon name="rx" size={13} />
-          Prescription required
+          {t("marketingHero.prescriptionRequired")}
         </span>
-        <span className="hc-small">7 connected pharmacies</span>
+        <span className="hc-small">{t("marketingHero.connectedPharmacies", { count: 7 })}</span>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { Icon } from "@/components/ui/Icon";
 import { formatDate } from "@/lib/patient/format";
-import type { Address, PaymentMethod, Prescription } from "@/lib/patient/types";
+import type { Address, Prescription } from "@/lib/patient/types";
 import type { FulfillmentLine } from "@/lib/patient/fulfillment";
 
 /**
@@ -234,18 +234,62 @@ export function PrescriptionVerificationSummary({
   );
 }
 
+export type PaymentMethodId = "cod" | "card" | "whish";
+
+/**
+ * The payment methods HealthConnect offers, in the order they are shown.
+ *
+ * Fixed for now: nothing here is wired to a real gateway. Selecting Whish only
+ * records the choice; the order still goes through the demonstration flow.
+ */
+export const PAYMENT_METHODS: {
+  id: PaymentMethodId;
+  label: string;
+  hint: string;
+  icon: React.ReactNode;
+}[] = [
+  {
+    id: "cod",
+    label: "Cash on delivery",
+    hint: "Pay the driver when your order arrives",
+    icon: (
+      <span className="hc-choice-icon" aria-hidden="true">
+        <Icon name="receipt" size={17} />
+      </span>
+    )
+  },
+  {
+    id: "card",
+    label: "Credit card",
+    hint: "Visa, Mastercard, or Amex",
+    icon: (
+      <span className="hc-choice-icon" aria-hidden="true">
+        <Icon name="card" size={17} />
+      </span>
+    )
+  },
+  {
+    id: "whish",
+    label: "Whish",
+    hint: "Pay from your Whish wallet",
+    icon: (
+      <span className="hc-choice-icon hc-choice-icon-bare" aria-hidden="true">
+        <WhishLogo size={34} />
+      </span>
+    )
+  }
+];
+
 export function PaymentSelector({
-  methods,
   selectedId,
   onSelect
 }: {
-  methods: PaymentMethod[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  selectedId: PaymentMethodId;
+  onSelect: (id: PaymentMethodId) => void;
 }) {
   return (
     <ul className="hc-choices" role="radiogroup" aria-label="Payment method">
-      {methods.map((method) => (
+      {PAYMENT_METHODS.map((method) => (
         <li key={method.id}>
           <label className={`hc-choice${method.id === selectedId ? " hc-choice-selected" : ""}`}>
             <input
@@ -255,14 +299,10 @@ export function PaymentSelector({
               onChange={() => onSelect(method.id)}
             />
             <span className="hc-choice-mark" aria-hidden="true" />
-            <span className="hc-choice-icon" aria-hidden="true">
-              <Icon name={method.kind === "card" ? "card" : "receipt"} size={17} />
-            </span>
+            {method.icon}
             <span className="hc-choice-body">
-              <strong>{paymentLabel(method)}</strong>
-              <span className="hc-small">
-                {method.kind === "card" ? `Expires ${method.expiry}` : "Pay the driver when your order arrives"}
-              </span>
+              <strong>{method.label}</strong>
+              <span className="hc-small">{method.hint}</span>
             </span>
           </label>
         </li>
@@ -271,6 +311,19 @@ export function PaymentSelector({
   );
 }
 
-export function paymentLabel(method: PaymentMethod): string {
-  return method.kind === "card" ? `${method.brand} ending ${method.last4}` : "Cash on delivery";
+/** Whish Money wordmark badge — a coral rounded square with a white "w" swoosh. */
+function WhishLogo({ size = 34 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" role="img" aria-label="Whish">
+      <rect width="40" height="40" rx="11" fill="#EF3E56" />
+      <path
+        d="M9 14.5 15 26l5-8.5 5 8.5 6-11.5"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="3.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
