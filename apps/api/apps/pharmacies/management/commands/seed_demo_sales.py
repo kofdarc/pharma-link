@@ -349,7 +349,8 @@ class Command(BaseCommand):
         for medicine in medicines:
             if not medicine.is_marketed:
                 continue
-            if medicine.requires_prescription and medicine.generic_name.split()[0] not in CHRONIC_RX_GENERICS:
+            first_word = next(iter((medicine.generic_name or "").split()), "")
+            if medicine.requires_prescription and first_word not in CHRONIC_RX_GENERICS:
                 continue
             out.append(medicine)
         return out
