@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { formatDate } from "@/lib/patient/format";
 import type { Address, Prescription } from "@/lib/patient/types";
@@ -311,19 +312,176 @@ export function PaymentSelector({
   );
 }
 
-/** Whish Money wordmark badge — a coral rounded square with a white "w" swoosh. */
+/** Whish Money mark — a red "w" with the trailing speed lines from the brand logo. */
 function WhishLogo({ size = 34 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" role="img" aria-label="Whish">
-      <rect width="40" height="40" rx="11" fill="#EF3E56" />
+    <svg
+      width={size}
+      height={(size * 32) / 46}
+      viewBox="0 0 46 32"
+      role="img"
+      aria-label="Whish"
+      fill="none"
+    >
+      <path d="M5 10 19 8.4 19 11.6Z" fill="#E5384E" />
+      <path d="M2 16 22 14 22 18Z" fill="#E5384E" />
+      <path d="M6 22 18 20.6 18 23.4Z" fill="#E5384E" />
       <path
-        d="M9 14.5 15 26l5-8.5 5 8.5 6-11.5"
-        fill="none"
-        stroke="#fff"
-        strokeWidth="3.6"
+        d="M21 6 26 26 31 13 36 26 41 6"
+        stroke="#E5384E"
+        strokeWidth="5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+// --- card details --------------------------------------------------------------
+
+export type CardDraft = { number: string; name: string; expiry: string; cvc: string };
+
+export const EMPTY_CARD: CardDraft = { number: "", name: "", expiry: "", cvc: "" };
+
+/** Digits only, grouped in fours, capped at the 19 a card number can hold. */
+export function formatCardNumber(raw: string): string {
+  return raw
+    .replace(/\D/g, "")
+    .slice(0, 19)
+    .replace(/(.{4})/g, "$1 ")
+    .trim();
+}
+
+/** Digits only, shown as `MM / YY` once a month has been typed. */
+export function formatExpiry(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)} / ${digits.slice(2)}`;
+}
+
+export type CardErrors = Partial<Record<keyof CardDraft, string>>;
+
+/**
+ * The usual four fields, and nothing a real processor's hosted form would not
+ * also ask for. Validation is shape-only: enough to catch a fat-fingered entry,
+ * not a substitute for the gateway that will eventually check the card.
+ */
+export function validateCard(card: CardDraft): CardErrors {
+  const errors: CardErrors = {};
+  const digits = card.number.replace(/\D/g, "");
+  if (digits.length < 13 || digits.length > 19) errors.number = "Enter a valid card number.";
+  if (!card.name.trim()) errors.name = "Enter the name on the card.";
+
+  const expiry = /^(\d{2})\s*\/\s*(\d{2})$/.exec(card.expiry.trim());
+  const month = expiry ? Number(expiry[1]) : 0;
+  if (!expiry || month < 1 || month > 12) {
+    errors.expiry = "Use MM / YY.";
+  } else {
+    const due = new Date(2000 + Number(expiry[2]), month, 0, 23, 59, 59);
+    if (due.getTime() < Date.now()) errors.expiry = "This card has expired.";
+  }
+
+  if (!/^\d{3,4}$/.test(card.cvc)) errors.cvc = "3 or 4 digits.";
+  return errors;
+}
+
+function CardField({
+  label,
+  error,
+  children
+}: {
+  label: string;
+  error?: string;
+  children: (props: { id: string; "aria-invalid"?: true; "aria-describedby"?: string }) => React.ReactNode;
+}) {
+  const id = useId();
+  return (
+    <div className="hc-field">
+      <label htmlFor={id}>{label}</label>
+      {children(
+        error
+          ? { id, "aria-invalid": true, "aria-describedby": `${id}-error` }
+          : { id }
+      )}
+      {error ? (
+        <p className="hc-field-error" id={`${id}-error`}>
+          <Icon name="alert" size={14} />
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function CardFields({
+  value,
+  onChange,
+  errors
+}: {
+  value: CardDraft;
+  onChange: (next: CardDraft) => void;
+  errors?: CardErrors;
+}) {
+  const set = (key: keyof CardDraft, next: string) => onChange({ ...value, [key]: next });
+
+  return (
+    <div className="hc-form hc-card-fields">
+      <CardField label="Card number" error={errors?.number}>
+        {(props) => (
+          <input
+            {...props}
+            className="hc-input"
+            inputMode="numeric"
+            autoComplete="cc-number"
+            placeholder="1234 1234 1234 1234"
+            value={value.number}
+            onChange={(event) => set("number", formatCardNumber(event.target.value))}
+          />
+        )}
+      </CardField>
+
+      <CardField label="Name on card" error={errors?.name}>
+        {(props) => (
+          <input
+            {...props}
+            className="hc-input"
+            autoComplete="cc-name"
+            placeholder="As printed on the card"
+            value={value.name}
+            onChange={(event) => set("name", event.target.value)}
+          />
+        )}
+      </CardField>
+
+      <div className="hc-form-row">
+        <CardField label="Expiry" error={errors?.expiry}>
+          {(props) => (
+            <input
+              {...props}
+              className="hc-input"
+              inputMode="numeric"
+              autoComplete="cc-exp"
+              placeholder="MM / YY"
+              value={value.expiry}
+              onChange={(event) => set("expiry", formatExpiry(event.target.value))}
+            />
+          )}
+        </CardField>
+
+        <CardField label="Security code" error={errors?.cvc}>
+          {(props) => (
+            <input
+              {...props}
+              className="hc-input"
+              inputMode="numeric"
+              autoComplete="cc-csc"
+              placeholder="CVC"
+              value={value.cvc}
+              onChange={(event) => set("cvc", event.target.value.replace(/\D/g, "").slice(0, 4))}
+            />
+          )}
+        </CardField>
+      </div>
+    </div>
   );
 }

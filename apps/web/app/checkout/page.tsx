@@ -8,10 +8,15 @@ import { CardSkeletons, EmptyPanel, PageHead } from "@/components/patient/Page";
 import { AddressFormDialog } from "@/components/account/AddressForm";
 import {
   AddressSelector,
+  CardFields,
   CheckoutStep,
   DeliveryWindowSelector,
+  EMPTY_CARD,
   PaymentSelector,
   PrescriptionVerificationSummary,
+  validateCard,
+  type CardDraft,
+  type CardErrors,
   type DeliveryChoice,
   type PaymentMethodId
 } from "@/components/checkout/CheckoutParts";
@@ -49,6 +54,8 @@ export default function CheckoutPage() {
   // Payment method is a fixed local choice for now — nothing here is wired to a
   // real gateway, so there is no saved-method list to reconcile against.
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>("cod");
+  const [card, setCard] = useState<CardDraft>(EMPTY_CARD);
+  const [cardErrors, setCardErrors] = useState<CardErrors>({});
   const [when, setWhen] = useState<DeliveryChoice>({ kind: "asap" });
   const [addressOpen, setAddressOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("editing");
@@ -108,6 +115,15 @@ export default function CheckoutPage() {
 
   async function place() {
     if (!plan || !address || submitting.current) return;
+
+    // Card details are collected but not transmitted in this build; still, a
+    // half-filled form should stop here rather than at a confusing server error.
+    if (paymentMethod === "card") {
+      const found = validateCard(card);
+      setCardErrors(found);
+      if (Object.keys(found).length > 0) return;
+    }
+
     submitting.current = true;
     setPhase("placing");
     setFailure("");
@@ -176,9 +192,16 @@ export default function CheckoutPage() {
 
             <CheckoutStep index={3} title="Payment">
               <PaymentSelector selectedId={paymentMethod} onSelect={setPaymentMethod} />
-              <p className="hc-small">
-                This is a demonstration build. No payment is taken and no card details are stored.
-              </p>
+              {paymentMethod === "card" ? (
+                <CardFields
+                  value={card}
+                  onChange={(next) => {
+                    setCard(next);
+                    if (Object.keys(cardErrors).length > 0) setCardErrors({});
+                  }}
+                  errors={cardErrors}
+                />
+              ) : null}
             </CheckoutStep>
 
             <CheckoutStep index={4} title="Review">

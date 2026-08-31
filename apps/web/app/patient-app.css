@@ -1452,7 +1452,16 @@
 
 .hc-choice-icon-bare svg {
   width: 34px;
-  height: 34px;
+  height: auto;
+}
+
+/* Card entry, revealed under the payment options when "Credit card" is picked. */
+.hc-card-fields {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--hc-line-2);
+  border-radius: var(--hc-r-md);
+  background: var(--hc-canvas);
 }
 
 .hc-choice-body {
