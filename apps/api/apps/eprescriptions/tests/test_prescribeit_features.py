@@ -354,6 +354,60 @@ class FaxBackupDeliveryTests(TestCase):
         self.assertEqual(prescription.status, Prescription.Status.ISSUED)
 
 
+class PatientSmsDeliveryTests(TestCase):
+    """A patient who gave a phone number is texted the prescription at issue time, in
+    addition to (not instead of) the email. SMS_PROVIDER is forced to "console" under test."""
+
+    def setUp(self):
+        self.doctor = make_doctor()
+        self.medicine = Medicine.objects.create(brand_name="Augmentin", strength="1g", form="Tablet", regulated_price="14.75")
+
+    def test_phone_on_file_gets_texted(self):
+        prescription, _secret, _pin = issue_prescription(
+            doctor=self.doctor,
+            patient={"patient_name": "Georges Haddad", "patient_phone": "+96170123456"},
+            items=[{"medicine": str(self.medicine.id), "quantity_prescribed": 14}],
+        )
+
+        self.assertIsNotNone(prescription.sms_sent_at)
+
+    def test_email_and_sms_both_go_out_and_fax_does_not(self):
+        prescription, _secret, _pin = issue_prescription(
+            doctor=self.doctor,
+            patient={
+                "patient_name": "Georges Haddad",
+                "patient_email": "georges@example.test",
+                "patient_phone": "+96170123456",
+                "patient_fax": "+961-1-555-000",
+            },
+            items=[{"medicine": str(self.medicine.id), "quantity_prescribed": 14}],
+        )
+
+        self.assertIsNotNone(prescription.email_sent_at)
+        self.assertIsNotNone(prescription.sms_sent_at)
+        self.assertIsNone(prescription.fax_sent_at)
+
+    def test_no_phone_means_no_sms(self):
+        prescription, _secret, _pin = issue_prescription(
+            doctor=self.doctor,
+            patient={"patient_name": "Georges Haddad", "patient_email": "georges@example.test"},
+            items=[{"medicine": str(self.medicine.id), "quantity_prescribed": 14}],
+        )
+
+        self.assertIsNone(prescription.sms_sent_at)
+
+    def test_sms_failure_never_blocks_issuing(self):
+        with patch("apps.messaging.sms.service.send_sms", side_effect=RuntimeError("SNS down")):
+            prescription, _secret, _pin = issue_prescription(
+                doctor=self.doctor,
+                patient={"patient_name": "Georges Haddad", "patient_phone": "+96170123456"},
+                items=[{"medicine": str(self.medicine.id), "quantity_prescribed": 14}],
+            )
+
+        self.assertIsNone(prescription.sms_sent_at)
+        self.assertEqual(prescription.status, Prescription.Status.ISSUED)
+
+
 class FormularyLookupTests(TestCase):
     def setUp(self):
         self.doctor = make_doctor()

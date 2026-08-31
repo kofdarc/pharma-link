@@ -253,7 +253,10 @@ ASAP_DELIVERY_PROMISE_MINUTES = int(os.getenv("ASAP_DELIVERY_PROMISE_MINUTES", "
 
 # --- Email -----------------------------------------------------------------------------
 # The console backend prints prescription emails (QR included) to the server log, so the POC
-# needs no SMTP account. Point EMAIL_* at a real host and nothing else changes.
+# needs no SMTP account. Point EMAIL_* at a real host and nothing else changes, OR set
+# EMAIL_BACKEND="apps.common.email_backends.SESEmailBackend" to send through AWS SES (no SMTP
+# credentials - boto3 uses the environment / task-role credentials, and AWS_SES_REGION_NAME
+# selects the region). The SES sender identity must be verified; see docs/DEPLOY_AWS.md.
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
@@ -261,6 +264,9 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "HealthConnect <no-reply@healthconnect.dev>")
+AWS_SES_REGION_NAME = os.getenv("AWS_SES_REGION_NAME", "eu-central-1")
+# Optional SES configuration set (open/click/bounce event publishing); blank = don't send one.
+SES_CONFIGURATION_SET = os.getenv("SES_CONFIGURATION_SET", "")
 
 # --- Prescription OCR -------------------------------------------------------------------
 # Self-hosted Tesseract is the default so OCR intake needs no external account - it handles
@@ -361,6 +367,16 @@ WHATSAPP_TEMPLATE_PRESCRIPTION_EXPIRY = os.getenv("WHATSAPP_TEMPLATE_PRESCRIPTIO
 WHATSAPP_TEMPLATE_RENEWAL_DECISION = os.getenv("WHATSAPP_TEMPLATE_RENEWAL_DECISION", "pharmalink_renewal_decision_v1")
 WHATSAPP_TEMPLATE_PAYMENT_FAILED = os.getenv("WHATSAPP_TEMPLATE_PAYMENT_FAILED", "pharmalink_payment_failed_v1")
 
+# --- SMS (patient prescription delivery) -----------------------------------------------
+# When a doctor issues a prescription it is texted to the patient's phone alongside the
+# email. The console provider logs instead of calling AWS, so dev/test needs no AWS account.
+# Set SMS_PROVIDER="aws_sns" to send real messages via AWS SNS Publish (see
+# apps.messaging.sms.aws_sns and docs/DEPLOY_AWS.md); boto3 uses the environment / task-role
+# credentials just like the S3 config above.
+SMS_PROVIDER = os.getenv("SMS_PROVIDER", "console")
+SMS_SENDER_ID = os.getenv("SMS_SENDER_ID", "")  # alphanumeric origination ID; unsupported in some countries (e.g. US/CA)
+AWS_SNS_REGION_NAME = os.getenv("AWS_SNS_REGION_NAME", "eu-central-1")
+
 # --- In-app assistant ---------------------------------------------------------------------
 # The assistant answers by matching a message to one of a fixed set of intents, running one
 # read-only lookup, and rendering a templated sentence from the result (see apps.assistant).
@@ -443,3 +459,5 @@ if "test" in sys.argv:
     ANALYTICS_AI_PROVIDER = "none"
     ANALYTICS_AI_BASE_URL = ANALYTICS_AI_API_KEY = ANALYTICS_AI_MODEL = ""
     LLM_FALLBACK_BASE_URL = LLM_FALLBACK_API_KEY = LLM_FALLBACK_MODEL = ""
+    # A live SMS_PROVIDER=aws_sns in a developer's .env must never reach AWS during a test run.
+    SMS_PROVIDER = "console"

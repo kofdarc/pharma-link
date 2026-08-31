@@ -65,6 +65,32 @@ def send_prescription_email(prescription, *, secret: str, pin: str) -> bool:
     return True
 
 
+def send_prescription_sms(prescription, *, secret: str, pin: str) -> bool:
+    """
+    Texts the prescription to the patient's phone at issue time, alongside the email (not a
+    fallback for it - a patient who gave both a phone and an email gets both). SMS is a
+    plain-text medium with no QR, so it carries the deep link plus the code+PIN manual-entry
+    details. Returns whether the send succeeded so the caller can record sms_sent_at.
+    """
+    url = prescription_url(prescription.code, secret)
+    body = (
+        f"Prescription {prescription.code} from Dr. {prescription.doctor.full_name}. "
+        f"Open {url} or enter code {prescription.code} with PIN {pin} at "
+        f"{settings.PUBLIC_WEB_BASE_URL}/rx. Valid until {prescription.valid_until:%d %b %Y}."
+    )
+    try:
+        from apps.messaging.sms.service import send_sms
+
+        result = send_sms(to=prescription.patient_phone, body=body)
+    except Exception:
+        logger.exception("Failed to text prescription %s to %s", prescription.code, prescription.patient_phone)
+        return False
+    if result.status == "FAILED":
+        logger.warning("SMS delivery of prescription %s failed: %s", prescription.code, result.failure_reason)
+        return False
+    return True
+
+
 def send_prescription_fax(prescription, *, pin: str) -> bool:
     """
     Back-up delivery channel used when the prescription has no email on file, or the email

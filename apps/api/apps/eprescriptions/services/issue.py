@@ -114,6 +114,14 @@ def issue_prescription(
             prescription.fax_sent_at = timezone.now()
             prescription.save(update_fields=["fax_sent_at", "updated_at"])
 
+    # Independent of the email/fax path above: a patient who gave a phone number is also
+    # texted the prescription (via AWS SNS once SMS_PROVIDER is switched on). A failure here
+    # never blocks issuing - the QR/PIN and the email still stand.
+    if prescription.patient_phone:
+        if mailer.send_prescription_sms(prescription, secret=secret, pin=pin):
+            prescription.sms_sent_at = timezone.now()
+            prescription.save(update_fields=["sms_sent_at", "updated_at"])
+
     return prescription, secret, pin
 
 

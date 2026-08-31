@@ -194,6 +194,71 @@ RDS is intentionally not public. For emergency interactive access:
 
 Do not make RDS public or add a workstation IP as the routine emergency-access method.
 
+## Patient notifications (SES + SNS)
+
+When a doctor issues a prescription, `issue_prescription()` delivers it to the patient by
+**email** (AWS SES) and, independently, by **SMS** (AWS SNS) when a phone number is on file.
+Fax remains the fallback for a failed/absent email only. Both channels default to a
+log-only mode, so nothing here is required for the app to run.
+
+### Settings / task-definition environment
+
+| Variable | Value in production | Notes |
+| --- | --- | --- |
+| `EMAIL_BACKEND` | `apps.common.email_backends.SESEmailBackend` | Sends raw MIME via `sesv2:SendEmail` so the QR-code attachment survives. Unset = Django console backend. |
+| `AWS_SES_REGION_NAME` | `eu-central-1` | |
+| `SES_CONFIGURATION_SET` | *(optional)* | Set to publish open/click/bounce events. |
+| `DEFAULT_FROM_EMAIL` | `HealthConnect <no-reply@healthconnect.dev>` | The address/domain must be a verified SES identity. |
+| `SMS_PROVIDER` | `aws_sns` | Unset/`console` = log only. |
+| `AWS_SNS_REGION_NAME` | `eu-central-1` | |
+| `SMS_SENDER_ID` | *(optional)* | Alphanumeric origination ID; not supported for every destination country. |
+
+boto3 resolves credentials from the ECS task role (same as S3) - no SMTP password or access
+key is stored. The task role needs `ses:SendEmail` and `sns:Publish`.
+
+### One-time identity setup
+
+Sender domain identity + Easy DKIM:
+
+```bash
+aws sesv2 create-email-identity \
+  --email-identity healthconnect.dev \
+  --dkim-signing-attributes NextSigningKeyLength=RSA_2048_BIT \
+  --region eu-central-1
+
+aws sesv2 get-email-identity --email-identity healthconnect.dev --region eu-central-1
+```
+
+Add the three `<token>._domainkey.healthconnect.dev` CNAME records it returns to the domain's
+DNS. `DkimAttributes.Status` flips to `SUCCESS` and `VerifiedForSendingStatus` to `true` once
+they propagate.
+
+### Sandbox status (as of 2026-08-31)
+
+Account `423401347463` / `eu-central-1` is in **both** the SES sandbox
+(`ProductionAccessEnabled: false`, 200 messages/day) and the **SNS SMS sandbox**
+(`MonthlySpendLimit: $1`). While sandboxed:
+
+- SES only delivers to verified recipient identities - verify each demo recipient with
+  `aws sesv2 create-email-identity --email-identity <addr>` and have them click the link.
+- SNS only delivers to verified destination numbers:
+
+  ```bash
+  aws sns create-sms-sandbox-phone-number --phone-number +961XXXXXXXX --region eu-central-1
+  aws sns verify-sms-sandbox-phone-number  --phone-number +961XXXXXXXX \
+    --one-time-password <OTP the phone receives> --region eu-central-1
+  ```
+
+- Set the transactional default once:
+
+  ```bash
+  aws sns set-sms-attributes --attributes DefaultSMSType=Transactional --region eu-central-1
+  ```
+
+Production access for each service is a separate AWS Support case (SES: "Request production
+access" in the SES console; SNS: raise the SMS spend limit and exit the SMS sandbox). Neither
+is automatable here.
+
 ## Monitoring
 
 CloudWatch alarms cover API task replacement/restarts and load-balancer 5xx rate. Error-count

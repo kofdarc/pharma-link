@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ApiError, apiFetch, asList } from "@/lib/api-client";
 import { useTranslations } from "@/lib/i18n/context";
@@ -48,7 +48,12 @@ function catalogLabel(medicine: Medicine) {
 
 export default function NewPrescriptionPage() {
   const t = useTranslations();
-  const [catalog, setCatalog] = useState<Medicine[]>([]);
+  // Medicines are searched on demand (see catalogOptions below) rather than loaded
+  // upfront - the catalog endpoint is paginated (25/page), so an eager fetch here
+  // only ever populated the dropdown with the first page's worth of medicines.
+  const [knownMedicines, setKnownMedicines] = useState<Record<string, Medicine>>({});
+  const [catalogOptions, setCatalogOptions] = useState<Record<string, Medicine[]>>({});
+  const catalogSearchTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [knownPatients, setKnownPatients] = useState<Patient[]>([]);
   const [patientName, setPatientName] = useState("");
   const [patientEmail, setPatientEmail] = useState("");
@@ -63,12 +68,6 @@ export default function NewPrescriptionPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [issued, setIssued] = useState<Prescription | null>(null);
-
-  useEffect(() => {
-    apiFetch<Paginated<Medicine> | Medicine[]>("/medicines/")
-      .then((payload) => setCatalog(asList(payload)))
-      .catch(() => setCatalog([]));
-  }, []);
 
   useEffect(() => {
     apiFetch<Paginated<Prescription> | Prescription[]>("/doctor/prescriptions/")
@@ -114,18 +113,52 @@ export default function NewPrescriptionPage() {
     );
   }, []);
 
-  // Draft items only carry a catalog id, not its display label - backfill the search
-  // box's text once the catalog has loaded, whichever effect finishes first.
+  // Draft items only carry a catalog id, not its display label - resolve each one
+  // individually (rather than scanning a full catalog fetch) once per distinct id.
+  const draftMedicineIds = items.map((item) => item.medicine).filter(Boolean).join(",");
   useEffect(() => {
-    if (catalog.length === 0) return;
+    items.forEach((item) => {
+      if (!item.medicine || knownMedicines[item.medicine]) return;
+      apiFetch<Medicine>(`/medicines/search/?id=${encodeURIComponent(item.medicine)}`)
+        .then((medicine) => setKnownMedicines((current) => (current[medicine.id] ? current : { ...current, [medicine.id]: medicine })))
+        .catch(() => {});
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftMedicineIds]);
+
+  // Backfill the search box's text once the id resolves, whichever effect finishes first.
+  useEffect(() => {
     setItems((current) =>
       current.map((item) => {
         if (!item.medicine || item.catalog_query) return item;
-        const match = catalog.find((entry) => entry.id === item.medicine);
+        const match = knownMedicines[item.medicine];
         return match ? { ...item, catalog_query: catalogLabel(match) } : item;
       })
     );
-  }, [catalog]);
+  }, [knownMedicines]);
+
+  function searchCatalog(key: string, query: string) {
+    clearTimeout(catalogSearchTimers.current[key]);
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setCatalogOptions((current) => ({ ...current, [key]: [] }));
+      return;
+    }
+    catalogSearchTimers.current[key] = setTimeout(() => {
+      apiFetch<Medicine[]>(`/medicines/search/?q=${encodeURIComponent(trimmed)}`)
+        .then((results) => {
+          setCatalogOptions((current) => ({ ...current, [key]: results }));
+          setKnownMedicines((current) => {
+            const next = { ...current };
+            results.forEach((medicine) => {
+              next[medicine.id] = medicine;
+            });
+            return next;
+          });
+        })
+        .catch(() => setCatalogOptions((current) => ({ ...current, [key]: [] })));
+    }, 250);
+  }
 
   const isDirty = useMemo(
     () =>
@@ -163,12 +196,16 @@ export default function NewPrescriptionPage() {
   }
 
   function selectCatalogEntry(key: string, value: string) {
-    const selected = catalog.find((entry) => catalogLabel(entry) === value);
+    const selected = (catalogOptions[key] || []).find((entry) => catalogLabel(entry) === value);
     update(key, {
       catalog_query: value,
       medicine: selected ? selected.id : "",
       medicine_text: selected ? selected.display_name : items.find((item) => item.key === key)?.medicine_text || ""
     });
+    if (selected) {
+      setKnownMedicines((current) => (current[selected.id] ? current : { ...current, [selected.id]: selected }));
+    }
+    searchCatalog(key, value);
   }
 
   async function submit(event: FormEvent) {
@@ -177,7 +214,7 @@ export default function NewPrescriptionPage() {
       .filter((item) => item.medicine || item.medicine_text.trim())
       .map((item) => ({
         medicine: item.medicine || null,
-        medicine_text: item.medicine_text || catalog.find((entry) => entry.id === item.medicine)?.display_name || "",
+        medicine_text: item.medicine_text || knownMedicines[item.medicine]?.display_name || "",
         quantity_prescribed: item.quantity_prescribed,
         unit: item.unit,
         dosage_instructions: item.dosage_instructions,
@@ -299,11 +336,6 @@ export default function NewPrescriptionPage() {
           <option key={patient.key} value={patient.name} />
         ))}
       </datalist>
-      <datalist id="medicine-catalog">
-        {catalog.map((medicine) => (
-          <option key={medicine.id} value={catalogLabel(medicine)} />
-        ))}
-      </datalist>
       <datalist id="pharmacy-directory">
         {pharmacyOptions.map((pharmacy) => (
           <option key={pharmacy.id} value={`${pharmacy.name} (${pharmacy.area})`} />
@@ -368,11 +400,16 @@ export default function NewPrescriptionPage() {
                   hint={t("doctorPrescriptionsNew.typeToSearch")}
                 >
                   <input
-                    list="medicine-catalog"
+                    list={`medicine-catalog-${item.key}`}
                     value={item.catalog_query}
                     onChange={(event) => selectCatalogEntry(item.key, event.target.value)}
                     placeholder="Start typing a medicine name"
                   />
+                  <datalist id={`medicine-catalog-${item.key}`}>
+                    {(catalogOptions[item.key] || []).map((medicine) => (
+                      <option key={medicine.id} value={catalogLabel(medicine)} />
+                    ))}
+                  </datalist>
                 </Field>
                 <Field label={t("doctorPrescriptionsNew.orWriteIt")} hint={t("doctorPrescriptionsNew.keptVerbatimHint")}>
                   <input

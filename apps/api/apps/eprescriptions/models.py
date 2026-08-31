@@ -85,6 +85,9 @@ class Prescription(UUIDTimeStampedModel):
     cancelled_at = models.DateTimeField(null=True, blank=True)
     cancellation_reason = models.CharField(max_length=255, blank=True)
     email_sent_at = models.DateTimeField(null=True, blank=True)
+    sms_sent_at = models.DateTimeField(
+        null=True, blank=True, help_text="Set when the prescription was texted to the patient's phone at issue time."
+    )
     fax_sent_at = models.DateTimeField(
         null=True, blank=True, help_text="Set when the fax back-up delivered this prescription because the digital send failed or had no email to use."
     )
