@@ -11,6 +11,69 @@
     "remove": "إزالة",
     "quantity": "الكمية"
   },
+  "notifications": {
+    "bellLabel": "الإشعارات",
+    "unreadLabel": "{count} جديدة",
+    "enablePrompt": "تفعيل الإشعارات",
+    "kinds": {
+      "order": {
+        "title": "الطلب {reference}",
+        "body": "{status_label} · {pharmacy}"
+      },
+      "prescription_decision": {
+        "title": "الوصفة {code}",
+        "body": "{status_label}"
+      },
+      "refill_due": {
+        "title": "موعد إعادة الصرف قريب",
+        "body": "{label}"
+      },
+      "refill_failed": {
+        "title": "إعادة الصرف تحتاج انتباهاً",
+        "body": "{label}: {error}"
+      },
+      "incoming_order": {
+        "title": "طلب جديد {reference}",
+        "body": "{item_count} صنف · {fulfillment_type}"
+      },
+      "rx_upload": {
+        "title": "وصفة مرفوعة للمراجعة",
+        "body": "{patient_name}"
+      },
+      "stock_low": {
+        "title": "{count} صنف منخفض المخزون",
+        "body": "راجع المخزون قبل النفاد."
+      },
+      "stock_expiry": {
+        "title": "{units} وحدة تنتهي خلال 30 يوماً",
+        "body": "بقيمة {value} بسعر التجزئة."
+      },
+      "renewal_request": {
+        "title": "طلب تجديد",
+        "body": "{patient_name} · {pharmacy}"
+      },
+      "prescription_expiring": {
+        "title": "الوصفة {code} على وشك الانتهاء",
+        "body": "{patient_name} · باقٍ {days_left} يوم"
+      },
+      "route_offered": {
+        "title": "مسار جديد معروض",
+        "body": "{stops} محطة · {distance_km} كم"
+      },
+      "route_active": {
+        "title": "تم تحديث المسار",
+        "body": "{stops} محطة متبقية"
+      },
+      "application": {
+        "title": "طلب انضمام صيدلية جديد",
+        "body": "{pharmacy_name} · {area}"
+      },
+      "dispatch": {
+        "title": "{count} طلب بانتظار سائق",
+        "body": "افتح لوحة التوزيع للإسناد."
+      }
+    }
+  },
   "publicHeader": {
     "home": "الرئيسية",
     "howItWorks": "كيف يعمل",

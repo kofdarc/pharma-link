@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.messaging",
     "apps.assistant",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -202,6 +203,10 @@ REST_FRAMEWORK = {
         # analytics endpoint (all pure DB reads) - capped low since one pharmacy owner has no
         # reason to regenerate it more than a handful of times a day.
         "analytics_digest": os.getenv("THROTTLE_ANALYTICS_DIGEST", "20/day"),
+        # In-app notification feed (apps.notifications): the web client polls this
+        # on a ~45s interval per open tab, so the cap only needs to catch a stuck
+        # polling loop, not normal use.
+        "notifications": os.getenv("THROTTLE_NOTIFICATIONS", "90/min"),
     },
 }
 

@@ -11,6 +11,69 @@
     "remove": "Retirer",
     "quantity": "Quantité"
   },
+  "notifications": {
+    "bellLabel": "Notifications",
+    "unreadLabel": "{count} nouvelle(s)",
+    "enablePrompt": "Activer les notifications",
+    "kinds": {
+      "order": {
+        "title": "Commande {reference}",
+        "body": "{status_label} · {pharmacy}"
+      },
+      "prescription_decision": {
+        "title": "Ordonnance {code}",
+        "body": "{status_label}"
+      },
+      "refill_due": {
+        "title": "Renouvellement bientôt dû",
+        "body": "{label}"
+      },
+      "refill_failed": {
+        "title": "Renouvellement à vérifier",
+        "body": "{label} : {error}"
+      },
+      "incoming_order": {
+        "title": "Nouvelle commande {reference}",
+        "body": "{item_count} article(s) · {fulfillment_type}"
+      },
+      "rx_upload": {
+        "title": "Ordonnance à vérifier",
+        "body": "{patient_name}"
+      },
+      "stock_low": {
+        "title": "{count} référence(s) en stock bas",
+        "body": "Vérifiez l'inventaire avant la rupture."
+      },
+      "stock_expiry": {
+        "title": "{units} unité(s) expirant sous 30 jours",
+        "body": "Valeur {value} au détail."
+      },
+      "renewal_request": {
+        "title": "Demande de renouvellement",
+        "body": "{patient_name} · {pharmacy}"
+      },
+      "prescription_expiring": {
+        "title": "Ordonnance {code} expire bientôt",
+        "body": "{patient_name} · {days_left} jour(s) restant(s)"
+      },
+      "route_offered": {
+        "title": "Nouvelle tournée proposée",
+        "body": "{stops} arrêt(s) · {distance_km} km"
+      },
+      "route_active": {
+        "title": "Tournée mise à jour",
+        "body": "{stops} arrêt(s) restant(s)"
+      },
+      "application": {
+        "title": "Nouvelle demande de pharmacie",
+        "body": "{pharmacy_name} · {area}"
+      },
+      "dispatch": {
+        "title": "{count} commande(s) en attente d'un chauffeur",
+        "body": "Ouvrez le tableau de répartition."
+      }
+    }
+  },
   "publicHeader": {
     "home": "Accueil",
     "howItWorks": "Comment ça marche",

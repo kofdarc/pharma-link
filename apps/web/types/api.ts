@@ -1084,6 +1084,20 @@ export interface AssistantReply {
   location_used: string | null;
 }
 
+/**
+ * One item from the in-app notification feed (`GET /api/notifications/`). The feed is
+ * computed fresh on every poll, so `id` is stable and encodes the state it describes
+ * (e.g. `order:<uuid>:READY`) - the client de-dupes popups on it. Display text is built
+ * on the client from `kind` + `params` against the `notifications.kinds.*` messages.
+ */
+export interface NotificationItem {
+  id: string;
+  kind: string;
+  href: string;
+  occurred_at: string | null;
+  params: Record<string, string | number>;
+}
+
 export interface ShopperLocation {
   latitude: string;
   longitude: string;

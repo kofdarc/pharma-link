@@ -29,6 +29,7 @@ from apps.analytics.views import (
     AnalyticsSalesView,
 )
 from apps.assistant.views import AssistantChatView, AssistantSessionView
+from apps.notifications.views import NotificationsView
 from apps.audit.views import AdminAuditLogViewSet, PharmacyAuditLogViewSet
 from apps.billing.views import (
     AdminPharmacySubscriptionViewSet,
@@ -229,6 +230,8 @@ urlpatterns = [
     # In-app assistant (role-scoped; anonymous callers get the guest persona)
     path("assistant/session/", AssistantSessionView.as_view()),
     path("assistant/chat/", AssistantChatView.as_view()),
+    # In-app notification feed (role-scoped, computed on read; polled by the web client)
+    path("notifications/", NotificationsView.as_view()),
     # Public
     path("public/search/", public_search),
     path("public/pharmacy-directory/", public_pharmacy_directory),

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { BrandLogo } from "@/components/ui/BrandMark";
 import { ToastProvider } from "@/components/patient/Toast";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useMaybePatientUser } from "@/components/site/PatientGuard";
 import { useBasket } from "@/lib/basket";
 import type { User } from "@/types/api";
@@ -59,6 +60,7 @@ export function PatientShell({ children, user }: { children: React.ReactNode; us
             </nav>
 
             <div className="hc-appnav-end">
+              <NotificationBell userId={shellUser?.id} />
               <Link
                 href="/cart"
                 className="hc-cartbtn"

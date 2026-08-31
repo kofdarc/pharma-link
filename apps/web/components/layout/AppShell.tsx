@@ -9,6 +9,10 @@ import { useTranslations } from "@/lib/i18n/context";
 import type { User } from "@/types/api";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { BrandLogo } from "@/components/ui/BrandMark";
+// Toast context is generic despite the folder name; the workspace shell has none of
+// its own, so it brings one for the notification bell to raise live items into.
+import { ToastProvider } from "@/components/patient/Toast";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export type ShellMode = "pharmacy" | "admin" | "doctor" | "shop" | "driver";
 
@@ -86,61 +90,64 @@ export function AppShell({
   }, [pathname]);
 
   return (
-    <div className="app-shell">
-      <button
-        type="button"
-        className="nav-backdrop"
-        aria-hidden={!navOpen}
-        data-open={navOpen}
-        onClick={() => setNavOpen(false)}
-        tabIndex={-1}
-      />
-      <aside className="sidebar" data-open={navOpen}>
-        <Link href="/" className="brand">
-          <BrandLogo tone="on-dark" />
-        </Link>
-        <nav>
-          {nav.map(([label, href]) => (
-            <Link key={href} href={href} className={pathname === href ? "active" : ""}>
-              {NAV_TRANSLATION_KEYS[href] ? t(NAV_TRANSLATION_KEYS[href]) : label}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-      <main className="main-panel">
-        <header className="topbar">
-          <div className="topbar-start">
-            <button
-              type="button"
-              className="nav-toggle"
-              aria-label={navOpen ? t("shell.closeMenu") : t("shell.openMenu")}
-              aria-expanded={navOpen}
-              onClick={() => setNavOpen((open) => !open)}
-            >
-              <span />
-              <span />
-              <span />
-            </button>
-            <div>
-              <strong>{contextLabel(mode, user, t)}</strong>
-              <span>{user.email}</span>
+    <ToastProvider>
+      <div className="app-shell">
+        <button
+          type="button"
+          className="nav-backdrop"
+          aria-hidden={!navOpen}
+          data-open={navOpen}
+          onClick={() => setNavOpen(false)}
+          tabIndex={-1}
+        />
+        <aside className="sidebar" data-open={navOpen}>
+          <Link href="/" className="brand">
+            <BrandLogo tone="on-dark" />
+          </Link>
+          <nav>
+            {nav.map(([label, href]) => (
+              <Link key={href} href={href} className={pathname === href ? "active" : ""}>
+                {NAV_TRANSLATION_KEYS[href] ? t(NAV_TRANSLATION_KEYS[href]) : label}
+              </Link>
+            ))}
+          </nav>
+        </aside>
+        <main className="main-panel">
+          <header className="topbar">
+            <div className="topbar-start">
+              <button
+                type="button"
+                className="nav-toggle"
+                aria-label={navOpen ? t("shell.closeMenu") : t("shell.openMenu")}
+                aria-expanded={navOpen}
+                onClick={() => setNavOpen((open) => !open)}
+              >
+                <span />
+                <span />
+                <span />
+              </button>
+              <div>
+                <strong>{contextLabel(mode, user, t)}</strong>
+                <span>{user.email}</span>
+              </div>
             </div>
-          </div>
-          <div className="actions">
-            <LanguageSwitcher />
-            <button
-              className="button button-secondary"
-              onClick={() => {
-                signOut();
-                router.push("/login");
-              }}
-            >
-              {t("shell.logout")}
-            </button>
-          </div>
-        </header>
-        <div className="content">{children}</div>
-      </main>
-    </div>
+            <div className="actions">
+              <NotificationBell userId={user.id} />
+              <LanguageSwitcher />
+              <button
+                className="button button-secondary"
+                onClick={() => {
+                  signOut();
+                  router.push("/login");
+                }}
+              >
+                {t("shell.logout")}
+              </button>
+            </div>
+          </header>
+          <div className="content">{children}</div>
+        </main>
+      </div>
+    </ToastProvider>
   );
 }

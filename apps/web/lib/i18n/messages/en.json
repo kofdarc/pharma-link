@@ -11,6 +11,69 @@
     "remove": "Remove",
     "quantity": "Quantity"
   },
+  "notifications": {
+    "bellLabel": "Notifications",
+    "unreadLabel": "{count} new",
+    "enablePrompt": "Turn on notifications",
+    "kinds": {
+      "order": {
+        "title": "Order {reference}",
+        "body": "{status_label} · {pharmacy}"
+      },
+      "prescription_decision": {
+        "title": "Prescription {code}",
+        "body": "{status_label}"
+      },
+      "refill_due": {
+        "title": "Refill due soon",
+        "body": "{label}"
+      },
+      "refill_failed": {
+        "title": "Refill needs attention",
+        "body": "{label}: {error}"
+      },
+      "incoming_order": {
+        "title": "New order {reference}",
+        "body": "{item_count} items · {fulfillment_type}"
+      },
+      "rx_upload": {
+        "title": "Prescription upload to review",
+        "body": "{patient_name}"
+      },
+      "stock_low": {
+        "title": "{count} SKUs running low",
+        "body": "Check inventory before you run out."
+      },
+      "stock_expiry": {
+        "title": "{units} units expiring within 30 days",
+        "body": "Worth {value} at retail."
+      },
+      "renewal_request": {
+        "title": "Renewal request",
+        "body": "{patient_name} · {pharmacy}"
+      },
+      "prescription_expiring": {
+        "title": "Prescription {code} expiring",
+        "body": "{patient_name} · {days_left} days left"
+      },
+      "route_offered": {
+        "title": "New route offered",
+        "body": "{stops} stops · {distance_km} km"
+      },
+      "route_active": {
+        "title": "Route updated",
+        "body": "{stops} stops remaining"
+      },
+      "application": {
+        "title": "New pharmacy application",
+        "body": "{pharmacy_name} · {area}"
+      },
+      "dispatch": {
+        "title": "{count} orders awaiting a driver",
+        "body": "Open the dispatch board to assign."
+      }
+    }
+  },
   "publicHeader": {
     "home": "Home",
     "howItWorks": "How it works",
