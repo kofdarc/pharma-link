@@ -111,7 +111,7 @@ class PrescriptionIssueTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("georges@example.test", mail.outbox[0].to)
         message = mail.outbox[0]
-        html = message.alternatives[0].content
+        html = message.alternatives[0][0]
         self.assertIn('src="cid:prescription-qr"', html)
         self.assertIn('src="cid:healthconnect-logo"', html)
         self.assertTrue(any(
