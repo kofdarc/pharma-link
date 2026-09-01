@@ -24,6 +24,7 @@ _TOOLS: dict[str, ToolSpec] = {
         ToolSpec("search_availability", public.search_availability, "Which pharmacies currently stock a named medicine, and at what price."),
         ToolSpec("medicine_details", public.medicine_details, "Catalogue facts for a named product, including whether it needs a prescription."),
         ToolSpec("find_pharmacies", public.find_pharmacies, "Connected pharmacies, optionally in a named area."),
+        ToolSpec("cart_add", public.cart_add, "Resolve a product (optionally the cheapest) to one orderable listing for the web client to add to the cart."),
         # Patient - scoped to the signed-in customer.
         ToolSpec("my_orders", customer.my_orders, "The signed-in patient's own recent orders and their status."),
         ToolSpec("my_prescriptions_patient", customer.my_prescriptions, "The signed-in patient's own e-prescriptions, validity and remaining quantities."),

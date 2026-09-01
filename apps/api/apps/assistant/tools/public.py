@@ -80,6 +80,61 @@ def search_availability(ctx: ToolContext) -> dict:
     }
 
 
+def cart_add(ctx: ToolContext) -> dict:
+    """
+    Resolve a product - and optionally "the cheapest" of it - to one orderable listing.
+
+    Writes nothing. The cart lives in the browser (apps/web/lib/basket.ts), so all this does
+    is the lookup the shopper would otherwise do by hand: run the same ranked public search
+    the shop page uses, drop anything that cannot actually be ordered online right now, and
+    hand back the single best row for the web client to add. The reply the person sees is
+    rendered from this dict by apps.assistant.intents.render_cart_add and is never composed,
+    so the product name and quantity they are told they can undo are exactly these.
+    """
+    query = ctx.text("query")
+    quantity = ctx.number("quantity", 1, low=1, high=20)
+    if not query:
+        return {"added": False, "reason": "no_query", "query": "", "requested_quantity": quantity}
+
+    # "cheapest" flips the sort to price; anything else keeps the blended relevance ranking
+    # (distance, reputation, then price) the shop page defaults to.
+    sort = "price" if ctx.text("sort") == "price" else "best"
+
+    latitude, longitude = ctx.coordinates
+    rows = public_availability_search(query=query, latitude=latitude, longitude=longitude, sort=sort)
+    orderable = [row for row in rows if row["available_up_to"] > 0 and row["pharmacy"]["accepts_online_orders"]]
+    if not orderable:
+        return {
+            "added": False,
+            "reason": "not_orderable" if rows else "no_match",
+            "query": query,
+            "requested_quantity": quantity,
+        }
+
+    best = orderable[0]
+    medicine = best["medicine"]
+    unit_price = best["unit_price"]
+    granted = min(quantity, best["available_up_to"])
+    return {
+        "added": True,
+        "query": query,
+        "requested_quantity": quantity,
+        "granted_quantity": granted,
+        "basis": "price" if sort == "price" else "relevance",
+        "total_listings": len(orderable),
+        "match": {
+            "medicine_id": str(medicine["id"]),
+            "name": f"{medicine['brand_name']} {medicine['strength']}".strip(),
+            "generic": medicine["generic_name"] or None,
+            "image": medicine["image"],
+            "unit_price": str(unit_price) if unit_price is not None else None,
+            "requires_prescription": bool(medicine["requires_prescription"]),
+            "availability": best["availability_status"],
+            "available_up_to": best["available_up_to"],
+        },
+    }
+
+
 def medicine_details(ctx: ToolContext) -> dict:
     """Catalogue facts for a named product - including whether it needs a prescription."""
     query = ctx.text("query")

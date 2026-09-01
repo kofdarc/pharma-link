@@ -1071,6 +1071,30 @@ export interface AssistantSession {
   signed_in: boolean;
 }
 
+/**
+ * Something the assistant resolved for the client to act on, rather than only describe.
+ *
+ * The API mutates nothing here - the cart is browser-local (see `lib/basket.ts`) - so this
+ * is the resolved line the widget adds and then offers to undo. Present only on an
+ * `add_to_cart` turn that found an orderable listing; `null` otherwise.
+ */
+export interface AssistantAction {
+  type: "add_to_basket";
+  item: {
+    medicine: string;
+    name: string;
+    generic: string | null;
+    image: string | null;
+    quantity: number;
+    requires_prescription: boolean;
+    unit_price: number | null;
+  };
+  meta: {
+    total_listings: number;
+    basis: string;
+  };
+}
+
 export interface AssistantReply {
   conversation_id: string;
   reply: string;
@@ -1084,6 +1108,7 @@ export interface AssistantReply {
    * Shown to the person so "nearest to you" is checkable rather than taken on trust.
    */
   location_used: string | null;
+  action: AssistantAction | null;
 }
 
 /**

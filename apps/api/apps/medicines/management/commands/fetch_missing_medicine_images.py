@@ -31,7 +31,7 @@ from django.core.management.base import BaseCommand
 from django.db import models
 from PIL import Image
 
-from apps.medicines.models import Medicine
+from apps.medicines.models import Medicine, ProductCategory
 
 logger = logging.getLogger(__name__)
 
@@ -181,14 +181,26 @@ class Command(BaseCommand):
         parser.add_argument("--delay", type=float, default=1.5, help="Seconds between Bing searches (default: 1.5).")
         parser.add_argument("--abort-after", type=int, default=50, help="Stop after N consecutive failures (0 disables, default: 50).")
         parser.add_argument("--dry-run", action="store_true", help="List candidates without downloading or saving.")
+        parser.add_argument(
+            "--category",
+            choices=[c.value for c in ProductCategory],
+            help="Only process medicines in this category (e.g. SUPPLEMENT).",
+        )
+        parser.add_argument(
+            "--brand-contains",
+            help="Only process medicines whose brand_name contains this substring (case-insensitive).",
+        )
 
     def handle(self, *args, **options):
-        medicines = list(
-            Medicine.objects.filter(
-                (models.Q(image="") | models.Q(image__isnull=True)),
-                is_active=True,
-            ).order_by("brand_name")
+        queryset = Medicine.objects.filter(
+            (models.Q(image="") | models.Q(image__isnull=True)),
+            is_active=True,
         )
+        if options["category"]:
+            queryset = queryset.filter(category=options["category"])
+        if options["brand_contains"]:
+            queryset = queryset.filter(brand_name__icontains=options["brand_contains"])
+        medicines = list(queryset.order_by("brand_name"))
 
         if options["limit"]:
             medicines = medicines[: options["limit"]]

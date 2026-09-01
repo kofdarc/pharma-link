@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AUTH_CHANGED_EVENT, apiFetch } from "@/lib/api-client";
-import type { AssistantReply, AssistantSession } from "@/types/api";
+import type { AssistantAction, AssistantReply, AssistantSession } from "@/types/api";
 
 /**
  * The conversation half of the in-app assistant, with no opinion about where it is drawn.
@@ -37,13 +37,21 @@ type Options = {
   position?: Coordinates | null;
   unavailableMessage?: string;
   sendErrorMessage?: string;
+  /**
+   * Called when a reply carries a client-side action (currently only "add to cart"). The
+   * hook stays UI- and cart-agnostic: it forwards the resolved action and lets the calling
+   * surface decide what to do with it. Keep the passed function stable (a ref or a
+   * `useCallback` with no changing deps) - it is read on every send.
+   */
+  onAction?: (action: AssistantAction) => void;
 };
 
 export function useAssistantChat({
   enabled,
   position = null,
   unavailableMessage = "The assistant is unavailable right now.",
-  sendErrorMessage = "I couldn't send that. Try again in a moment."
+  sendErrorMessage = "I couldn't send that. Try again in a moment.",
+  onAction
 }: Options) {
   const [session, setSession] = useState<AssistantSession | null>(null);
   const [turns, setTurns] = useState<AssistantTurn[]>([]);
@@ -112,6 +120,7 @@ export function useAssistantChat({
         setSession((current) => (current ? { ...current, suggestions: reply.suggestions } : current));
         setTurns((current) => [...current, { role: "assistant", body: reply.reply }]);
         setLocationUsed(reply.location_used);
+        if (reply.action) onAction?.(reply.action);
       } catch {
         // A stored id can go stale - the account signed out, or the thread belongs to a
         // different persona now. Drop it so the next message starts a fresh thread rather
@@ -122,7 +131,7 @@ export function useAssistantChat({
         setBusy(false);
       }
     },
-    [busy, position, sendErrorMessage]
+    [busy, position, sendErrorMessage, onAction]
   );
 
   // Start over without losing the persona: drop the thread id so the next message opens a

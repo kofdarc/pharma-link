@@ -117,15 +117,27 @@ def answer(*, user, message: str, conversation: AssistantConversation | None = N
 
     # The composer only ever runs over data a tool already returned to this exact call - never
     # over an intent with no tool behind it (clinical/emergency/greeting/etc. stay fixed
-    # policy text, see apps.assistant.intents) and never when there was nothing to describe.
-    # It always has the template as a fallback, so its own failure is invisible to the caller.
-    composed = composer.compose(intent=intent, result=result, message=text, persona=persona) if intent.tool and result else None
+    # policy text, see apps.assistant.intents), never when there was nothing to describe, and
+    # never for an intent that opts out (add_to_cart: its reply must match the action payload
+    # word for word). It always has the template as a fallback, so its own failure is
+    # invisible to the caller.
+    composed = (
+        composer.compose(intent=intent, result=result, message=text, persona=persona)
+        if intent.tool and intent.compose and result
+        else None
+    )
     if composed is not None:
         reply = composed
         if tools_used:
             tools_used[0]["composed"] = True
     else:
         reply = intent.render(result, slots)
+
+    # The one turn that hands the client something to do rather than just something to read.
+    # It is not an instruction to mutate anything server-side - the cart is browser-local -
+    # only the resolved item the widget adds and then offers to undo. Gated on the tool
+    # having actually resolved a listing, so a miss produces a plain sentence and no action.
+    action = _cart_action(result) if intent.name == "add_to_cart" else None
 
     with transaction.atomic():
         AssistantMessage.objects.create(conversation=conversation, role=AssistantMessage.Role.USER, body=text)
@@ -153,6 +165,32 @@ def answer(*, user, message: str, conversation: AssistantConversation | None = N
         # answer ranked by distance from an address the person forgot they saved is not
         # wrong, but it is surprising, and silence is what makes it surprising.
         "location_used": origin.describe() if origin is not None else None,
+        # Present only on an add_to_cart turn that resolved something; null otherwise.
+        "action": action,
+    }
+
+
+def _cart_action(result: dict) -> dict | None:
+    """Shape a resolved cart_add result into the item the web client adds to its basket."""
+    if not result.get("added"):
+        return None
+    match = result["match"]
+    price = match.get("unit_price")
+    return {
+        "type": "add_to_basket",
+        "item": {
+            "medicine": match["medicine_id"],
+            "name": match["name"],
+            "generic": match.get("generic"),
+            "image": match.get("image"),
+            "quantity": result.get("granted_quantity", result.get("requested_quantity", 1)),
+            "requires_prescription": bool(match.get("requires_prescription")),
+            "unit_price": float(price) if price is not None else None,
+        },
+        "meta": {
+            "total_listings": result.get("total_listings", 0),
+            "basis": result.get("basis", "relevance"),
+        },
     }
 
 

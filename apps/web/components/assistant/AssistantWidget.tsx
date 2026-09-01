@@ -1,14 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AUTH_CHANGED_EVENT } from "@/lib/api-client";
 import { useShopperLocation } from "@/lib/location";
 import { useAssistantChat } from "@/lib/assistant/use-assistant-chat";
 import { ANALYTICS_PROMPTS } from "@/lib/assistant/analytics-prompts";
 import { useRotatingChips } from "@/lib/assistant/use-rotating-chips";
+import { useBasket } from "@/lib/basket";
 import { Icon } from "@/components/ui/Icon";
+import type { AssistantAction } from "@/types/api";
 
 /**
  * The assistant, everywhere it belongs and nowhere it doesn't.
@@ -53,15 +55,53 @@ function AssistantAvatar({ compact = false }: { compact?: boolean }) {
 
 export function AssistantWidget() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const location = useShopperLocation();
+
+  // The cart lives in localStorage; the assistant only ever resolves an item and hands it
+  // here. A ref so the action handler below can stay stable while `basket` gets a new
+  // identity on every render.
+  const basket = useBasket();
+  const basketRef = useRef(basket);
+  basketRef.current = basket;
+  // The most recent assistant-driven add, kept so the person can take it straight back out.
+  const [lastAdd, setLastAdd] = useState<{ item: AssistantAction["item"]; priorQuantity: number } | null>(null);
+
+  const handleAction = useCallback((action: AssistantAction) => {
+    if (action.type !== "add_to_basket") return;
+    const b = basketRef.current;
+    const priorQuantity = b.items.find((entry) => entry.medicine === action.item.medicine)?.quantity ?? 0;
+    b.add({
+      medicine: action.item.medicine,
+      name: action.item.name,
+      quantity: action.item.quantity,
+      requires_prescription: action.item.requires_prescription,
+      generic: action.item.generic ?? undefined,
+      image: action.item.image,
+      unit_price: action.item.unit_price
+    });
+    setLastAdd({ item: action.item, priorQuantity });
+  }, []);
+
   // Nothing is fetched until the panel is opened - the assistant costs a request when it is
   // used, not on every page view of the whole product.
   const { session, turns, busy, error, locationUsed, send, startNewChat } = useAssistantChat({
     enabled: open,
-    position: location.position
+    position: location.position,
+    onAction: handleAction
   });
+
+  const undoLastAdd = useCallback(() => {
+    setLastAdd((current) => {
+      if (!current) return null;
+      const b = basketRef.current;
+      if (current.priorQuantity > 0) b.setQuantity(current.item.medicine, current.priorQuantity);
+      else b.remove(current.item.medicine);
+      return null;
+    });
+  }, []);
   const generalSuggestions = session?.suggestions ?? EMPTY_POOL;
   const onAnalytics = pathname === "/pharmacy/analytics";
   const { chips, cycle, holdHandlers } = useRotatingChips(
@@ -88,6 +128,7 @@ export function AssistantWidget() {
     function onAuthChange() {
       setOpen(false);
       setDraft("");
+      setLastAdd(null);
     }
     window.addEventListener(AUTH_CHANGED_EVENT, onAuthChange);
     return () => window.removeEventListener(AUTH_CHANGED_EVENT, onAuthChange);
@@ -137,6 +178,7 @@ export function AssistantWidget() {
                   onClick={() => {
                     startNewChat();
                     setDraft("");
+                    setLastAdd(null);
                   }}
                 >
                   New chat
@@ -169,6 +211,25 @@ export function AssistantWidget() {
                   <span />
                   <span />
                 </p>
+              </div>
+            ) : null}
+            {lastAdd && !busy ? (
+              <div className="assistant-cart-added">
+                <Icon name="check" size={13} />
+                <span>Added to your cart.</span>
+                <button type="button" onClick={undoLastAdd}>
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLastAdd(null);
+                    setOpen(false);
+                    router.push("/cart");
+                  }}
+                >
+                  View cart
+                </button>
               </div>
             ) : null}
             {error ? <p className="assistant-error">{error}</p> : null}

@@ -168,6 +168,14 @@ def _clean_slots(raw, intent_name: str) -> dict:
                 cleaned[key] = max(1, min(365, int(value)))
             except (TypeError, ValueError):
                 continue
+        elif key == "quantity":
+            try:
+                cleaned[key] = max(1, min(20, int(value)))
+            except (TypeError, ValueError):
+                continue
+        elif key == "sort":
+            if str(value).strip().lower() in {"price", "cheapest", "cheap", "lowest"}:
+                cleaned[key] = "price"
         elif key == "expiring_only":
             cleaned[key] = bool(value)
         elif isinstance(value, str) and value.strip():

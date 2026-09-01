@@ -36,6 +36,10 @@ class Intent:
     optional: tuple[str, ...] = ()
     slots: tuple[str, ...] = ()
     examples: tuple[str, ...] = ()
+    # Whether the LLM composer may re-word this intent's answer. Off for intents whose reply
+    # carries a client-side action (add_to_cart): the person needs the exact product name and
+    # quantity that the widget is about to act on, not a paraphrase of them.
+    compose: bool = True
 
 
 def plural(count: int, one: str, many: str = "") -> str:
@@ -159,6 +163,47 @@ def render_find_pharmacies(result: dict, slots: dict) -> str:
     order = " Nearest first: " if located else " Here are some: "
     tail = "" if located else " Share your location if you want these ordered by how close they are."
     return lead + order + "; ".join(lines) + "." + tail
+
+
+def render_cart_add(result: dict, slots: dict) -> str:
+    """
+    Confirms what the widget is about to drop into the browser cart.
+
+    Never composed (see Intent.compose): the product name, price and quantity here have to be
+    exactly the ones apps.assistant.services put in the `action` payload, because that is what
+    the person is being told they can undo.
+    """
+    query = result.get("query") or "that"
+    if not result.get("added"):
+        reason = result.get("reason")
+        if reason == "not_orderable":
+            return (
+                f"I found {query}, but nothing listed for it right now can be ordered online - "
+                "it may be out of stock or pickup-only. Try again later or search for an alternative."
+            )
+        return f"I couldn't find {query} to add. Try the name as it appears on the box."
+
+    match = result["match"]
+    name = match["name"]
+    granted = result.get("granted_quantity", 1)
+    requested = result.get("requested_quantity", granted)
+    total = result.get("total_listings", 0)
+
+    lead = f"Added {plural(granted, 'unit')} of {name} to your cart"
+    if match.get("unit_price"):
+        if result.get("basis") == "price":
+            lead += f", the cheapest of {plural(total, 'listing')} at {match['unit_price']} each"
+        else:
+            lead += f", at {match['unit_price']} each"
+    lead += "."
+
+    short = ""
+    if granted < requested:
+        short = f" You asked for {requested}, but that is all that can be ordered right now."
+    rx = ""
+    if match.get("requires_prescription"):
+        rx = " It's prescription-only, so you'll need a valid prescription at checkout."
+    return lead + short + rx + " Open your cart when you're ready to check out."
 
 
 # --- patient -------------------------------------------------------------------------------
@@ -539,6 +584,36 @@ INTENTS: dict[str, Intent] = {
             optional=("near", "me", "which", "list", "nearby", "area", "tonight", "now", "closest", "nearest", "far", "around"),
             slots=("area",),
             examples=("which pharmacies are near me", "any pharmacy open now", "pharmacies in Hamra", "what is the nearest pharmacy"),
+        ),
+        Intent(
+            name="add_to_cart",
+            description=(
+                "Put a product in the shopping cart. Resolves a plain name ('add Panadol') or a "
+                "'cheapest' request ('order me the cheapest vitamin C') to one specific listing."
+            ),
+            render=render_cart_add,
+            tool="cart_add",
+            # Off: the reply names the exact product and quantity the widget is about to add,
+            # and a paraphrase of "2 units of X at 4.50" is not something the person can check
+            # against the undo button.
+            compose=False,
+            # "add" / "cart" / "basket" are the whole trigger - one of them must be present or
+            # this intent scores zero, so "how much is panadol" and "where is my order" are
+            # never at risk. Looser phrasings ("order me the cheapest ibuprofen", "buy me
+            # some aspirin") carry none of these words and are left to the model parser, which
+            # is shown this intent's examples.
+            required=("add", "cart", "basket"),
+            optional=(
+                "to", "my", "the", "please", "want", "put", "get", "buy", "order",
+                "cheapest", "cheap", "lowest", "box", "boxes", "pack", "packs", "for", "me",
+            ),
+            slots=("query", "quantity", "sort"),
+            examples=(
+                "add panadol to my cart",
+                "add the cheapest vitamin c to my basket",
+                "order me the cheapest protein powder",
+                "add 2 boxes of amoxicillin to my cart",
+            ),
         ),
         Intent(
             name="order_status",

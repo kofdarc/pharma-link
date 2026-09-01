@@ -1130,6 +1130,50 @@ body:has(.install-prompt) {
 }
 
 /*
+ * The confirmation strip after the assistant drops something into the cart. It sits inside
+ * the log, under the reply that announced the add, so "Undo" is next to the sentence it
+ * undoes.
+ */
+.assistant-cart-added {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 4px 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.assistant-cart-added svg {
+  flex: none;
+  color: var(--primary);
+}
+
+.assistant-cart-added span {
+  flex: 1;
+  min-width: 0;
+}
+
+.assistant-cart-added button {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.assistant-cart-added button:hover {
+  color: var(--primary-strong);
+}
+
+/*
  * The one line that tells the person what "near me" currently means. It sits directly above
  * the composer rather than in the header because it is context for the next answer, not a
  * property of the panel - and because an answer that says "the closest is..." needs its

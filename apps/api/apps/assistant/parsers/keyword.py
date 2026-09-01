@@ -182,10 +182,18 @@ def extract_slots(message: str, intent_name: str, tokens: list[str]) -> dict:
     if "expiring_only" in intent.slots and ({"expire", "soon", "week"} & set(tokens)):
         slots["expiring_only"] = True
 
+    if "quantity" in intent.slots:
+        count = re.search(r"\b(\d{1,2})\b", message)
+        if count:
+            slots["quantity"] = int(count.group(1))
+    if "sort" in intent.slots and re.search(r"cheap|lowest|least expensive|best price|most affordable", message.lower()):
+        slots["sort"] = "price"
+
     text_slot = next((name for name in ("query", "area", "reference") if name in intent.slots), None)
     if text_slot:
         claimed = _REQUIRED[intent_name] | _OPTIONAL[intent_name] | STOPWORDS
-        remainder = [token for token in tokens if token not in claimed]
+        # A bare number is a quantity, never part of the product name ("add 2 panadol").
+        remainder = [token for token in tokens if token not in claimed and not token.isdigit()]
         if remainder:
             slots[text_slot] = " ".join(remainder)
     return slots

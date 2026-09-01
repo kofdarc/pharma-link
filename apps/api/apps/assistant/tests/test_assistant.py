@@ -19,6 +19,7 @@ from rest_framework.test import APITestCase
 
 from apps.accounts.models import UserRole
 from apps.assistant import personas, services, tools
+from apps.assistant.intents import get_intent
 from apps.assistant.models import AssistantConversation
 from apps.assistant.parsers.base import ParseResult
 from apps.assistant.parsers.keyword import KeywordIntentParser
@@ -68,7 +69,9 @@ class PersonaResolutionTests(TestCase):
 
     def test_guest_persona_reaches_no_personal_tool(self):
         guest_tools = services._allowed_tools(personas.PERSONAS[personas.GUEST])
-        self.assertEqual(guest_tools, {"search_availability", "medicine_details", "find_pharmacies"})
+        # cart_add is here too: it reads the public availability view and writes nothing (the
+        # cart is browser-local), so it carries no personal data to leak.
+        self.assertEqual(guest_tools, {"search_availability", "medicine_details", "find_pharmacies", "cart_add"})
 
 
 class ToolAllowlistTests(TestCase):
@@ -205,6 +208,9 @@ class KeywordRouterTests(TestCase):
             (personas.CUSTOMER, "track my order", "order_status"),
             (personas.CUSTOMER, "is my prescription still valid", "prescription_status"),
             (personas.CUSTOMER, "how much is panadol", "search_availability"),
+            (personas.CUSTOMER, "add panadol to my cart", "add_to_cart"),
+            (personas.CUSTOMER, "add the cheapest vitamin c to my basket", "add_to_cart"),
+            (personas.GUEST, "add panadol to my cart", "add_to_cart"),
             (personas.PHARMACY, "anything expiring soon", "stock_alerts"),
             (personas.PHARMACY, "sales this month", "sales_summary"),
             (personas.PHARMACY, "any online orders waiting", "incoming_orders"),
@@ -362,3 +368,127 @@ class ChatEndpointTests(APITestCase):
     def test_an_empty_message_is_rejected(self):
         response = self.client.post("/api/assistant/chat/", {"message": "   "}, format="json")
         self.assertEqual(response.status_code, 400)
+
+
+class CartAddTests(TestCase):
+    """
+    The one assistant turn that hands the client an action rather than only a sentence.
+
+    It still writes nothing server-side - the cart is browser-local - so what is under test is
+    the resolution: a plain name or a "cheapest" request becomes exactly one orderable listing,
+    or nothing, and the `action` payload the widget adds mirrors the sentence the person read.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.shopper = User.objects.create_user(email="cart@test.test", password="Password123!", role=UserRole.CUSTOMER)
+        self.cheap = make_pharmacy("Budget Pharmacy", "+961-1-111-111")
+        self.dear = make_pharmacy("Premium Pharmacy", "+961-1-222-222")
+        self.vitamin = Medicine.objects.create(
+            brand_name="Reviton", generic_name="Multivitamin", strength="30 tablets", form="tablet", price_regime=PriceRegime.FREE
+        )
+        self.antibiotic = Medicine.objects.create(
+            brand_name="Zinnat", generic_name="Cefuroxime", strength="500mg", form="tablet",
+            price_regime=PriceRegime.FREE, requires_prescription=True,
+        )
+        for pharmacy, price in ((self.cheap, Decimal("8.00")), (self.dear, Decimal("12.50"))):
+            create_inventory_batch(
+                user=self.shopper,  # actor for the audit row only; the handler never scopes on it
+                pharmacy=pharmacy,
+                data={
+                    "medicine": self.vitamin,
+                    "initial_quantity": 40,
+                    "selling_price": price,
+                    "expiry_date": timezone.localdate() + timedelta(days=400),
+                },
+            )
+        create_inventory_batch(
+            user=self.shopper,
+            pharmacy=self.dear,
+            data={
+                "medicine": self.antibiotic,
+                "initial_quantity": 20,
+                "selling_price": Decimal("15.00"),
+                "expiry_date": timezone.localdate() + timedelta(days=400),
+            },
+        )
+
+    def answer(self, message: str) -> dict:
+        return services.answer(user=self.shopper, message=message)
+
+    def test_cheapest_resolves_to_the_lower_priced_listing(self):
+        payload = self.answer("add the cheapest reviton to my basket")
+        self.assertEqual(payload["intent"], "add_to_cart")
+        action = payload["action"]
+        self.assertEqual(action["type"], "add_to_basket")
+        self.assertEqual(action["item"]["medicine"], str(self.vitamin.id))
+        self.assertEqual(action["item"]["unit_price"], 8.0)
+        self.assertEqual(action["item"]["quantity"], 1)
+        self.assertEqual(action["meta"]["basis"], "price")
+        self.assertIn("8", payload["reply"])
+        self.assertNotIn("12.5", payload["reply"])
+
+    def test_quantity_is_read_and_capped_to_what_can_be_ordered(self):
+        within = self.answer("add 3 reviton to my cart")
+        self.assertEqual(within["action"]["item"]["quantity"], 3)
+
+        capped = self.answer("add 15 reviton to my cart")
+        self.assertEqual(capped["action"]["item"]["quantity"], 10)  # PUBLIC_MAX_QUANTITY_PER_ITEM
+        self.assertIn("all that can be ordered", capped["reply"])
+
+    def test_a_prescription_only_item_is_added_but_flagged(self):
+        payload = self.answer("add zinnat to my cart")
+        self.assertTrue(payload["action"]["item"]["requires_prescription"])
+        self.assertIn("prescription", payload["reply"].lower())
+
+    def test_an_unknown_product_adds_nothing(self):
+        payload = self.answer("add florbleezinol to my cart")
+        self.assertIsNone(payload["action"])
+        self.assertEqual(payload["intent"], "add_to_cart")
+        self.assertIn("couldn't find", payload["reply"].lower())
+
+    def test_the_reply_is_never_composed(self):
+        intent = get_intent("add_to_cart")
+        self.assertFalse(intent.compose)
+
+    def test_a_pharmacy_persona_cannot_reach_the_cart_tool(self):
+        allowed = frozenset(services._allowed_tools(personas.PERSONAS[personas.PHARMACY]))
+        with self.assertRaises(tools.ToolNotAllowed):
+            tools.execute("cart_add", allowed=allowed, context=ToolContext(user=self.shopper, slots={"query": "reviton"}))
+
+
+class CartAddEndpointTests(APITestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.shopper = User.objects.create_user(
+            email="cartapi@test.test", password="Password123!", role=UserRole.CUSTOMER, email_verified=True
+        )
+        pharmacy = make_pharmacy("Corner Pharmacy", "+961-1-333-333")
+        medicine = Medicine.objects.create(
+            brand_name="Sunblock", generic_name="Octocrylene", strength="SPF50", form="cream", price_regime=PriceRegime.FREE
+        )
+        create_inventory_batch(
+            user=self.shopper,
+            pharmacy=pharmacy,
+            data={
+                "medicine": medicine,
+                "initial_quantity": 25,
+                "selling_price": Decimal("19.90"),
+                "expiry_date": timezone.localdate() + timedelta(days=400),
+            },
+        )
+
+    def test_the_chat_endpoint_returns_the_add_to_basket_action(self):
+        self.client.force_authenticate(self.shopper)
+        response = self.client.post("/api/assistant/chat/", {"message": "add sunblock to my cart"}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["intent"], "add_to_cart")
+        action = response.data["action"]
+        self.assertEqual(action["type"], "add_to_basket")
+        self.assertEqual(action["item"]["name"], "Sunblock SPF50")
+        self.assertEqual(action["item"]["unit_price"], 19.9)
+
+    def test_a_plain_question_carries_no_action(self):
+        self.client.force_authenticate(self.shopper)
+        response = self.client.post("/api/assistant/chat/", {"message": "where is my order"}, format="json")
+        self.assertIsNone(response.data["action"])
