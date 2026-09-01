@@ -141,6 +141,7 @@ export default function MedicationDetailPage() {
       medicine: medicine.id,
       name: medicineLabel(medicine),
       generic: medicine.generic,
+      image: medicine.image,
       quantity,
       requires_prescription: medicine.requiresPrescription,
       unit_price: medicine.fromPrice

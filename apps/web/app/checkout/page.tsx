@@ -33,15 +33,23 @@ import type { Order } from "@/lib/patient/types";
 /** Windows offered for a scheduled delivery. Three, so the choice stays a choice. */
 const WINDOWS = ["4:00 - 5:00 PM", "5:00 - 6:00 PM", "6:00 - 7:00 PM"];
 
+/**
+ * Repeat intervals, in days. Matches the pills on the refill management screen
+ * (`components/refills/RefillParts.tsx`) so a schedule started at checkout and
+ * one edited later offer the same choices.
+ */
+const REPEAT_INTERVALS = [14, 30, 60, 90];
+const DEFAULT_INTERVAL = 30;
+
 type Phase = "editing" | "placing" | "placed" | "failed";
 
 /**
  * Checkout.
  *
- * One page, four blocks, and an order summary that stays in view on desktop.
+ * One page, five blocks, and an order summary that stays in view on desktop.
  * The fulfilment option was already chosen, so nothing here re-opens that
- * decision; what is left is where it goes, when, on what prescription, and how
- * it is paid for.
+ * decision; what is left is where it goes, when, whether it should repeat, on
+ * what prescription, and how it is paid for.
  */
 export default function CheckoutPage() {
   const router = useRouter();
@@ -57,6 +65,11 @@ export default function CheckoutPage() {
   const [card, setCard] = useState<CardDraft>(EMPTY_CARD);
   const [cardErrors, setCardErrors] = useState<CardErrors>({});
   const [when, setWhen] = useState<DeliveryChoice>({ kind: "asap" });
+  // Opt-in repeat delivery. Off by default: a recurring charge is never the
+  // assumed intent. When on, `intervalDays` is one of REPEAT_INTERVALS.
+  const [repeat, setRepeat] = useState(false);
+  const [intervalDays, setIntervalDays] = useState(DEFAULT_INTERVAL);
+  const [recurringFailed, setRecurringFailed] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("editing");
   const [failure, setFailure] = useState("");
@@ -77,7 +90,13 @@ export default function CheckoutPage() {
   const address = account.addresses.find((entry) => entry.id === addressId) ?? null;
   const loading = !planReady || !account.ready || !basket.ready;
 
-  if (placed) return <OrderPlaced order={placed} />;
+  if (placed)
+    return (
+      <OrderPlaced
+        order={placed}
+        repeat={repeat ? { intervalDays, failed: recurringFailed } : null}
+      />
+    );
 
   if (loading) {
     return (
@@ -150,6 +169,28 @@ export default function CheckoutPage() {
         })
       });
 
+      // A repeat schedule is a convenience layered on top of the order, not a
+      // condition of it: if it fails to register, the order still stands and the
+      // confirmation says the schedule did not save so the patient can retry it
+      // from the refills screen.
+      if (repeat && address) {
+        try {
+          await apiFetch("/shop/recurring-orders/", {
+            method: "POST",
+            body: JSON.stringify({
+              label: "Repeat delivery",
+              address: address.id,
+              items: plan.lines.map((line) => ({ medicine: line.medicineId, quantity: line.quantity })),
+              interval_days: intervalDays,
+              prescription_code: plan.lines.find((line) => line.prescriptionId)?.prescriptionId ?? "",
+              next_run_at: new Date(Date.now() + intervalDays * 86_400_000).toISOString()
+            })
+          });
+        } catch {
+          setRecurringFailed(true);
+        }
+      }
+
       basket.clear();
       clearPlan();
       setPlaced(toOrder(record));
@@ -182,7 +223,64 @@ export default function CheckoutPage() {
               <DeliveryWindowSelector etaLabel={plan.etaLabel} windows={WINDOWS} value={when} onChange={setWhen} />
             </CheckoutStep>
 
-            <CheckoutStep index={2} title="Prescriptions">
+            <CheckoutStep index={2} title="Repeat">
+              <ul className="hc-choices" role="radiogroup" aria-label="Repeat this order">
+                <li>
+                  <label className={`hc-choice${!repeat ? " hc-choice-selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="repeat"
+                      checked={!repeat}
+                      onChange={() => setRepeat(false)}
+                    />
+                    <span className="hc-choice-mark" aria-hidden="true" />
+                    <span className="hc-choice-body">
+                      <strong>One-time order</strong>
+                      <span className="hc-small">Order this once. Nothing is scheduled.</span>
+                    </span>
+                  </label>
+                </li>
+                <li>
+                  <label className={`hc-choice${repeat ? " hc-choice-selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="repeat"
+                      checked={repeat}
+                      onChange={() => setRepeat(true)}
+                    />
+                    <span className="hc-choice-mark" aria-hidden="true" />
+                    <span className="hc-choice-body">
+                      <strong>Deliver this again automatically</strong>
+                      <span className="hc-small">
+                        A new order for the same medications is placed on a schedule. Change or stop it any time from
+                        Refills.
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              </ul>
+
+              {repeat ? (
+                <div className="hc-windows" role="radiogroup" aria-label="Repeat every">
+                  {REPEAT_INTERVALS.map((days) => (
+                    <label
+                      key={days}
+                      className={`hc-window${intervalDays === days ? " hc-window-selected" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="repeat-interval"
+                        checked={intervalDays === days}
+                        onChange={() => setIntervalDays(days)}
+                      />
+                      Every {days} days
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </CheckoutStep>
+
+            <CheckoutStep index={3} title="Prescriptions">
               <PrescriptionVerificationSummary lines={plan.lines} prescriptions={prescriptions} />
               <p className="hc-small">
                 HealthConnect confirms that a valid prescription covers what is being dispensed. It does not review or
@@ -190,7 +288,7 @@ export default function CheckoutPage() {
               </p>
             </CheckoutStep>
 
-            <CheckoutStep index={3} title="Payment">
+            <CheckoutStep index={4} title="Payment">
               <PaymentSelector selectedId={paymentMethod} onSelect={setPaymentMethod} />
               {paymentMethod === "card" ? (
                 <CardFields
@@ -204,7 +302,7 @@ export default function CheckoutPage() {
               ) : null}
             </CheckoutStep>
 
-            <CheckoutStep index={4} title="Review">
+            <CheckoutStep index={5} title="Review">
               <ul className="hc-review-lines">
                 {plan.lines.map((line) => (
                   <li key={line.medicineId}>
@@ -240,6 +338,12 @@ export default function CheckoutPage() {
                 <dt>Arriving</dt>
                 <dd>{when.kind === "asap" ? `Estimated ${plan.etaLabel}` : when.window}</dd>
               </div>
+              {repeat ? (
+                <div>
+                  <dt>Repeats</dt>
+                  <dd>Every {intervalDays} days</dd>
+                </div>
+              ) : null}
             </dl>
 
             <div className="hc-summary-total">
@@ -326,7 +430,13 @@ function windowStart(label: string): string {
  * screen answers what happens next and gets out of the way; there is nothing to
  * celebrate here.
  */
-function OrderPlaced({ order }: { order: Order }) {
+function OrderPlaced({
+  order,
+  repeat
+}: {
+  order: Order;
+  repeat: { intervalDays: number; failed: boolean } | null;
+}) {
   return (
     <PatientShell>
       <div className="hc-wrap hc-page">
@@ -350,7 +460,21 @@ function OrderPlaced({ order }: { order: Order }) {
               <dt>Delivering to</dt>
               <dd>{order.address.label}</dd>
             </div>
+            {repeat && !repeat.failed ? (
+              <div>
+                <dt>Repeats</dt>
+                <dd>Every {repeat.intervalDays} days · manage in Refills</dd>
+              </div>
+            ) : null}
           </dl>
+
+          {repeat?.failed ? (
+            <p className="hc-inline-note hc-inline-note-warn" role="alert">
+              <Icon name="alert" size={16} />
+              Your order is placed, but the repeat schedule could not be saved. You can set it up again from{" "}
+              <Link href="/shop/refills">Refills</Link>.
+            </p>
+          ) : null}
 
           <div className="hc-actions hc-confirm-actions">
             <Link href={`/orders/${order.id}`} className="hc-btn hc-btn-primary hc-btn-lg">

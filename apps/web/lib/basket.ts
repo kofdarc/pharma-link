@@ -9,6 +9,9 @@ export interface BasketItem {
   requires_prescription?: boolean;
   /** Active ingredient, so the cart can name the medicine the way search does. */
   generic?: string;
+  /** Pack photo captured when the medicine was added, so the cart shows the same
+   *  image search does instead of falling back to the initial-letter placeholder. */
+  image?: string | null;
   /** Lowest listed price at the time it was added. Always shown as an estimate. */
   unit_price?: number | null;
   /**

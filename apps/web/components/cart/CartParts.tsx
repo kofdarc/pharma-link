@@ -43,7 +43,7 @@ export function CartLine({
 
   return (
     <article className="hc-cartline">
-      <PackThumb brand={item.name} />
+      <PackThumb brand={item.name} image={item.image} />
 
       <div className="hc-cartline-main">
         <h3 className="hc-cartline-name">{item.name}</h3>

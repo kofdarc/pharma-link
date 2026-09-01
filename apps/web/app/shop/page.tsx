@@ -209,6 +209,7 @@ export default function ShopSearchPage() {
                   basket.add({
                     medicine: result.medicine.id,
                     name: `${result.medicine.brand_name} ${result.medicine.strength}`.trim(),
+                    image: result.medicine.image,
                     quantity: 1,
                     requires_prescription: result.medicine.requires_prescription
                   })
