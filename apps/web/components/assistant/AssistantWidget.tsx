@@ -67,22 +67,33 @@ export function AssistantWidget() {
   const basketRef = useRef(basket);
   basketRef.current = basket;
   // The most recent assistant-driven add, kept so the person can take it straight back out.
-  const [lastAdd, setLastAdd] = useState<{ item: AssistantAction["item"]; priorQuantity: number } | null>(null);
+  // A single turn can add several items ("add creatine and vitamin d"), so this is a list.
+  const [lastAdd, setLastAdd] = useState<{ items: { item: AssistantAction["item"]; priorQuantity: number }[] } | null>(
+    null
+  );
 
-  const handleAction = useCallback((action: AssistantAction) => {
-    if (action.type !== "add_to_basket") return;
+  const handleActions = useCallback((actions: AssistantAction[]) => {
+    const adds = actions.filter((action) => action.type === "add_to_basket");
+    if (!adds.length) return;
     const b = basketRef.current;
-    const priorQuantity = b.items.find((entry) => entry.medicine === action.item.medicine)?.quantity ?? 0;
-    b.add({
-      medicine: action.item.medicine,
-      name: action.item.name,
-      quantity: action.item.quantity,
-      requires_prescription: action.item.requires_prescription,
-      generic: action.item.generic ?? undefined,
-      image: action.item.image,
-      unit_price: action.item.unit_price
-    });
-    setLastAdd({ item: action.item, priorQuantity });
+    // Prior quantities are read once, up front: `basket.add` reads localStorage fresh on
+    // every call, so the reverts stay correct even for several items in one turn.
+    const undo = adds.map((action) => ({
+      item: action.item,
+      priorQuantity: b.items.find((entry) => entry.medicine === action.item.medicine)?.quantity ?? 0
+    }));
+    for (const action of adds) {
+      b.add({
+        medicine: action.item.medicine,
+        name: action.item.name,
+        quantity: action.item.quantity,
+        requires_prescription: action.item.requires_prescription,
+        generic: action.item.generic ?? undefined,
+        image: action.item.image,
+        unit_price: action.item.unit_price
+      });
+    }
+    setLastAdd({ items: undo });
   }, []);
 
   // Nothing is fetched until the panel is opened - the assistant costs a request when it is
@@ -90,15 +101,17 @@ export function AssistantWidget() {
   const { session, turns, busy, error, locationUsed, send, startNewChat } = useAssistantChat({
     enabled: open,
     position: location.position,
-    onAction: handleAction
+    onActions: handleActions
   });
 
   const undoLastAdd = useCallback(() => {
     setLastAdd((current) => {
       if (!current) return null;
       const b = basketRef.current;
-      if (current.priorQuantity > 0) b.setQuantity(current.item.medicine, current.priorQuantity);
-      else b.remove(current.item.medicine);
+      for (const { item, priorQuantity } of current.items) {
+        if (priorQuantity > 0) b.setQuantity(item.medicine, priorQuantity);
+        else b.remove(item.medicine);
+      }
       return null;
     });
   }, []);
@@ -216,7 +229,9 @@ export function AssistantWidget() {
             {lastAdd && !busy ? (
               <div className="assistant-cart-added">
                 <Icon name="check" size={13} />
-                <span>Added to your cart.</span>
+                <span>
+                  {lastAdd.items.length > 1 ? `Added ${lastAdd.items.length} items to your cart.` : "Added to your cart."}
+                </span>
                 <button type="button" onClick={undoLastAdd}>
                   Undo
                 </button>

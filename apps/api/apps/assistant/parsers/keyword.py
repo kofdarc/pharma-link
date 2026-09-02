@@ -45,6 +45,10 @@ STOPWORDS = {
 
 TOKEN_RE = re.compile(r"[a-z0-9؀-ۿ]+")
 DURATION_RE = re.compile(r"(\d+)\s*(day|days|week|weeks|month|months)\b")
+# Splits "add creatine, redoxon and vitamin d" into its products. Deliberately literal - a
+# comma, an ampersand, or a standalone "and"/"plus" between names. A name that itself contains
+# "and" ("vitamin a and d") is a rare miss the person can fix by adding it on its own line.
+PRODUCT_SPLIT_RE = re.compile(r"\s*(?:,|;|&|\+|\band\b|\bplus\b)\s*", re.IGNORECASE)
 
 # A match needs a required keyword plus corroboration; a winner needs to be clearly ahead of
 # the runner-up. Below either bar the parser abstains rather than picking the taller of two
@@ -189,9 +193,24 @@ def extract_slots(message: str, intent_name: str, tokens: list[str]) -> dict:
     if "sort" in intent.slots and re.search(r"cheap|lowest|least expensive|best price|most affordable", message.lower()):
         slots["sort"] = "price"
 
+    claimed = _REQUIRED[intent_name] | _OPTIONAL[intent_name] | STOPWORDS
+
+    # "add creatine and vitamin d to my cart" - one intent, several products. Split on the raw
+    # message (the connectors are stopwords, so they are gone by the time `tokens` is built),
+    # then strip each fragment down to its product name the same way the single-query path does.
+    if "queries" in intent.slots:
+        fragments = []
+        for fragment in PRODUCT_SPLIT_RE.split(message.lower()):
+            words = [word for word in tokenize(fragment) if word not in claimed and not word.isdigit()]
+            if words:
+                fragments.append(" ".join(words))
+        if len(fragments) > 1:
+            slots["queries"] = fragments
+            slots["query"] = fragments[0]
+            return slots
+
     text_slot = next((name for name in ("query", "area", "reference") if name in intent.slots), None)
     if text_slot:
-        claimed = _REQUIRED[intent_name] | _OPTIONAL[intent_name] | STOPWORDS
         # A bare number is a quantity, never part of the product name ("add 2 panadol").
         remainder = [token for token in tokens if token not in claimed and not token.isdigit()]
         if remainder:

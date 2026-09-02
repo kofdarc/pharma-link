@@ -16,9 +16,18 @@ this command up on the next deploy; it can also be run as a one-off ECS task).
 
 from __future__ import annotations
 
-from django.core.management.base import BaseCommand
-from django.db import transaction
+import random
+from datetime import timedelta
+from decimal import Decimal
 
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
+from django.utils import timezone
+
+from apps.accounts.models import UserRole
+from apps.inventory.models import InventoryBatch
+from apps.inventory.services.stock import create_inventory_batch
 from apps.medicines.models import (
     DrugSchedule,
     MarketStatus,
@@ -27,6 +36,7 @@ from apps.medicines.models import (
     PriceRegime,
     ProductCategory,
 )
+from apps.pharmacies.models import Pharmacy
 
 # (brand_name, generic_name, strength, form, manufacturer, [search aliases])
 SUPPLEMENTS: list[tuple[str, str, str, str, str, list[str]]] = [
@@ -143,10 +153,38 @@ class Command(BaseCommand):
             default="default",
             help="Database alias to write to (default: 'default').",
         )
+        parser.add_argument(
+            "--stock",
+            action="store_true",
+            help=(
+                "Also give every free-priced supplement a public InventoryBatch at each "
+                "connected pharmacy that accepts online orders, so the catalogue is actually "
+                "findable and orderable (search, and the assistant's 'add to cart'). "
+                "Idempotent: skips any pharmacy/medicine pair that already has a live batch. "
+                "Writes through the default connection, so it is incompatible with a "
+                "non-default --database."
+            ),
+        )
+        parser.add_argument(
+            "--stock-quantity",
+            type=int,
+            default=30,
+            help="Units per seeded supplement batch when --stock is given (default: 30).",
+        )
+        parser.add_argument(
+            "--stock-actor",
+            default="",
+            help=(
+                "Email of the user to attribute seeded batches to. Defaults to each "
+                "pharmacy's own owner (then any of its users)."
+            ),
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
         db = options["database"]
+        if options["stock"] and db != "default":
+            raise CommandError("--stock writes through the default connection; drop --database or set it to 'default'.")
         created = updated = aliases_added = 0
 
         for brand, generic, strength, form, manufacturer, aliases in SUPPLEMENTS:
@@ -183,3 +221,75 @@ class Command(BaseCommand):
                 f"{aliases_added} aliases added ({len(SUPPLEMENTS)} in catalogue, all FREE-priced)."
             )
         )
+
+        if options["stock"]:
+            self._stock_supplements(quantity=options["stock_quantity"], actor_email=options["stock_actor"].strip())
+
+    def _stock_supplements(self, *, quantity: int, actor_email: str) -> None:
+        """
+        Give the free-priced supplement catalogue real pharmacy stock.
+
+        The catalogue rows on their own are invisible to a shopper: search and the
+        assistant's "add to cart" both go through the public availability view, which only
+        shows a product some connected pharmacy actually holds. Without this step a search
+        for "creatine" resolves to the catalogue entry and then finds nothing to sell,
+        which reads as "we couldn't find creatine" - see apps.assistant.tools.public.cart_add.
+
+        Mirrors seed_poc's "one of every supplement at every pharmacy" so each is orderable
+        everywhere. Free-priced, so each pharmacy gets its own selling price. Idempotent:
+        a pharmacy/medicine pair that already has a live batch is left untouched.
+        """
+        if quantity < 1:
+            raise CommandError("--stock-quantity must be at least 1.")
+
+        supplements = list(
+            Medicine.objects.filter(category=ProductCategory.SUPPLEMENT, price_regime=PriceRegime.FREE, is_active=True)
+        )
+        pharmacies = list(Pharmacy.objects.filter(is_active=True, is_public=True, accepts_online_orders=True).order_by("name"))
+        if not supplements or not pharmacies:
+            self.stdout.write(self.style.WARNING("Supplement stock: nothing to do (no supplements or no online pharmacies)."))
+            return
+
+        forced_actor = get_user_model().objects.filter(email__iexact=actor_email).first() if actor_email else None
+        if actor_email and forced_actor is None:
+            raise CommandError(f"--stock-actor {actor_email!r} matches no user.")
+
+        made = present = 0
+        skipped_pharmacies = []
+        for pharmacy in pharmacies:
+            actor = forced_actor or pharmacy.users.filter(role=UserRole.PHARMACY_OWNER).first() or pharmacy.users.first()
+            if actor is None:
+                skipped_pharmacies.append(pharmacy.name)
+                continue
+            for medicine in supplements:
+                if InventoryBatch.objects.filter(pharmacy=pharmacy, medicine=medicine, is_archived=False).exists():
+                    present += 1
+                    continue
+                price = (Decimal("14.00") + Decimal(random.randint(-400, 700)) / 100).quantize(Decimal("0.01"))
+                create_inventory_batch(
+                    user=actor,
+                    pharmacy=pharmacy,
+                    data={
+                        "medicine": medicine,
+                        "batch_number": f"SUP-{random.randint(2400, 2699)}",
+                        "initial_quantity": quantity,
+                        "expiry_date": timezone.localdate() + timedelta(days=random.choice([180, 270, 365, 545])),
+                        "supplier_name": "Supplement catalogue seed",
+                        "purchase_cost": (price * Decimal("0.70")).quantize(Decimal("0.01")),
+                        "selling_price": price,
+                        "low_stock_threshold": 5,
+                        "public_availability_enabled": True,
+                    },
+                )
+                made += 1
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Supplement stock: {made} batches created, {present} already present, "
+                f"across {len(pharmacies) - len(skipped_pharmacies)} pharmacies."
+            )
+        )
+        if skipped_pharmacies:
+            self.stdout.write(
+                self.style.WARNING(f"  no user to attribute stock to, skipped: {', '.join(skipped_pharmacies)}")
+            )

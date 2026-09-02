@@ -135,9 +135,12 @@ def answer(*, user, message: str, conversation: AssistantConversation | None = N
 
     # The one turn that hands the client something to do rather than just something to read.
     # It is not an instruction to mutate anything server-side - the cart is browser-local -
-    # only the resolved item the widget adds and then offers to undo. Gated on the tool
+    # only the resolved items the widget adds and then offers to undo. Gated on the tool
     # having actually resolved a listing, so a miss produces a plain sentence and no action.
-    action = _cart_action(result) if intent.name == "add_to_cart" else None
+    actions = _cart_actions(result) if intent.name == "add_to_cart" else []
+    # `action` stays as the first (or only) resolved item for older clients; `actions` is the
+    # full list, which is what a multi-product request ("add x and y") needs.
+    action = actions[0] if actions else None
 
     with transaction.atomic():
         AssistantMessage.objects.create(conversation=conversation, role=AssistantMessage.Role.USER, body=text)
@@ -165,16 +168,26 @@ def answer(*, user, message: str, conversation: AssistantConversation | None = N
         # answer ranked by distance from an address the person forgot they saved is not
         # wrong, but it is surprising, and silence is what makes it surprising.
         "location_used": origin.describe() if origin is not None else None,
-        # Present only on an add_to_cart turn that resolved something; null otherwise.
+        # Present only on an add_to_cart turn that resolved something; null / [] otherwise.
         "action": action,
+        "actions": actions,
     }
 
 
-def _cart_action(result: dict) -> dict | None:
-    """Shape a resolved cart_add result into the item the web client adds to its basket."""
-    if not result.get("added"):
-        return None
-    match = result["match"]
+def _cart_actions(result: dict) -> list[dict]:
+    """
+    Shape a resolved cart_add result into the items the web client adds to its basket.
+
+    Handles both shapes cart_add can return: the flat single-product dict, and the
+    `{"multi": True, "results": [...]}` one a request naming several products produces.
+    """
+    rows = result.get("results", []) if result.get("multi") else [result]
+    return [_cart_action(row, result) for row in rows if row.get("added")]
+
+
+def _cart_action(row: dict, outer: dict) -> dict:
+    """One resolved listing as an `add_to_basket` action. `outer` carries the shared `basis`."""
+    match = row["match"]
     price = match.get("unit_price")
     return {
         "type": "add_to_basket",
@@ -183,13 +196,13 @@ def _cart_action(result: dict) -> dict | None:
             "name": match["name"],
             "generic": match.get("generic"),
             "image": match.get("image"),
-            "quantity": result.get("granted_quantity", result.get("requested_quantity", 1)),
+            "quantity": row.get("granted_quantity", row.get("requested_quantity", 1)),
             "requires_prescription": bool(match.get("requires_prescription")),
             "unit_price": float(price) if price is not None else None,
         },
         "meta": {
-            "total_listings": result.get("total_listings", 0),
-            "basis": result.get("basis", "relevance"),
+            "total_listings": row.get("total_listings", 0),
+            "basis": row.get("basis", outer.get("basis", "relevance")),
         },
     }
 

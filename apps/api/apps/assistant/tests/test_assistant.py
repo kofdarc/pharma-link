@@ -447,6 +447,51 @@ class CartAddTests(TestCase):
         self.assertEqual(payload["intent"], "add_to_cart")
         self.assertIn("couldn't find", payload["reply"].lower())
 
+    def test_several_products_in_one_message_each_resolve(self):
+        payload = self.answer("add reviton and zinnat to my cart")
+        self.assertEqual(payload["intent"], "add_to_cart")
+        actions = payload["actions"]
+        self.assertEqual(len(actions), 2)
+        added = {action["item"]["medicine"] for action in actions}
+        self.assertEqual(added, {str(self.vitamin.id), str(self.antibiotic.id)})
+        # `action` still carries the first, for older clients.
+        self.assertEqual(payload["action"]["item"]["medicine"], actions[0]["item"]["medicine"])
+        self.assertIn("Reviton", payload["reply"])
+        self.assertIn("Zinnat", payload["reply"])
+        # The prescription-only caveat still lands, once, naming only the item it applies to.
+        self.assertIn("prescription-only", payload["reply"])
+
+    def test_a_multi_add_reports_the_ones_it_could_not_find(self):
+        payload = self.answer("add reviton and florbleezinol to my basket")
+        actions = payload["actions"]
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0]["item"]["medicine"], str(self.vitamin.id))
+        self.assertIn("couldn't find florbleezinol", payload["reply"].lower())
+
+    def test_a_multi_add_that_resolves_nothing_carries_no_action(self):
+        payload = self.answer("add florbleezinol and glorbnix to my cart")
+        self.assertEqual(payload["actions"], [])
+        self.assertIsNone(payload["action"])
+        self.assertIn("couldn't find", payload["reply"].lower())
+
+    def test_cheapest_applies_across_every_product_named(self):
+        payload = self.answer("add the cheapest reviton and zinnat to my basket")
+        for action in payload["actions"]:
+            self.assertEqual(action["meta"]["basis"], "price")
+        reviton = next(a for a in payload["actions"] if a["item"]["medicine"] == str(self.vitamin.id))
+        self.assertEqual(reviton["item"]["unit_price"], 8.0)
+
+    def test_the_keyword_parser_splits_a_multi_product_message(self):
+        parsed = KeywordIntentParser().parse("add creatine, redoxon and magnesium to my cart", personas.PERSONAS[personas.GUEST])
+        self.assertEqual(parsed.intent, "add_to_cart")
+        self.assertEqual(parsed.slots["queries"], ["creatine", "redoxon", "magnesium"])
+        self.assertEqual(parsed.slots["query"], "creatine")
+
+    def test_a_single_product_message_still_has_no_queries_slot(self):
+        parsed = KeywordIntentParser().parse("add panadol to my cart", personas.PERSONAS[personas.GUEST])
+        self.assertEqual(parsed.slots.get("query"), "panadol")
+        self.assertNotIn("queries", parsed.slots)
+
     def test_the_reply_is_never_composed(self):
         intent = get_intent("add_to_cart")
         self.assertFalse(intent.compose)

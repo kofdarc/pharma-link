@@ -173,6 +173,9 @@ def render_cart_add(result: dict, slots: dict) -> str:
     exactly the ones apps.assistant.services put in the `action` payload, because that is what
     the person is being told they can undo.
     """
+    if result.get("multi"):
+        return _render_cart_add_multi(result)
+
     query = result.get("query") or "that"
     if not result.get("added"):
         reason = result.get("reason")
@@ -204,6 +207,51 @@ def render_cart_add(result: dict, slots: dict) -> str:
     if match.get("requires_prescription"):
         rx = " It's prescription-only, so you'll need a valid prescription at checkout."
     return lead + short + rx + " Open your cart when you're ready to check out."
+
+
+def _render_cart_add_multi(result: dict) -> str:
+    """
+    One sentence covering a request that named several products ("add creatine and vitamin d").
+
+    Same contract as the single-item path: every product name and quantity here is exactly
+    what apps.assistant.services put in the `actions` payload, because this reply is never
+    composed and the person is being told what they can undo.
+    """
+    rows = result.get("results") or []
+    added = [row for row in rows if row.get("added")]
+    missed = [row.get("query") or "that" for row in rows if not row.get("added")]
+
+    if not added:
+        return f"I couldn't find {_join(missed)} to add. Try the names as they appear on the box."
+
+    parts = []
+    for row in added:
+        match = row["match"]
+        granted = row.get("granted_quantity", 1)
+        piece = f"{plural(granted, 'unit')} of {match['name']}"
+        if match.get("unit_price"):
+            piece += f" at {match['unit_price']} each"
+        parts.append(piece)
+    lead = f"Added {_join(parts)} to your cart."
+
+    notes = []
+    short = [row for row in added if row.get("granted_quantity", 1) < row.get("requested_quantity", 1)]
+    if short:
+        notes.append(
+            f"{_join([row['match']['name'] for row in short])} "
+            f"{'was' if len(short) == 1 else 'were'} capped to what can be ordered right now."
+        )
+    rx = [row["match"]["name"] for row in added if row["match"].get("requires_prescription")]
+    if rx:
+        notes.append(
+            f"{_join(rx)} {'is' if len(rx) == 1 else 'are'} prescription-only, "
+            "so you'll need a valid prescription at checkout."
+        )
+    if missed:
+        notes.append(f"I couldn't find {_join(missed)}, so nothing was added for {'it' if len(missed) == 1 else 'those'}.")
+
+    tail = (" " + " ".join(note[0].upper() + note[1:] for note in notes)) if notes else ""
+    return lead + tail + " Open your cart when you're ready to check out."
 
 
 # --- patient -------------------------------------------------------------------------------
@@ -606,13 +654,20 @@ INTENTS: dict[str, Intent] = {
             optional=(
                 "to", "my", "the", "please", "want", "put", "get", "buy", "order",
                 "cheapest", "cheap", "lowest", "box", "boxes", "pack", "packs", "for", "me",
+                "also", "some", "plus",
             ),
-            slots=("query", "quantity", "sort"),
+            # `queries` carries a list when the message names more than one product
+            # ("add creatine and vitamin d"); `query` is the single-product fallback and
+            # stays populated (with the first name) so nothing downstream has to special-case
+            # the one-item path.
+            slots=("query", "queries", "quantity", "sort"),
             examples=(
                 "add panadol to my cart",
                 "add the cheapest vitamin c to my basket",
                 "order me the cheapest protein powder",
                 "add 2 boxes of amoxicillin to my cart",
+                "add creatine and vitamin d to my cart",
+                "put panadol, redoxon and magnesium in my basket",
             ),
         ),
         Intent(

@@ -80,26 +80,13 @@ def search_availability(ctx: ToolContext) -> dict:
     }
 
 
-def cart_add(ctx: ToolContext) -> dict:
-    """
-    Resolve a product - and optionally "the cheapest" of it - to one orderable listing.
+# Upper bound on products resolved from one "add x, y and z" message - keeps a single turn
+# from fanning out into an unbounded number of availability searches.
+MAX_CART_ITEMS = 8
 
-    Writes nothing. The cart lives in the browser (apps/web/lib/basket.ts), so all this does
-    is the lookup the shopper would otherwise do by hand: run the same ranked public search
-    the shop page uses, drop anything that cannot actually be ordered online right now, and
-    hand back the single best row for the web client to add. The reply the person sees is
-    rendered from this dict by apps.assistant.intents.render_cart_add and is never composed,
-    so the product name and quantity they are told they can undo are exactly these.
-    """
-    query = ctx.text("query")
-    quantity = ctx.number("quantity", 1, low=1, high=20)
-    if not query:
-        return {"added": False, "reason": "no_query", "query": "", "requested_quantity": quantity}
 
-    # "cheapest" flips the sort to price; anything else keeps the blended relevance ranking
-    # (distance, reputation, then price) the shop page defaults to.
-    sort = "price" if ctx.text("sort") == "price" else "best"
-
+def _resolve_cart_item(ctx: ToolContext, query: str, quantity: int, sort: str) -> dict:
+    """Resolve one product name to a single orderable listing, or record why it could not be."""
     latitude, longitude = ctx.coordinates
     rows = public_availability_search(query=query, latitude=latitude, longitude=longitude, sort=sort)
     orderable = [row for row in rows if row["available_up_to"] > 0 and row["pharmacy"]["accepts_online_orders"]]
@@ -132,6 +119,62 @@ def cart_add(ctx: ToolContext) -> dict:
             "availability": best["availability_status"],
             "available_up_to": best["available_up_to"],
         },
+    }
+
+
+def _requested_queries(ctx: ToolContext) -> list[str]:
+    """The product names to resolve this turn: the `queries` list if present, else `query`."""
+    raw = ctx.slots.get("queries")
+    names = []
+    if isinstance(raw, (list, tuple)):
+        names = [item.strip() for item in raw if isinstance(item, str) and item.strip()]
+    if not names:
+        single = ctx.text("query")
+        names = [single] if single else []
+    # De-duplicate while keeping order, so "add panadol and panadol" resolves once.
+    seen: set[str] = set()
+    unique = []
+    for name in names:
+        key = name.lower()
+        if key not in seen:
+            seen.add(key)
+            unique.append(name)
+    return unique[:MAX_CART_ITEMS]
+
+
+def cart_add(ctx: ToolContext) -> dict:
+    """
+    Resolve one or more products - and optionally "the cheapest" of each - to orderable listings.
+
+    Writes nothing. The cart lives in the browser (apps/web/lib/basket.ts), so all this does
+    is the lookup the shopper would otherwise do by hand: run the same ranked public search
+    the shop page uses, drop anything that cannot actually be ordered online right now, and
+    hand back the best row per product for the web client to add. The reply the person sees is
+    rendered from this dict by apps.assistant.intents.render_cart_add and is never composed,
+    so the product names and quantities they are told they can undo are exactly these.
+
+    A single-product request returns the flat `{"added": ..., "match": ...}` shape; a
+    multi-product one returns `{"multi": True, "results": [<that shape>, ...]}`.
+    """
+    quantity = ctx.number("quantity", 1, low=1, high=20)
+    # "cheapest" flips the sort to price; anything else keeps the blended relevance ranking
+    # (distance, reputation, then price) the shop page defaults to.
+    sort = "price" if ctx.text("sort") == "price" else "best"
+
+    queries = _requested_queries(ctx)
+    if not queries:
+        return {"added": False, "reason": "no_query", "query": "", "requested_quantity": quantity}
+
+    if len(queries) == 1:
+        return _resolve_cart_item(ctx, queries[0], quantity, sort)
+
+    results = [_resolve_cart_item(ctx, name, quantity, sort) for name in queries]
+    return {
+        "multi": True,
+        "query": ", ".join(queries),
+        "basis": "price" if sort == "price" else "relevance",
+        "added_any": any(row.get("added") for row in results),
+        "results": results,
     }
 
 

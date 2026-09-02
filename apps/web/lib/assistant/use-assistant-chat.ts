@@ -38,12 +38,14 @@ type Options = {
   unavailableMessage?: string;
   sendErrorMessage?: string;
   /**
-   * Called when a reply carries a client-side action (currently only "add to cart"). The
-   * hook stays UI- and cart-agnostic: it forwards the resolved action and lets the calling
-   * surface decide what to do with it. Keep the passed function stable (a ref or a
-   * `useCallback` with no changing deps) - it is read on every send.
+   * Called when a reply carries client-side actions (currently only "add to cart"). One turn
+   * can resolve several items - a request that named more than one product - so this is
+   * handed the whole list at once rather than called per item. The hook stays UI- and
+   * cart-agnostic: it forwards the resolved actions and lets the calling surface decide what
+   * to do with them. Keep the passed function stable (a ref or a `useCallback` with no
+   * changing deps) - it is read on every send.
    */
-  onAction?: (action: AssistantAction) => void;
+  onActions?: (actions: AssistantAction[]) => void;
 };
 
 export function useAssistantChat({
@@ -51,7 +53,7 @@ export function useAssistantChat({
   position = null,
   unavailableMessage = "The assistant is unavailable right now.",
   sendErrorMessage = "I couldn't send that. Try again in a moment.",
-  onAction
+  onActions
 }: Options) {
   const [session, setSession] = useState<AssistantSession | null>(null);
   const [turns, setTurns] = useState<AssistantTurn[]>([]);
@@ -120,7 +122,8 @@ export function useAssistantChat({
         setSession((current) => (current ? { ...current, suggestions: reply.suggestions } : current));
         setTurns((current) => [...current, { role: "assistant", body: reply.reply }]);
         setLocationUsed(reply.location_used);
-        if (reply.action) onAction?.(reply.action);
+        const actions = reply.actions?.length ? reply.actions : reply.action ? [reply.action] : [];
+        if (actions.length) onActions?.(actions);
       } catch {
         // A stored id can go stale - the account signed out, or the thread belongs to a
         // different persona now. Drop it so the next message starts a fresh thread rather
@@ -131,7 +134,7 @@ export function useAssistantChat({
         setBusy(false);
       }
     },
-    [busy, position, sendErrorMessage, onAction]
+    [busy, position, sendErrorMessage, onActions]
   );
 
   // Start over without losing the persona: drop the thread id so the next message opens a

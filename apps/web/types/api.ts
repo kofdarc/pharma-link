@@ -1108,7 +1108,13 @@ export interface AssistantReply {
    * Shown to the person so "nearest to you" is checkable rather than taken on trust.
    */
   location_used: string | null;
+  /**
+   * The first resolved item, kept for older clients. Prefer `actions`, which also carries
+   * the extra items from a request that named several products ("add x and y").
+   */
   action: AssistantAction | null;
+  /** Every item this turn resolved, in the order the message named them. */
+  actions: AssistantAction[];
 }
 
 /**
