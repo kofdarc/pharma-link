@@ -40,6 +40,19 @@ const WINDOWS = ["4:00 - 5:00 PM", "5:00 - 6:00 PM", "6:00 - 7:00 PM"];
  */
 const REPEAT_INTERVALS = [14, 30, 60, 90];
 const DEFAULT_INTERVAL = 30;
+/**
+ * Bounds for a hand-entered repeat interval. The API only enforces `interval_days >= 1`;
+ * the upper bound is a UI sanity limit so "every N days" still reads as a repeat.
+ */
+const CUSTOM_INTERVAL_MIN = 1;
+const CUSTOM_INTERVAL_MAX = 365;
+
+/** Clamp a hand-typed interval, falling back to the default while the field is empty. */
+function clampCustomInterval(raw: string): number {
+  const value = Number.parseInt(raw, 10);
+  if (Number.isNaN(value)) return DEFAULT_INTERVAL;
+  return Math.min(CUSTOM_INTERVAL_MAX, Math.max(CUSTOM_INTERVAL_MIN, value));
+}
 
 type Phase = "editing" | "placing" | "placed" | "failed";
 
@@ -69,6 +82,10 @@ export default function CheckoutPage() {
   // assumed intent. When on, `intervalDays` is one of REPEAT_INTERVALS.
   const [repeat, setRepeat] = useState(false);
   const [intervalDays, setIntervalDays] = useState(DEFAULT_INTERVAL);
+  // When on, the interval comes from `customDays` (a raw string so the field can be
+  // cleared mid-edit) instead of the preset pills.
+  const [customInterval, setCustomInterval] = useState(false);
+  const [customDays, setCustomDays] = useState(String(DEFAULT_INTERVAL));
   const [recurringFailed, setRecurringFailed] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("editing");
@@ -90,11 +107,14 @@ export default function CheckoutPage() {
   const address = account.addresses.find((entry) => entry.id === addressId) ?? null;
   const loading = !planReady || !account.ready || !basket.ready;
 
+  // The interval that actually gets scheduled: a preset pill, or the hand-typed value.
+  const effectiveInterval = customInterval ? clampCustomInterval(customDays) : intervalDays;
+
   if (placed)
     return (
       <OrderPlaced
         order={placed}
-        repeat={repeat ? { intervalDays, failed: recurringFailed } : null}
+        repeat={repeat ? { intervalDays: effectiveInterval, failed: recurringFailed } : null}
       />
     );
 
@@ -181,9 +201,9 @@ export default function CheckoutPage() {
               label: "Repeat delivery",
               address: address.id,
               items: plan.lines.map((line) => ({ medicine: line.medicineId, quantity: line.quantity })),
-              interval_days: intervalDays,
+              interval_days: effectiveInterval,
               prescription_code: plan.lines.find((line) => line.prescriptionId)?.prescriptionId ?? "",
-              next_run_at: new Date(Date.now() + intervalDays * 86_400_000).toISOString()
+              next_run_at: new Date(Date.now() + effectiveInterval * 86_400_000).toISOString()
             })
           });
         } catch {
@@ -261,22 +281,55 @@ export default function CheckoutPage() {
               </ul>
 
               {repeat ? (
-                <div className="hc-windows" role="radiogroup" aria-label="Repeat every">
-                  {REPEAT_INTERVALS.map((days) => (
-                    <label
-                      key={days}
-                      className={`hc-window${intervalDays === days ? " hc-window-selected" : ""}`}
-                    >
+                <>
+                  <div className="hc-windows" role="radiogroup" aria-label="Repeat every">
+                    {REPEAT_INTERVALS.map((days) => (
+                      <label
+                        key={days}
+                        className={`hc-window${!customInterval && intervalDays === days ? " hc-window-selected" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="repeat-interval"
+                          checked={!customInterval && intervalDays === days}
+                          onChange={() => {
+                            setCustomInterval(false);
+                            setIntervalDays(days);
+                          }}
+                        />
+                        Every {days} days
+                      </label>
+                    ))}
+                    <label className={`hc-window${customInterval ? " hc-window-selected" : ""}`}>
                       <input
                         type="radio"
                         name="repeat-interval"
-                        checked={intervalDays === days}
-                        onChange={() => setIntervalDays(days)}
+                        checked={customInterval}
+                        onChange={() => setCustomInterval(true)}
                       />
-                      Every {days} days
+                      Custom
                     </label>
-                  ))}
-                </div>
+                  </div>
+
+                  {customInterval ? (
+                    <div className="hc-repeat-custom">
+                      <label htmlFor="repeat-custom-days">Every</label>
+                      <input
+                        id="repeat-custom-days"
+                        type="number"
+                        className="hc-input hc-input-inline"
+                        aria-label="Repeat every, in days"
+                        inputMode="numeric"
+                        min={CUSTOM_INTERVAL_MIN}
+                        max={CUSTOM_INTERVAL_MAX}
+                        value={customDays}
+                        onChange={(event) => setCustomDays(event.target.value.replace(/[^0-9]/g, ""))}
+                        onBlur={() => setCustomDays(String(clampCustomInterval(customDays)))}
+                      />
+                      <span>days</span>
+                    </div>
+                  ) : null}
+                </>
               ) : null}
             </CheckoutStep>
 
@@ -341,7 +394,7 @@ export default function CheckoutPage() {
               {repeat ? (
                 <div>
                   <dt>Repeats</dt>
-                  <dd>Every {intervalDays} days</dd>
+                  <dd>Every {effectiveInterval} days</dd>
                 </div>
               ) : null}
             </dl>

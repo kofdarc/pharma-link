@@ -1534,6 +1534,28 @@
   gap: 8px;
 }
 
+/* Custom repeat interval: the field revealed when the "Custom" pill is chosen.
+   Indented to line up with .hc-windows. */
+.hc-repeat-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-block-start: 10px;
+  padding-inline-start: 32px;
+  font-size: 0.875rem;
+  font-weight: 550;
+  color: var(--hc-ink-2);
+}
+
+.hc-input.hc-input-inline {
+  width: auto;
+  inline-size: 5.5rem;
+  min-height: 40px;
+  padding: 8px 12px;
+  text-align: center;
+  font-weight: 600;
+}
+
 .hc-verify {
   list-style: none;
   margin: 0;
