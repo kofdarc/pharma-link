@@ -53,15 +53,6 @@
   font-size: 19px;
 }
 
-.demo-eyebrow {
-  margin: 0 0 12px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #57d996;
-}
-
 .demo-headline {
   margin: 0;
   font-size: clamp(30px, 5.4vw, 52px);
@@ -74,14 +65,6 @@
 .demo-headline em {
   font-style: italic;
   color: #57d996;
-}
-
-.demo-lead {
-  margin: 18px auto 0;
-  max-width: 48ch;
-  font-size: clamp(15px, 2.2vw, 17px);
-  line-height: 1.6;
-  color: #a7c1cf;
 }
 
 .demo-frame {

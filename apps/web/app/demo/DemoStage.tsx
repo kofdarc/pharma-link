@@ -101,14 +101,9 @@ export function DemoStage() {
           <BrandLogo tone="on-dark" />
         </Link>
 
-        <p className="demo-eyebrow">Two-minute demo</p>
         <h1 className="demo-headline hc-display">
           See it <em>finally</em> connected.
         </h1>
-        <p className="demo-lead">
-          One unbroken walkthrough — a physician issues a prescription, a pharmacy
-          verifies and dispenses it, and a patient gets it delivered. No slides.
-        </p>
 
         <div className={`demo-frame${started ? " is-playing" : ""}`}>
           <video
