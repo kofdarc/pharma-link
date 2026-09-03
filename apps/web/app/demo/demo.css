@@ -152,6 +152,12 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  transition: opacity 200ms ease;
+}
+
+.demo-quality.is-hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .demo-quality-label {
@@ -225,7 +231,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .demo-play,
-  .demo-play-ring {
+  .demo-play-ring,
+  .demo-quality {
     transition: none;
   }
 }

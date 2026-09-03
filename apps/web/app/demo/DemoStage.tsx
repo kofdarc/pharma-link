@@ -52,10 +52,24 @@ export function DemoStage() {
   const [autoQuality, setAutoQuality] = useState<QualityId>("720p");
   // Stashed across a source swap so the viewer keeps their place.
   const resumeRef = useRef<{ at: number; play: boolean } | null>(null);
+  // Drives the quality pill's auto-hide, mirroring the native control bar.
+  const [playing, setPlaying] = useState(false);
+  const [pointerActive, setPointerActive] = useState(false);
+  const [menuFocused, setMenuFocused] = useState(false);
 
   useEffect(() => {
     setAutoQuality(pickAutoQuality());
   }, []);
+
+  // Fade the pill out after a beat of untouched playback; any pointer motion
+  // over the frame (below) brings it back.
+  useEffect(() => {
+    if (!playing || !pointerActive) return;
+    const timer = window.setTimeout(() => setPointerActive(false), 2500);
+    return () => window.clearTimeout(timer);
+  }, [playing, pointerActive]);
+
+  const hudVisible = !playing || pointerActive || menuFocused;
 
   const activeId: QualityId = mode === "auto" ? autoQuality : mode;
   const activeUrl = QUALITIES.find((q) => q.id === activeId)!.url;
@@ -105,7 +119,11 @@ export function DemoStage() {
           See it <em>finally</em> connected.
         </h1>
 
-        <div className={`demo-frame${started ? " is-playing" : ""}`}>
+        <div
+          className={`demo-frame${started ? " is-playing" : ""}`}
+          onPointerMove={() => setPointerActive(true)}
+          onPointerDown={() => setPointerActive(true)}
+        >
           <video
             key={activeUrl}
             ref={videoRef}
@@ -115,16 +133,21 @@ export function DemoStage() {
             preload="metadata"
             poster={DEMO_POSTER_URL}
             onLoadedMetadata={handleLoadedMetadata}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onEnded={() => setPlaying(false)}
           >
             <source src={activeUrl} type="video/mp4" />
           </video>
 
           {started ? (
-            <label className="demo-quality">
+            <label className={`demo-quality${hudVisible ? "" : " is-hidden"}`}>
               <span className="demo-quality-label">Quality</span>
               <select
                 className="demo-quality-select"
                 value={mode}
+                onFocus={() => setMenuFocused(true)}
+                onBlur={() => setMenuFocused(false)}
                 onChange={(event) =>
                   changeQuality(event.target.value as "auto" | QualityId)
                 }
